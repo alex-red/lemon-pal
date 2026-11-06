@@ -1,15 +1,25 @@
 "use client";
 
-import type { AgDataSourcesDefinition, AgFieldDefinition, AgReportState } from "ag-studio";
+import type {
+  AgDataEngine,
+  AgDataSourcesDefinition,
+  AgFieldDefinition,
+  AgReportState,
+  AgStudioReadyEvent,
+} from "ag-studio";
 import { AgStudio, AgStudioProvider } from "ag-studio-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RecapData } from "@/lib/recap";
 
-const POLL_MS = 3000;
+const POLL_MS = 2000;
 
 function moneyFormat(currency: string) {
   return { format: new Intl.NumberFormat(undefined, { style: "currency", currency }) };
 }
+
+// Studio's date formats need Date values; the API sends ISO strings.
+const saleRows = (recap: RecapData) => recap.sales.map((s) => ({ ...s, paidAt: new Date(s.paidAt) }));
+const lineRows = (recap: RecapData) => recap.lines.map((l) => ({ ...l, paidAt: new Date(l.paidAt) }));
 
 function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinition {
   const money = moneyFormat(currency);
@@ -35,13 +45,18 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
         id: "sales",
         name: "Sales",
         fields: saleFields,
-        data: recap.sales.map((s) => ({ ...s, paidAt: new Date(s.paidAt) })),
+        // New sales are added in place by transaction, keyed by sale id.
+        transactions: "add",
+        primaryKeyField: "id",
+        data: saleRows(recap),
       },
       {
         id: "lines",
         name: "Items sold",
         fields: lineFields,
-        data: recap.lines.map((l) => ({ ...l, paidAt: new Date(l.paidAt) })),
+        transactions: "add",
+        primaryKeyField: "id",
+        data: lineRows(recap),
       },
     ],
     relationships: [
@@ -100,40 +115,67 @@ const initialState: AgReportState = {
 };
 
 export function RecapStudio({ licenseKey, currency }: { licenseKey: string | null; currency: string }) {
-  const [recap, setRecap] = useState<RecapData | null>(null);
+  const [initial, setInitial] = useState<RecapData | null>(null);
+  const engine = useRef<AgDataEngine | null>(null);
 
-  // Poll for paid sales. Studio reloads only when the set of sales changes, so a new sale appears within seconds.
+  // Load paid sales once, then poll and add only sales Studio hasn't seen, so widgets update in place.
   useEffect(() => {
-    let signature = "";
+    const known = new Set<string>();
+    let loaded = false;
+    let busy = false;
     let stopped = false;
-    async function load() {
+
+    async function poll() {
+      if (busy || stopped) return;
+      busy = true;
       try {
         const res = await fetch("/api/stand/recap", { cache: "no-store" });
         if (!res.ok || stopped) return;
-        const next = (await res.json()) as RecapData;
-        const nextSignature = next.sales.map((s) => s.id).join(",");
-        if (nextSignature !== signature) {
-          signature = nextSignature;
-          setRecap(next);
+        const recap = (await res.json()) as RecapData;
+        if (!loaded) {
+          loaded = true;
+          recap.sales.forEach((s) => known.add(s.id));
+          setInitial(recap);
+          return;
         }
-      } catch {
-        // Keep showing the last data; the next poll retries.
+        const fresh = recap.sales.filter((s) => !known.has(s.id));
+        const apply = engine.current?.applyTransaction?.bind(engine.current);
+        // Until Studio is ready there's no engine; the next poll picks these sales up.
+        if (fresh.length === 0 || !apply) return;
+        const freshIds = new Set(fresh.map((s) => s.id));
+        const delta = { sales: fresh, lines: recap.lines.filter((l) => freshIds.has(l.saleId)) };
+        // Both tables change together or not at all.
+        await apply([
+          { tableId: "sales", add: saleRows(delta) },
+          { tableId: "lines", add: lineRows(delta) },
+        ]);
+        freshIds.forEach((id) => known.add(id));
+      } catch (error) {
+        console.error("Recap update failed", error);
+      } finally {
+        busy = false;
       }
     }
-    void load();
-    const timer = setInterval(load, POLL_MS);
+
+    void poll();
+    const timer = setInterval(poll, POLL_MS);
     return () => {
       stopped = true;
       clearInterval(timer);
     };
   }, []);
 
-  const data = useMemo(() => (recap ? toDataSources(recap, currency) : undefined), [recap, currency]);
+  // Built once from the first load; later sales arrive as transactions, not a new data prop.
+  const data = useMemo(() => (initial ? toDataSources(initial, currency) : undefined), [initial, currency]);
+
+  function onStudioReady(event: AgStudioReadyEvent) {
+    engine.current = event.api.getDataEngine() ?? null;
+  }
 
   return (
     <AgStudioProvider licenseKey={licenseKey ?? undefined}>
       <div style={{ height: "100%", width: "100%" }}>
-        <AgStudio data={data} initialState={initialState} mode="view" />
+        <AgStudio data={data} initialState={initialState} mode="view" onStudioReady={onStudioReady} />
       </div>
     </AgStudioProvider>
   );
