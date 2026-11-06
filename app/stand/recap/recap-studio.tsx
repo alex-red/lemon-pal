@@ -168,13 +168,13 @@ const initialState: AgReportState<RecapRegistry> = {
         },
       },
       widgetLayout: {
-        // Rows are 16px and every card has a 20px gap around it (studio-layout.css). The filter is sized to its
-        // content: 20px inset, title, 12px, label, 4px, a 44px row of buttons, 20px inset.
+        // Rows are 16px and cards sit 20px apart, so a card is 16n - 20px tall (see studio-layout.css). The
+        // filter is a title and one row of 44px buttons: exactly 9 rows.
         today: { xTrack: 0, yTrack: 0, xSpan: 9, ySpan: 13 },
         unitsChart: { xTrack: 9, yTrack: 0, xSpan: 15, ySpan: 13 },
-        itemFilter: { xTrack: 0, yTrack: 13, xSpan: 24, ySpan: 10 },
-        byItem: { xTrack: 0, yTrack: 23, xSpan: 10, ySpan: 17 },
-        sales: { xTrack: 10, yTrack: 23, xSpan: 14, ySpan: 17 },
+        itemFilter: { xTrack: 0, yTrack: 13, xSpan: 24, ySpan: 9 },
+        byItem: { xTrack: 0, yTrack: 22, xSpan: 10, ySpan: 17 },
+        sales: { xTrack: 10, yTrack: 22, xSpan: 14, ySpan: 17 },
       },
     },
   ],
