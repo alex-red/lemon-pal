@@ -84,8 +84,10 @@ const surfaces = {
   studioWidgetBorder: "0.5px solid var(--hairline)",
   studioWidgetBorderRadius: "var(--radius-card)",
   studioWidgetShadow: "var(--shadow-card)",
-  // Enough inset that titles clear the card's 22px corner.
-  studioWidgetPadding: 16,
+  // Half the gap between cards; with the canvas padding, every card has 20px around it. The card's own inner
+  // padding is in studio-layout.css, since the theme has no setting for it.
+  studioWidgetPadding: 10,
+  studioCanvasPadding: 10,
   studioWidgetNoDataOverlayBackgroundColor: "transparent",
   studioWidgetNoDataOverlayBorderWidth: 0,
   studioWidgetLoadingOverlayBackgroundColor: "transparent",

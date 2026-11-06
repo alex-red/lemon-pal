@@ -1,0 +1,51 @@
+/*
+ * Card spacing for AG Studio on the recap. Studio's theme has no setting for a widget card's inner padding, so
+ * these rules set one inset for every card: 20px on each side, matching the 20px gap between cards and around
+ * the canvas (studioWidgetPadding and studioCanvasPadding in studio-theme.ts). Titles and content share the
+ * same left edge. Scoped to .lemon-studio so nothing else changes.
+ */
+
+.lemon-studio {
+  --lemon-card-inset: 20px;
+  --lemon-title-gap: 12px;
+}
+
+.lemon-studio .ag-studio-layout-widget-container {
+  padding: var(--lemon-card-inset);
+}
+
+.lemon-studio .ag-studio-layout-widget-header:not(.ag-studio-layout-widget-header-hidden) {
+  margin: 0 0 var(--lemon-title-gap);
+}
+
+/* Studio sets the title with an inline `font:` shorthand, which resets line-height to normal: 24.5px for
+   Fraunces. The half pixel pushes the filter's buttons into a scrollbar, so use the kit's title-3 leading. */
+.lemon-studio .ag-studio-layout-widget-title {
+  line-height: var(--text-title3--line-height) !important;
+}
+
+/* Grid cells keep their own horizontal padding for space between columns. Pulling the grid out by that much
+   lines the first column's text up with the title. Matches gridCellHorizontalPadding. */
+.lemon-studio .ag-studio-layout-widget-body .ag-root-wrapper {
+  margin-inline: -12px;
+}
+
+/* The button filter's "Filter by" label and buttons sit on the same edge as the title. The label stays close
+   to the buttons it describes, which also brings the card to exactly 10 rows (see recap-studio.tsx). */
+.lemon-studio .ag-studio-filter-widget-title {
+  /* Footnote, like Studio's form labels in studio-theme.ts. 15px + 4px keeps the card at whole rows: 20 inset +
+     25 title + 12 gap + 19 label + 44 buttons + 20 inset = 140px, exactly 10 rows less the 20px gap. */
+  font-size: var(--text-footnote);
+  line-height: 15px;
+  padding: 0 0 4px;
+}
+
+.lemon-studio .ag-studio-filter-widget-content {
+  gap: 8px;
+  padding: 0;
+}
+
+/* Fixed-width digits in grid cells, so totals don't jitter as sales arrive. */
+.lemon-studio .ag-cell {
+  font-variant-numeric: tabular-nums;
+}

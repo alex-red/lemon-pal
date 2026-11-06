@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { RecapData } from "@/lib/recap";
 import { claudeAdapter } from "./claude-adapter";
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
+import "./studio-layout.css";
 import { TodaySalesWidget, type RecapRegistry, type TodaySalesDef } from "./today-widget";
 
 // Opening suggestions in the assistant panel. They show until the first message is sent.
@@ -167,12 +168,13 @@ const initialState: AgReportState<RecapRegistry> = {
         },
       },
       widgetLayout: {
-        // The filter's title takes about 70px, and its item buttons need 50px more below it.
+        // Rows are 16px and every card has a 20px gap around it (studio-layout.css). The filter is sized to its
+        // content: 20px inset, title, 12px, label, 4px, a 44px row of buttons, 20px inset.
         today: { xTrack: 0, yTrack: 0, xSpan: 9, ySpan: 13 },
         unitsChart: { xTrack: 9, yTrack: 0, xSpan: 15, ySpan: 13 },
-        itemFilter: { xTrack: 0, yTrack: 13, xSpan: 24, ySpan: 13 },
-        byItem: { xTrack: 0, yTrack: 26, xSpan: 10, ySpan: 16 },
-        sales: { xTrack: 10, yTrack: 26, xSpan: 14, ySpan: 16 },
+        itemFilter: { xTrack: 0, yTrack: 13, xSpan: 24, ySpan: 10 },
+        byItem: { xTrack: 0, yTrack: 23, xSpan: 10, ySpan: 17 },
+        sales: { xTrack: 10, yTrack: 23, xSpan: 14, ySpan: 17 },
       },
     },
   ],
@@ -241,8 +243,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
 
   return (
     <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
-      {/* Fixed-width digits in grid cells, so totals don't jitter as sales arrive. */}
-      <div className="[&_.ag-cell]:tabular-nums" style={{ height: "100%", width: "100%" }}>
+      <div className="lemon-studio" style={{ height: "100%", width: "100%" }}>
         <AgStudio<RecapRegistry>
           // Without an explicit size, Studio's own wrapper falls back to 600px tall.
           style={{ height: "100%", width: "100%" }}
