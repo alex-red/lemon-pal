@@ -53,7 +53,7 @@ export function TodaySalesWidget({ widgetApi, dataMapping }: AgWidgetParams<Toda
   const total = sum(gross.key);
   const unitCount = sum(units.key);
 
-  // No padding of its own: the card inset comes from studio-layout.css, as for every widget.
+  // No padding of its own: the card inset comes from studio-layout.ts, as for every widget.
   return (
     <div className="flex h-full flex-col justify-center gap-3 font-sans text-ink">
       <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">

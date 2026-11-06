@@ -6,6 +6,7 @@ import {
   type AgAiHarnessSetup,
   type AgAiPromptStarter,
   type AgStudioApi,
+  type AgStudioLocaleText,
   type AgDataEngine,
   type AgDataSourcesDefinition,
   type AgFieldDefinition,
@@ -18,7 +19,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { RecapData } from "@/lib/recap";
 import { claudeAdapter } from "./claude-adapter";
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
-import "./studio-layout.css";
 import { TodaySalesWidget, type RecapRegistry, type TodaySalesDef } from "./today-widget";
 
 // Opening suggestions in the assistant panel. They show until the first message is sent.
@@ -60,6 +60,10 @@ const widgets = createWidgets<RecapRegistry>({
     },
   ],
 });
+
+// The filter card's title already says what it filters, so drop Studio's "Filter by: Item" label.
+// studio-layout.ts hides the empty label.
+const localeText: AgStudioLocaleText = { filterWidgetFilterBy: "" };
 
 const POLL_MS = 2000;
 
@@ -168,7 +172,7 @@ const initialState: AgReportState<RecapRegistry> = {
         },
       },
       widgetLayout: {
-        // Rows are 16px and cards sit 20px apart, so a card is 16n - 20px tall (see studio-layout.css). The
+        // Rows are 16px and cards sit 20px apart, so a card is 16n - 20px tall (see studio-layout.ts). The
         // filter is a title and one row of 44px buttons: exactly 9 rows.
         today: { xTrack: 0, yTrack: 0, xSpan: 9, ySpan: 13 },
         unitsChart: { xTrack: 9, yTrack: 0, xSpan: 15, ySpan: 13 },
@@ -243,7 +247,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
 
   return (
     <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
-      <div className="lemon-studio" style={{ height: "100%", width: "100%" }}>
+      <div style={{ height: "100%", width: "100%" }}>
         <AgStudio<RecapRegistry>
           // Without an explicit size, Studio's own wrapper falls back to 600px tall.
           style={{ height: "100%", width: "100%" }}
@@ -251,6 +255,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
           initialState={initialState}
           widgets={widgets}
           theme={lemonTheme}
+          localeText={localeText}
           ai={ai}
           // The assistant adds and changes widgets, which needs edit mode.
           mode="edit"

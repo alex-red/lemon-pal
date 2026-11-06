@@ -24,6 +24,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `lib/store.ts` uses Node's built-in `node:sqlite` with one connection per process, at `DATABASE_PATH` (default `.data/lemonpal.sqlite`). It assumes a single instance, so don't deploy to serverless or scale out. Keep all persistence behind the `Store` interface, and use `updateSale` for any status change.
 - AG Studio is large. Import it only through `app/stand/recap/recap-loader.tsx`, which loads it on the client only.
 - The AG Studio assistant runs its loop in the browser and sends each turn to `/api/studio/llm` (`lib/studio-llm.ts`). Claude's assistant turns, thinking blocks included, are cached there by item id and replayed unchanged. Keep that cache when changing the adapter, or tool loops will fail.
+- Studio's theme lives in `app/stand/recap/studio-theme.ts`. Pass every color through its `c()` helper. Studio reads some colors back with `getComputedStyle` (widget titles, charts) and drops `oklch()`, so a bare `var(--ink)` renders black. Only set a param when the kit needs a different value than Studio derives from its parent. Card spacing CSS goes in the `studio-layout.ts` theme part, one Studio class per rule, and needs rechecking after any `ag-studio` upgrade.
 
 ## Payment rules
 

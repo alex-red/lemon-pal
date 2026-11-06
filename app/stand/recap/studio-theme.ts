@@ -6,10 +6,16 @@ import {
   type AgStudioTheme,
   type AgStudioThemeParams,
 } from "ag-studio";
+import { layoutPart } from "./studio-layout";
 
 // Citrus Glass for AG Studio. Every value is a kit token read as a CSS variable, so Studio follows light and
 // dark mode and Increase Contrast with the rest of the app. Sizes are rem-based text styles where Studio
 // accepts them, so text follows Dynamic Type.
+//
+// Set as few params as possible. Studio derives most params from a parent (gridFontFamily from
+// studioCanvasFontFamily, chartTextColor from textColor, studioPopupBackgroundColor from the panel's, and so
+// on), so only set one when the kit needs a different value than its parent would give. Card spacing and the
+// filter buttons, which have no params, are CSS in studio-layout.ts.
 
 // Studio reads some colors back with getComputedStyle (widget titles, charts) and only parses rgb() or
 // color(srgb …). Our tokens compute to oklch(), which it drops, so titles fell back to black. Mixing a token
@@ -33,28 +39,16 @@ const type = {
   accentColor: c("peel"),
 
   studioCanvasFontFamily: sans,
-  studioPanelHeaderFontFamily: sans,
   studioPanelHeaderFontSize: "var(--text-footnote)",
   studioPanelHeaderFontWeight: 600,
-  studioFormLabelColor: c("ink-2"),
   studioFormLabelFontSize: "var(--text-footnote)",
-  studioPopupTitleBarFontFamily: sans,
-  studioPopupTitleBarTextColor: c("ink"),
 
   studioWidgetTitleFontFamily: display,
   studioWidgetTitleFontSize: "var(--text-title3)",
   studioWidgetTitleFontWeight: 600,
-  studioWidgetTitleTextColor: c("ink"),
-  studioWidgetSubtitleFontFamily: sans,
   studioWidgetSubtitleFontSize: "var(--text-footnote)",
-  studioWidgetSubtitleTextColor: c("ink-2"),
-  studioWidgetCaptionFontFamily: sans,
   studioWidgetCaptionFontSize: "var(--text-caption)",
-  studioWidgetCaptionTextColor: c("ink-2"),
 
-  gridFontFamily: sans,
-  gridHeaderFontFamily: sans,
-  gridCellFontFamily: sans,
   gridFontSize: "var(--text-subhead)",
   gridHeaderFontSize: "var(--text-footnote)",
   gridHeaderFontWeight: 600,
@@ -85,7 +79,7 @@ const surfaces = {
   studioWidgetBorderRadius: "var(--radius-card)",
   studioWidgetShadow: "var(--shadow-card)",
   // Half the gap between cards; with the canvas padding, every card has 20px around it. The card's own inner
-  // padding is in studio-layout.css, since the theme has no setting for it.
+  // padding is in studio-layout.ts, since the theme has no setting for it.
   studioWidgetPadding: 10,
   studioCanvasPadding: 10,
   studioWidgetNoDataOverlayBackgroundColor: "transparent",
@@ -144,18 +138,11 @@ const palette = Object.fromEntries(
 
 // Charts draw to a canvas, so Studio reads these back as resolved values (see `c` above).
 const charts = {
-  chartFontFamily: sans,
-  chartTextColor: c("ink"),
-  chartSubtleTextColor: c("ink-2"),
   chartAxisLabelColor: c("ink-2"),
-  chartAxisLabelFontFamily: sans,
   chartAxisTitleColor: c("ink-2"),
-  chartAxisTitleFontFamily: sans,
   chartAxisLineColor: c("hairline"),
   chartGridLineColor: c("hairline"),
   chartLegendLabelColor: c("ink-2"),
-  chartLegendLabelFontFamily: sans,
-  chartSeriesLabelFontFamily: sans,
   chartTooltipBackgroundColor: c("surface"),
   chartTooltipTextColor: c("ink"),
   chartTooltipBorder: "0.5px solid var(--hairline)",
@@ -207,9 +194,7 @@ const controls = {
   inputPlaceholderTextColor: c("ink-3"),
   inputIconColor: c("ink-2"),
   inputInvalidBorder: "1px solid var(--berry)",
-  pickerButtonBorder: "1px solid var(--control-edge)",
   pickerButtonFocusBorder: "1px solid var(--focus)",
-  pickerButtonBackgroundColor: c("fill"),
   pickerListBackgroundColor: c("surface"),
   pickerListBorder: "0.5px solid var(--hairline)",
 
@@ -235,10 +220,6 @@ const controls = {
   studioToggleButtonActiveColor: c("ink"),
   studioIconButtonBorderRadius: 999,
   studioIconButtonHoverBackgroundColor: c("fill-2"),
-  studioIconButtonHoverColor: c("ink"),
-  studioPanelChevronButtonBorderRadius: 999,
-  studioPanelChevronButtonHoverBackgroundColor: c("fill-2"),
-  studioPanelChevronButtonHoverColor: c("ink"),
   studioWidgetSelectedBorderColor: c("focus"),
   studioWidgetResizeBorderColor: c("focus"),
 } as const;
@@ -258,11 +239,8 @@ const floating = {
   tooltipTextColor: c("on-ink"),
   tooltipBorder: false,
 
-  studioPopupBackgroundColor: c("surface"),
   studioPopupBorderRadius: "var(--radius-card)",
   studioPopupTitleBarBackgroundColor: "transparent",
-  studioPopupTitleBarBorder: "0.5px solid var(--hairline)",
-  studioPopupTitleBarIconColor: c("ink-2"),
 
   studioWidgetToolbarBackgroundColor: c("surface"),
   studioWidgetToolbarBorder: "0.5px solid var(--hairline)",
@@ -275,7 +253,6 @@ const floating = {
 const assistant = {
   studioAiPanelInputMessageBackgroundColor: c("fill-2"),
   studioAiPanelRichTextAccentBackgroundColor: c("fill"),
-  studioAiPanelButtonHoverBackgroundColor: c("fill-2"),
 } as const;
 
 // Studio's icons redrawn in the kit's symbol style: a 24pt grid, 1.75 strokes, round caps and joins. Studio
@@ -321,7 +298,7 @@ const kitIcons = studioIconOverrides({
 // params out.
 const base = studioTheme as AgStudioTheme<AgStudioThemeParams & AgPartStyleParams>;
 
-export const lemonTheme = base.withPart(kitIcons).withParams({
+export const lemonTheme = base.withPart(kitIcons).withPart(layoutPart).withParams({
   ...type,
   ...surfaces,
   ...grids,
