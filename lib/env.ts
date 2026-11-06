@@ -1,0 +1,17 @@
+import "server-only";
+
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing environment variable ${name}. See .env.example.`);
+  return value;
+}
+
+export const env = {
+  paypalClientId: () => required("PAYPAL_CLIENT_ID"),
+  paypalClientSecret: () => required("PAYPAL_CLIENT_SECRET"),
+  paypalApiBase: () =>
+    process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com",
+  currency: () => process.env.STAND_CURRENCY || "USD",
+  anthropicApiKey: () => required("ANTHROPIC_API_KEY"),
+  publicAppUrl: () => process.env.PUBLIC_APP_URL || null,
+};
