@@ -1,31 +1,417 @@
 @import "tailwindcss";
 
-:root {
-  --background: #fffbea;
-  --foreground: #1f1a05;
-  --lemon: #ffe14d;
-  --lemon-deep: #f2c200;
-  --leaf: #3f8f3a;
-}
+/*
+ * Citrus Glass — the LemonPal design kit.
+ *
+ * Warm paper canvas, translucent "liquid glass" chrome that floats over content,
+ * and one loud accent: lemon. Tokens follow Apple's semantic layering
+ * (label / secondary / tertiary, fills, separators, materials) so components
+ * describe intent, not hex values. See /kit for the living reference.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-lemon: var(--lemon);
-  --color-lemon-deep: var(--lemon-deep);
-  --color-leaf: var(--leaf);
-  --font-sans: var(--font-geist-sans);
+:root {
+  color-scheme: light dark;
+
+  /* Canvas and surfaces */
+  --canvas: oklch(0.985 0.014 95);
+  --canvas-raised: oklch(0.995 0.006 95);
+  --surface: oklch(1 0 0);
+
+  /* Labels (text). ink-3 is for large text, placeholders and disabled states only. */
+  --ink: oklch(0.23 0.03 85);
+  --ink-2: oklch(0.43 0.025 85);
+  --ink-3: oklch(0.6 0.02 85);
+  --on-ink: oklch(0.985 0.014 95);
+
+  /* Fills and separators, tinted with ink so they work over any surface */
+  --fill: oklch(0.23 0.03 85 / 0.055);
+  --fill-2: oklch(0.23 0.03 85 / 0.09);
+  --fill-3: oklch(0.23 0.03 85 / 0.14);
+  --hairline: oklch(0.23 0.03 85 / 0.12);
+
+  /* Accent and semantics. Each has a soft fill and a text-safe "deep" tone. */
+  --lemon: oklch(0.91 0.17 100);
+  --lemon-deep: oklch(0.83 0.17 88);
+  --lemon-soft: oklch(0.91 0.17 100 / 0.32);
+  --peel: oklch(0.5 0.11 75);
+  --leaf: oklch(0.56 0.14 145);
+  --leaf-soft: oklch(0.56 0.14 145 / 0.14);
+  --pool: oklch(0.53 0.16 252);
+  --pool-soft: oklch(0.53 0.16 252 / 0.12);
+  --berry: oklch(0.56 0.2 22);
+  --berry-soft: oklch(0.56 0.2 22 / 0.12);
+
+  /* Materials (liquid glass) */
+  --glass: oklch(0.995 0.01 95 / 0.62);
+  --glass-thin: oklch(0.995 0.01 95 / 0.4);
+  --glass-thick: oklch(0.995 0.01 95 / 0.82);
+  --glass-rim: oklch(0.23 0.03 85 / 0.08);
+  --glass-specular: oklch(1 0 0 / 0.9);
+  --glass-glow: oklch(1 0 0 / 0.5);
+
+  /* Atmosphere behind everything */
+  --mesh-a: oklch(0.93 0.13 100 / 0.55);
+  --mesh-b: oklch(0.86 0.1 145 / 0.28);
+  --mesh-c: oklch(0.9 0.07 60 / 0.35);
+
+  --shadow-color: 85 30% 15%;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #17150a;
-    --foreground: #fdf7d8;
+  :root:not([data-theme="light"]) {
+    --canvas: oklch(0.165 0.012 85);
+    --canvas-raised: oklch(0.205 0.012 85);
+    --surface: oklch(0.235 0.012 85);
+
+    --ink: oklch(0.97 0.014 95);
+    --ink-2: oklch(0.8 0.016 95);
+    --ink-3: oklch(0.62 0.016 95);
+    --on-ink: oklch(0.18 0.02 85);
+
+    --fill: oklch(0.97 0.014 95 / 0.07);
+    --fill-2: oklch(0.97 0.014 95 / 0.11);
+    --fill-3: oklch(0.97 0.014 95 / 0.17);
+    --hairline: oklch(0.97 0.014 95 / 0.13);
+
+    --lemon: oklch(0.89 0.17 100);
+    --lemon-deep: oklch(0.8 0.16 90);
+    --lemon-soft: oklch(0.89 0.17 100 / 0.18);
+    --peel: oklch(0.87 0.14 95);
+    --leaf: oklch(0.78 0.17 145);
+    --leaf-soft: oklch(0.78 0.17 145 / 0.16);
+    --pool: oklch(0.76 0.13 250);
+    --pool-soft: oklch(0.76 0.13 250 / 0.16);
+    --berry: oklch(0.72 0.17 22);
+    --berry-soft: oklch(0.72 0.17 22 / 0.16);
+
+    --glass: oklch(0.26 0.012 85 / 0.58);
+    --glass-thin: oklch(0.26 0.012 85 / 0.38);
+    --glass-thick: oklch(0.24 0.012 85 / 0.84);
+    --glass-rim: oklch(1 0 0 / 0.1);
+    --glass-specular: oklch(1 0 0 / 0.22);
+    --glass-glow: oklch(1 0 0 / 0.06);
+
+    --mesh-a: oklch(0.55 0.12 100 / 0.22);
+    --mesh-b: oklch(0.5 0.1 145 / 0.16);
+    --mesh-c: oklch(0.45 0.08 60 / 0.16);
+
+    --shadow-color: 85 30% 2%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+@media (prefers-contrast: more) {
+  :root {
+    --ink-2: var(--ink);
+    --hairline: oklch(from var(--ink) l c h / 0.4);
+    --glass-rim: oklch(from var(--ink) l c h / 0.35);
+  }
+}
+
+@theme inline {
+  /* Legacy names used by the first screens. Keep until they move to the kit. */
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+
+  --color-canvas: var(--canvas);
+  --color-canvas-raised: var(--canvas-raised);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-on-ink: var(--on-ink);
+  --color-fill: var(--fill);
+  --color-fill-2: var(--fill-2);
+  --color-fill-3: var(--fill-3);
+  --color-hairline: var(--hairline);
+  --color-lemon: var(--lemon);
+  --color-lemon-deep: var(--lemon-deep);
+  --color-lemon-soft: var(--lemon-soft);
+  --color-peel: var(--peel);
+  --color-leaf: var(--leaf);
+  --color-leaf-soft: var(--leaf-soft);
+  --color-pool: var(--pool);
+  --color-pool-soft: var(--pool-soft);
+  --color-berry: var(--berry);
+  --color-berry-soft: var(--berry-soft);
+
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+@theme {
+  /* Type ramp after Apple's text styles, tuned up a step for an arm's-length tablet. */
+  --text-hero: 5rem;
+  --text-hero--line-height: 0.95;
+  --text-hero--letter-spacing: -0.035em;
+  --text-large-title: 2.375rem;
+  --text-large-title--line-height: 1.08;
+  --text-large-title--letter-spacing: -0.022em;
+  --text-title1: 1.75rem;
+  --text-title1--line-height: 1.15;
+  --text-title1--letter-spacing: -0.016em;
+  --text-title2: 1.375rem;
+  --text-title2--line-height: 1.2;
+  --text-title2--letter-spacing: -0.012em;
+  --text-title3: 1.25rem;
+  --text-title3--line-height: 1.25;
+  --text-title3--letter-spacing: -0.01em;
+  --text-headline: 1.0625rem;
+  --text-headline--line-height: 1.35;
+  --text-headline--font-weight: 600;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.45;
+  --text-callout: 1rem;
+  --text-callout--line-height: 1.4;
+  --text-subhead: 0.9375rem;
+  --text-subhead--line-height: 1.38;
+  --text-footnote: 0.8125rem;
+  --text-footnote--line-height: 1.38;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.33;
+  --text-caption--letter-spacing: 0.01em;
+
+  /* Concentric corners: an inner radius is the outer radius minus the padding between them. */
+  --radius-chip: 10px;
+  --radius-field: 14px;
+  --radius-card: 22px;
+  --radius-tile: 30px;
+  --radius-sheet: 38px;
+
+  /* Elevation, soft and warm rather than grey */
+  --shadow-hairline: 0 0 0 0.5px var(--hairline);
+  --shadow-card: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 6px 20px -8px hsl(var(--shadow-color) / 0.14);
+  --shadow-float:
+    0 1px 1px hsl(var(--shadow-color) / 0.04), 0 8px 24px -6px hsl(var(--shadow-color) / 0.18),
+    0 28px 60px -20px hsl(var(--shadow-color) / 0.22);
+  --shadow-lift:
+    0 2px 4px hsl(var(--shadow-color) / 0.06), 0 18px 40px -12px hsl(var(--shadow-color) / 0.28),
+    0 50px 100px -40px hsl(var(--shadow-color) / 0.35);
+
+  /* Motion. Springs via linear(): a lively one for touch, a calm one for layout. */
+  --ease-spring: linear(
+    0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%,
+    1.006 50.1%, 1.015 55%, 1.017 63.9%, 1.001 85.9%, 1
+  );
+  --ease-bounce: linear(
+    0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077, 1.121, 1.149 24.3%, 1.159, 1.163,
+    1.161, 1.154 29.9%, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.974 53.8%, 0.975 57.1%,
+    0.997 69.8%, 1.003 76.9%, 1
+  );
+  --ease-glide: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-pop: pop 700ms var(--ease-bounce) both;
+  --animate-rise: rise 600ms var(--ease-spring) both;
+  --animate-ripple: ripple 1.4s var(--ease-glide) both;
+  --animate-activity: activity 0.9s steps(8) infinite;
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.4);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.985);
+      filter: blur(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+  }
+  @keyframes ripple {
+    from {
+      opacity: 0.55;
+      transform: scale(0.6);
+    }
+    to {
+      opacity: 0;
+      transform: scale(2.4);
+    }
+  }
+  @keyframes activity {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+/* Liquid glass. A tinted, saturated blur with a specular top edge and a hairline rim. */
+@utility glass {
+  background:
+    radial-gradient(140% 90% at 50% -20%, var(--glass-glow), transparent 55%),
+    var(--glass);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-specular),
+    inset 0 0 0 0.5px var(--glass-rim),
+    var(--shadow-float);
+}
+@utility glass-thin {
+  background: var(--glass-thin);
+  backdrop-filter: blur(16px) saturate(170%);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-specular),
+    inset 0 0 0 0.5px var(--glass-rim);
+}
+@utility glass-thick {
+  background:
+    radial-gradient(140% 90% at 50% -20%, var(--glass-glow), transparent 55%),
+    var(--glass-thick);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-specular),
+    inset 0 0 0 0.5px var(--glass-rim),
+    var(--shadow-lift);
+}
+
+/* Touch feedback: everything tappable dips under the finger and springs back. */
+@utility pressable {
+  transition:
+    transform 520ms var(--ease-spring),
+    background-color 200ms var(--ease-glide),
+    box-shadow 300ms var(--ease-glide),
+    opacity 200ms var(--ease-glide);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  &:active:not(:disabled) {
+    transform: scale(0.955);
+    transition-duration: 90ms, 120ms, 120ms, 120ms;
+  }
+}
+
+/* Fraunces with its soft, slightly wonky cut: friendly like a hand-painted sign. */
+@utility font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings:
+    "SOFT" 100,
+    "WONK" 1;
+}
+
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--canvas),
+      0 0 0 5px var(--lemon-deep);
+  }
+}
+
+@layer base {
+  html {
+    background: var(--canvas);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--canvas);
+    background-image:
+      radial-gradient(60vmax 45vmax at 8% -10%, var(--mesh-a), transparent 70%),
+      radial-gradient(50vmax 40vmax at 105% 15%, var(--mesh-b), transparent 70%),
+      radial-gradient(55vmax 45vmax at 60% 115%, var(--mesh-c), transparent 70%);
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Film grain so the gradients read as paper, not plastic. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  body > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  ::selection {
+    background: var(--lemon);
+    color: oklch(0.23 0.03 85);
+  }
+
+  /* Native <dialog> sheets: spring in, fade out. */
+  dialog[data-sheet] {
+    transition:
+      opacity 260ms var(--ease-glide),
+      transform 560ms var(--ease-spring),
+      overlay 260ms allow-discrete,
+      display 260ms allow-discrete;
+    opacity: 0;
+    transform: translateY(32px) scale(0.97);
+  }
+  dialog[data-sheet][open] {
+    opacity: 1;
+    transform: none;
+  }
+  @starting-style {
+    dialog[data-sheet][open] {
+      opacity: 0;
+      transform: translateY(32px) scale(0.97);
+    }
+  }
+  dialog[data-sheet]::backdrop {
+    background: oklch(0.2 0.03 85 / 0);
+    backdrop-filter: blur(0);
+    transition:
+      background 260ms var(--ease-glide),
+      backdrop-filter 260ms var(--ease-glide),
+      overlay 260ms allow-discrete,
+      display 260ms allow-discrete;
+  }
+  dialog[data-sheet][open]::backdrop {
+    background: oklch(0.2 0.03 85 / 0.32);
+    backdrop-filter: blur(6px);
+  }
+  @starting-style {
+    dialog[data-sheet][open]::backdrop {
+      background: oklch(0.2 0.03 85 / 0);
+      backdrop-filter: blur(0);
+    }
+  }
+}
+
+/* Accessibility settings win over decoration. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-thin,
+  .glass-thick {
+    background: var(--canvas-raised);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  dialog[data-sheet],
+  dialog[data-sheet]::backdrop {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  .pressable:active:not(:disabled) {
+    transform: none;
+  }
 }
