@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { env } from "@/lib/env";
-import { GroupedList, LemonIcon, ListRow, Money, PaidMoment, SaleStatusPill, TagIcon } from "@/components/kit";
+import { BoxIcon, GroupedList, LemonIcon, ListRow, Money, PaidMoment, PinIcon, SaleStatusPill, TagIcon } from "@/components/kit";
 import { dealLabel, lineTotalCents } from "@/lib/deals";
 import { formatMoney } from "@/lib/money";
 import { store } from "@/lib/store";
@@ -14,6 +14,10 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
   const sale = await store.getSale(saleId);
   if (!sale) notFound();
   const stand = await store.getStand(sale.standId);
+  const online = sale.channel === "online";
+  const storefront = online ? await store.getStorefront(sale.standId) : null;
+  const storeUrl = storefront ? `/${storefront.slug}` : undefined;
+  const fulfillment = sale.fulfillment;
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 pt-10 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
@@ -23,7 +27,7 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
         </span>
         <div className="flex flex-col gap-0.5">
           <p className="text-footnote font-semibold text-ink-2">You’re paying</p>
-          <h1 className="font-display text-large-title font-semibold text-balance">{stand?.name || "Lemon Pal"}</h1>
+          <h1 className="font-display text-large-title font-semibold text-balance">{storefront?.title || stand?.name || "Lemon Pal"}</h1>
         </div>
         <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
       </header>
@@ -50,19 +54,42 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
               trailing={<span className="text-leaf">−{formatMoney(line.discountCents!, sale.currency)}</span>}
             />
           ))}
+        {fulfillment?.method === "ship" ? (
+          <ListRow
+            icon={<BoxIcon />}
+            iconTone="pool"
+            title="Shipping"
+            subtitle={
+              fulfillment.address
+                ? `To ${[fulfillment.address.city, fulfillment.address.region].filter(Boolean).join(", ")}`
+                : "PayPal asks where to send it"
+            }
+            trailing={sale.shippingCents ? formatMoney(sale.shippingCents, sale.currency) : "Free"}
+          />
+        ) : null}
+        {fulfillment?.method === "pickup" ? (
+          <ListRow icon={<PinIcon />} title="Pickup" subtitle={storefront?.pickupNote || "Collect it from the seller"} trailing="Free" />
+        ) : null}
       </GroupedList>
 
       {sale.status === "paid" ? (
         <PaidMoment
           cents={sale.totalCents}
           currency={sale.currency}
-          caption="Thank you! PayPal will email you a receipt."
+          caption={
+            fulfillment?.method === "ship"
+              ? "Thank you! PayPal will email you a receipt, and the seller will post your order."
+              : "Thank you! PayPal will email you a receipt."
+          }
           className="pt-4"
         />
       ) : sale.status === "canceled" ? (
         <div className="flex flex-col items-center gap-3 pt-2 text-center">
           <SaleStatusPill status="canceled" />
-          <p className="text-body text-ink-2">The seller canceled this sale. Ask them for a new code.</p>
+          <p className="text-body text-ink-2">
+            {online ? "This order can’t be paid any more. Start a new one from the store." : "The seller canceled this sale. Ask them for a new code."}
+          </p>
+          {storeUrl ? <StoreLink href={storeUrl} /> : null}
         </div>
       ) : (
         <Checkout
@@ -71,8 +98,26 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
           sdkUrl={env.paypalSdkUrl()}
           currency={sale.currency}
           totalCents={sale.totalCents}
+          storeUrl={storeUrl}
         />
       )}
+
+      {sale.status === "paid" && storeUrl ? (
+        <div className="flex justify-center">
+          <StoreLink href={storeUrl} />
+        </div>
+      ) : null}
     </main>
+  );
+}
+
+function StoreLink({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      className="pressable focus-ring inline-flex h-11 items-center rounded-full bg-fill-2 px-5 text-callout font-semibold text-ink hover:bg-fill-3"
+    >
+      Back to the store
+    </a>
   );
 }

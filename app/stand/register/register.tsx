@@ -4,6 +4,7 @@ import Link from "next/link";
 import { addTransitionType, startTransition, useEffect, useMemo, useRef, useState, ViewTransition } from "react";
 import {
   ArrowUturnIcon,
+  BoxIcon,
   Button,
   CameraIcon,
   ChartIcon,
@@ -56,6 +57,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
   const [charging, setCharging] = useState(false);
   const dingedSaleId = useRef<string | null>(null);
   const compactBar = useScrollCompact();
+  const online = useOnlineOrders(sale === null);
 
   // Ding once per sale, even if two status checks both see it paid.
   function dingFor(saleId: string) {
@@ -230,6 +232,19 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
           <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
             <ChartIcon /> Recap
           </Link>
+          <Link
+            href="/stand/orders"
+            transitionTypes={["nav-forward"]}
+            className={toolbarLink}
+            aria-label={online.waiting ? `Online orders, ${online.waiting} waiting` : "Online orders"}
+          >
+            <BoxIcon /> Orders
+            {online.waiting ? (
+              <span aria-hidden className="-mr-1 grid h-6 min-w-6 place-items-center rounded-full bg-ink px-1.5 text-footnote font-bold tabular-nums text-on-ink">
+                {online.waiting}
+              </span>
+            ) : null}
+          </Link>
         </Toolbar>
       </header>
 
@@ -251,6 +266,15 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
       </div>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {online.fresh ? (
+          <Link
+            href="/stand/orders"
+            role="status"
+            className="glass pointer-events-auto inline-flex h-11 animate-pop items-center gap-2 rounded-full px-5 text-subhead font-semibold text-pool [&_svg]:text-[1.15em]"
+          >
+            <BoxIcon /> New online order
+          </Link>
+        ) : null}
         {error ? (
           <p role="alert" className="glass pointer-events-auto rounded-full px-4 py-2 text-subhead font-semibold text-berry">
             {error}
@@ -298,5 +322,46 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
   );
 }
 
+// Narrow phones: no icons and less padding, so three links fit a 320px screen's column.
 const toolbarLink =
-  "pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full px-5 text-callout font-semibold text-ink hover:bg-fill-2 [&_svg]:text-[1.15em]";
+  "pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full px-5 text-callout font-semibold text-ink hover:bg-fill-2 [&_svg]:text-[1.15em] max-[24rem]:px-3.5 max-[24rem]:[&_svg]:hidden";
+
+/**
+ * Watches for paid online orders while the register is open, so a seller at the stand hears about them.
+ * Dings only when no in-person sale is on screen, so an online order is never mistaken for the buyer in front of them.
+ */
+function useOnlineOrders(canDing: boolean) {
+  const [waiting, setWaiting] = useState(0);
+  const [fresh, setFresh] = useState(false);
+  const latest = useRef<string | null | undefined>(undefined);
+  const dingAllowed = useRef(canDing);
+  useEffect(() => {
+    dingAllowed.current = canDing;
+  }, [canDing]);
+
+  useEffect(() => {
+    let hide: ReturnType<typeof setTimeout> | undefined;
+    async function check() {
+      const res = await fetch("/api/stand/orders?summary=1", { cache: "no-store" }).catch(() => null);
+      if (!res?.ok) return;
+      const json = (await res.json()) as { waiting: number; latestPaidAt: string | null };
+      setWaiting(json.waiting);
+      // The first check only sets the baseline: orders from before the register opened aren't news.
+      if (latest.current !== undefined && json.latestPaidAt && json.latestPaidAt !== latest.current) {
+        if (dingAllowed.current) playDing();
+        setFresh(true);
+        clearTimeout(hide);
+        hide = setTimeout(() => setFresh(false), 8000);
+      }
+      latest.current = json.latestPaidAt;
+    }
+    void check();
+    const timer = setInterval(check, 15_000);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(hide);
+    };
+  }, []);
+
+  return { waiting, fresh };
+}

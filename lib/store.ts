@@ -2,7 +2,10 @@ import "server-only";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { Sale, Stand } from "./types";
+import type { Sale, Stand, Storefront } from "./types";
+
+/** Thrown by saveStorefront when another stand already has the slug. */
+export class SlugTakenError extends Error {}
 
 /** Persistence boundary. Every read and write of stands and sales goes through here. */
 export interface Store {
@@ -18,6 +21,10 @@ export interface Store {
   listSales(standId: string): Promise<Sale[]>;
   /** Deletes a stand's sales. Used by the demo reset. */
   clearSales(standId: string): Promise<void>;
+  getStorefront(standId: string): Promise<Storefront | null>;
+  getStorefrontBySlug(slug: string): Promise<Storefront | null>;
+  /** Creates or replaces a stand's storefront. Throws SlugTakenError when another stand has the slug. */
+  saveStorefront(storefront: Storefront): Promise<void>;
 }
 
 /**
@@ -46,6 +53,11 @@ class SqliteStore implements Store {
         doc TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS sales_by_stand ON sales (stand_id, created_at);
+      CREATE TABLE IF NOT EXISTS storefronts (
+        stand_id TEXT PRIMARY KEY,
+        slug TEXT NOT NULL UNIQUE,
+        doc TEXT NOT NULL
+      );
     `);
   }
 
@@ -107,6 +119,33 @@ class SqliteStore implements Store {
   async clearSales(standId: string) {
     this.db.prepare("DELETE FROM sales WHERE stand_id = ?").run(standId);
   }
+
+  async getStorefront(standId: string) {
+    const row = this.db.prepare("SELECT doc FROM storefronts WHERE stand_id = ?").get(standId) as { doc: string } | undefined;
+    return row ? (JSON.parse(row.doc) as Storefront) : null;
+  }
+
+  async getStorefrontBySlug(slug: string) {
+    const row = this.db.prepare("SELECT doc FROM storefronts WHERE slug = ?").get(slug) as { doc: string } | undefined;
+    return row ? (JSON.parse(row.doc) as Storefront) : null;
+  }
+
+  async saveStorefront(storefront: Storefront) {
+    // The UNIQUE slug column settles a race between two stands claiming one handle: the second write fails.
+    try {
+      this.db
+        .prepare(
+          `INSERT INTO storefronts (stand_id, slug, doc) VALUES (?, ?, ?)
+           ON CONFLICT (stand_id) DO UPDATE SET slug = excluded.slug, doc = excluded.doc`,
+        )
+        .run(storefront.standId, storefront.slug, JSON.stringify(storefront));
+    } catch (error) {
+      if (error instanceof Error && /UNIQUE constraint failed: storefronts\.slug/.test(error.message)) {
+        throw new SlugTakenError(storefront.slug);
+      }
+      throw error;
+    }
+  }
 }
 
 export function databasePath() {
@@ -116,10 +155,17 @@ export function databasePath() {
 
 // Opened on first use, not at import, so `next build` doesn't create a database file.
 // One connection per process, kept across dev hot reloads.
-const globalForStore = globalThis as unknown as { lemonpalSqliteStore?: Store };
+// Bump SCHEMA when the tables or Store methods change, so a running dev server opens a fresh connection
+// instead of keeping one from before the change.
+const SCHEMA = 2;
+const globalForStore = globalThis as unknown as { lemonpalSqliteStore?: { schema: number; store: Store } };
 
 function instance(): Store {
-  return (globalForStore.lemonpalSqliteStore ??= new SqliteStore(databasePath()));
+  const cached = globalForStore.lemonpalSqliteStore;
+  if (cached?.schema === SCHEMA) return cached.store;
+  const store = new SqliteStore(databasePath());
+  globalForStore.lemonpalSqliteStore = { schema: SCHEMA, store };
+  return store;
 }
 
 export const store: Store = {
@@ -130,4 +176,7 @@ export const store: Store = {
   updateSale: (id, change) => instance().updateSale(id, change),
   listSales: (standId) => instance().listSales(standId),
   clearSales: (standId) => instance().clearSales(standId),
+  getStorefront: (standId) => instance().getStorefront(standId),
+  getStorefrontBySlug: (slug) => instance().getStorefrontBySlug(slug),
+  saveStorefront: (storefront) => instance().saveStorefront(storefront),
 };

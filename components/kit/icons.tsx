@@ -154,6 +154,34 @@ export const WalletIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const BagIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5.5 8h13l-1 11.1a1.5 1.5 0 0 1-1.5 1.4H8a1.5 1.5 0 0 1-1.5-1.4Z" />
+    <path d="M9 10.5V7a3 3 0 0 1 6 0v3.5" />
+  </Icon>
+);
+
+export const BoxIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m12 3.5 7.5 4v9L12 20.5l-7.5-4v-9Z" />
+    <path d="m4.5 7.5 7.5 4 7.5-4M12 11.5v9M8.25 5.5l7.5 4" />
+  </Icon>
+);
+
+export const PinIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 20.5s-6.5-5.6-6.5-10.75a6.5 6.5 0 0 1 13 0C18.5 14.9 12 20.5 12 20.5Z" />
+    <circle cx="12" cy="9.75" r="2.25" />
+  </Icon>
+);
+
+export const LinkIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+  </Icon>
+);
+
 /** The flat Lemon Pal mark for in-app use. */
 export const LemonIcon = (p: IconProps) => (
   <Icon {...p}>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import {
+  AddressBlock,
   Button,
   CameraIcon,
   Card,
@@ -9,6 +10,7 @@ import {
   ConfidencePill,
   FirstSalePill,
   CountBadge,
+  FulfillmentPill,
   Glass,
   GroupedList,
   LemonIcon,
@@ -24,6 +26,7 @@ import {
   ScrollEdge,
   SparklesIcon,
   Spinner,
+  StorefrontHeader,
   WalletIcon,
   XmarkIcon,
 } from "@/components/kit";
@@ -501,6 +504,39 @@ export default function KitPage() {
           <Card className="mt-6 grid place-items-center p-10">
             <PaidMoment cents={650} currency="USD" />
           </Card>
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <Card className="flex flex-col gap-4 p-6">
+              <div className="flex flex-col gap-1">
+                <h3 className="font-display text-title2 font-semibold">Online store</h3>
+                <p className="text-subhead text-ink-2">
+                  StorefrontHeader tops a seller&rsquo;s store at /&lt;handle&gt;, and the editor previews with the same component.
+                  Without a photo, the banner is a wash of the store&rsquo;s accent: lemon, leaf or berry.
+                </p>
+              </div>
+              <StorefrontHeader
+                title="Sunny Side Stand"
+                intro={"Fresh-squeezed every morning.\nPick up by the park gate, or we\u2019ll post the merch."}
+                accent="leaf"
+              />
+            </Card>
+            <Card className="flex flex-col gap-5 p-6">
+              <div className="flex flex-col gap-1">
+                <h3 className="font-display text-title2 font-semibold">Orders</h3>
+                <p className="text-subhead text-ink-2">FulfillmentPill says where an online order is. AddressBlock lays out a shipping label.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <FulfillmentPill fulfillment={{ status: "to_ship" }} />
+                <FulfillmentPill fulfillment={{ status: "shipped" }} />
+                <FulfillmentPill fulfillment={{ status: "to_collect" }} />
+                <FulfillmentPill fulfillment={{ status: "collected" }} />
+              </div>
+              {/* A made-up address. Never put a real buyer's address in the kit. */}
+              <AddressBlock
+                recipient="Pat Example"
+                address={{ line1: "123 Citrus Lane", line2: "Unit 4", city: "Springfield", region: "OR", postalCode: "97000", country: "US" }}
+              />
+            </Card>
+          </div>
           <Card className="mt-6 flex flex-col gap-6 p-6 sm:p-8">
             <div className="flex flex-col gap-1">
               <h3 className="font-display text-title2 font-semibold">The lemon code</h3>

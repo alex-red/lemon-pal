@@ -1,4 +1,4 @@
-import { CameraIcon, ChartIcon, GroupedList, LemonIcon, ListRow, PageTransition, QrCodeIcon } from "@/components/kit";
+import { CameraIcon, ChartIcon, GroupedList, LemonIcon, LinkIcon, ListRow, PageTransition, QrCodeIcon } from "@/components/kit";
 
 export default function Home() {
   return (
@@ -22,6 +22,13 @@ export default function Home() {
             title="Take a payment"
             subtitle="Tap what they bought, they scan and pay"
             href="/stand/register"
+          />
+          <ListRow
+            icon={<LinkIcon />}
+            iconTone="pool"
+            title="Open an online store"
+            subtitle="Your own link for pickup and shipped orders"
+            href="/stand/store"
           />
           <ListRow icon={<ChartIcon />} iconTone="leaf" title="See your sales" subtitle="What sold and what you made" href="/stand/recap" />
         </GroupedList>

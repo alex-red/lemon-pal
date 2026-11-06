@@ -15,7 +15,7 @@ const SAMPLES = {
     items: [
       { id: "lemonade", name: "Lemonade", priceCents: 300, emoji: "🍋" },
       { id: "cookie", name: "Cookie", priceCents: 150, emoji: "🍪" },
-      { id: "sticker", name: "Sticker", priceCents: 200, emoji: "⭐" },
+      { id: "sticker", name: "Sticker", priceCents: 200, emoji: "⭐", ships: true },
     ],
   },
   "bake-sale": {
@@ -32,10 +32,10 @@ const SAMPLES = {
     name: "Merch Table",
     emoji: "🎨",
     items: [
-      { id: "print", name: "Art print", priceCents: 2000, emoji: "🖼️" },
-      { id: "sticker-pack", name: "Sticker pack", priceCents: 800, emoji: "✨" },
-      { id: "pin", name: "Enamel pin", priceCents: 1200, emoji: "📍" },
-      { id: "tote", name: "Tote bag", priceCents: 2500, emoji: "👜" },
+      { id: "print", name: "Art print", priceCents: 2000, emoji: "🖼️", ships: true },
+      { id: "sticker-pack", name: "Sticker pack", priceCents: 800, emoji: "✨", ships: true },
+      { id: "pin", name: "Enamel pin", priceCents: 1200, emoji: "📍", ships: true },
+      { id: "tote", name: "Tote bag", priceCents: 2500, emoji: "👜", ships: true },
     ],
   },
   "garage-sale": {

@@ -32,7 +32,23 @@ export function priceCart(stand: Stand, cart: CartEntry[]): { lines: SaleLine[];
 /** The fields the buyer's phone and the seller's tablet may see. */
 export function publicSale(sale: Sale) {
   const { id, currency, lines, totalCents, status, paidAt } = sale;
-  return { id, currency, lines, totalCents, status, paidAt };
+  const fulfillment = sale.fulfillment;
+  return {
+    id,
+    currency,
+    lines,
+    totalCents,
+    status,
+    paidAt,
+    channel: sale.channel ?? "register",
+    shippingCents: sale.shippingCents ?? 0,
+    method: fulfillment?.method ?? null,
+    // Never the street address: the code page is reachable by anyone holding the link. The town is enough to reassure.
+    shipTo:
+      fulfillment?.method === "ship" && fulfillment.address
+        ? [fulfillment.address.city, fulfillment.address.region].filter(Boolean).join(", ")
+        : null,
+  };
 }
 export type PublicSale = ReturnType<typeof publicSale> & {
   /** Set when this was the stand's first paid sale since setup: seconds from the sign read to payment. */

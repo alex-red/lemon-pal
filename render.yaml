@@ -38,3 +38,5 @@ services:
         sync: false
       - key: PUBLIC_APP_URL
         sync: false
+      - key: SELLER_PASSCODE
+        sync: false

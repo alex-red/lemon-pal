@@ -6,23 +6,41 @@ import { ExclamationIcon, PaidMoment, Pill, Spinner } from "@/components/kit";
 import type { Cents } from "@/lib/money";
 import type { PayPalOneTimePaymentSession } from "@/types/paypal-web-sdk";
 
-type Props = { saleId: string; clientId: string; sdkUrl: string; currency: string; totalCents: Cents };
+type Props = {
+  saleId: string;
+  clientId: string;
+  sdkUrl: string;
+  currency: string;
+  totalCents: Cents;
+  /** The online store this order came from, for starting again when this sale can't be paid. */
+  storeUrl?: string;
+};
 
 type State =
   | { kind: "loading" }
   | { kind: "ready"; message?: string }
   | { kind: "capturing" }
   | { kind: "paid" }
-  | { kind: "failed"; message: string };
+  | { kind: "failed"; message: string; restart?: boolean };
+
+/** A failed request. `restart` means this sale can't be paid any more and the buyer has to start a new one. */
+class RequestError extends Error {
+  constructor(
+    message: string,
+    readonly restart: boolean,
+  ) {
+    super(message);
+  }
+}
 
 async function postJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { method: "POST" });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new RequestError(json.error ?? `Request failed (${res.status})`, json.restart === true);
   return json as T;
 }
 
-export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents }: Props) {
+export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents, storeUrl }: Props) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const session = useRef<PayPalOneTimePaymentSession | null>(null);
 
@@ -42,6 +60,9 @@ export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents }: Pro
             await postJson(`/api/sales/${saleId}/capture`);
             setState({ kind: "paid" });
           } catch (error) {
+            if (error instanceof RequestError && error.restart) {
+              return setState({ kind: "failed", message: error.message, restart: true });
+            }
             setState({ kind: "ready", message: `${(error as Error).message} Please try again.` });
           }
         },
@@ -96,6 +117,14 @@ export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents }: Pro
             Can&rsquo;t pay yet
           </Pill>
           <p className="text-body text-ink-2">{state.message}</p>
+          {state.restart && storeUrl ? (
+            <a
+              href={storeUrl}
+              className="pressable focus-ring mt-2 inline-flex h-11 items-center rounded-full bg-fill-2 px-5 text-callout font-semibold text-ink hover:bg-fill-3"
+            >
+              Back to the store
+            </a>
+          ) : null}
         </div>
       ) : null}
       {state.kind === "ready" && state.message ? (

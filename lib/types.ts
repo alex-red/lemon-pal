@@ -11,6 +11,10 @@ export type CatalogItem = {
   image?: string;
   /** A confirmed multi-buy price, such as 2 for $5. The server applies it when pricing a sale. */
   deal?: Deal;
+  /** Whether the online store sells it. Missing means yes. */
+  online?: boolean;
+  /** Whether it can be posted to an online buyer. Missing means pickup only. */
+  ships?: boolean;
 };
 
 /** Part of a photo, as fractions of its width and height from the top-left corner. */
@@ -64,15 +68,90 @@ export type SaleLine = {
 
 export type SaleStatus = "open" | "paid" | "canceled";
 
+/** Where a sale was made: rung up at the stand, or bought from the online store. */
+export type SaleChannel = "register" | "online";
+
+/** A postal address as PayPal returns it, in our own field names. */
+export type PostalAddress = {
+  line1: string;
+  line2?: string;
+  /** City or town (PayPal's admin_area_2). */
+  city: string;
+  /** State, province or region (PayPal's admin_area_1). */
+  region?: string;
+  postalCode?: string;
+  /** ISO 3166-1 alpha-2, such as "US". */
+  country: string;
+};
+
+export type ShippingCarrier = "USPS" | "UPS" | "FEDEX" | "DHL" | "OTHER";
+
+/** How an online order reaches the buyer. The address arrives from PayPal when the order is paid. */
+export type Fulfillment =
+  | { method: "pickup"; status: "to_collect" | "collected"; collectedAt?: string }
+  | {
+      method: "ship";
+      status: "to_ship" | "shipped";
+      recipient?: string;
+      address?: PostalAddress;
+      carrier?: ShippingCarrier;
+      carrierName?: string;
+      tracking?: string;
+      shippedAt?: string;
+      /** Whether PayPal accepted the tracking number, so the buyer sees it in PayPal. */
+      trackingSentToPayPal?: boolean;
+    };
+
 export type Sale = {
   id: string;
   standId: string;
   currency: string;
   lines: SaleLine[];
+  /** What the buyer pays: the lines after deals, plus shipping. */
   totalCents: Cents;
   status: SaleStatus;
   paypalOrderId: string | null;
   paypalCaptureId: string | null;
   createdAt: string;
   paidAt: string | null;
+  /** Missing on sales from before the online store, which were all rung up at the stand. */
+  channel?: SaleChannel;
+  /** Shipping charged on top of the lines. Missing or 0 for pickup and register sales. */
+  shippingCents?: Cents;
+  /** Online orders only. */
+  fulfillment?: Fulfillment;
+  /** The payer's name from PayPal, for online orders, so the seller knows whose order it is. */
+  buyerName?: string;
+};
+
+export type StorefrontAccent = "lemon" | "leaf" | "berry";
+
+export type ShippingSettings = {
+  /** Whether buyers can choose to have items posted. */
+  enabled: boolean;
+  /** Charged once per order. */
+  flatRateCents: Cents;
+  /** Orders with items worth at least this ship free. null for no threshold. */
+  freeOverCents: Cents | null;
+  /** ISO 3166-1 alpha-2 codes the seller ships to. */
+  countries: string[];
+};
+
+/** The public online store for a stand, at /<slug>. */
+export type Storefront = {
+  standId: string;
+  /** The vanity handle: lowercase letters, digits and single hyphens. */
+  slug: string;
+  title: string;
+  intro: string;
+  /** A 3:1 JPEG data URL, served from /api/store/<slug>/banner. */
+  banner?: string;
+  accent: StorefrontAccent;
+  /** Whether buyers can place orders. A closed store still shows its page. */
+  open: boolean;
+  pickup: boolean;
+  /** Where and when to collect, such as "Saturdays at the farmers' market". */
+  pickupNote: string;
+  shipping: ShippingSettings;
+  updatedAt: string;
 };

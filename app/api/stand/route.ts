@@ -54,7 +54,16 @@ export async function POST(request: Request) {
     // The clock runs from the sign read that drafted this catalog. A blank form or an edit without one has none.
     setupStartedAt: current.draftStartedAt ?? null,
     draftStartedAt: null,
-    items: parsed.data.items.map((item, i) => ({ id: `item-${i + 1}-${Date.now().toString(36)}`, ...item })),
+    items: parsed.data.items.map((item, i) => {
+      // Item ids change on every publish, so the store's online and shipping choices follow the item's name.
+      const before = current.items.find((old) => old.name.trim().toLowerCase() === item.name.toLowerCase());
+      return {
+        id: `item-${i + 1}-${Date.now().toString(36)}`,
+        ...item,
+        ...(before?.online !== undefined ? { online: before.online } : {}),
+        ...(before?.ships !== undefined ? { ships: before.ships } : {}),
+      };
+    }),
   };
   await store.saveStand(stand);
   return Response.json(stand);

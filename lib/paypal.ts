@@ -1,7 +1,7 @@
 import "server-only";
 import { env } from "./env";
 import { fromPayPalValue, toPayPalValue } from "./money";
-import type { Sale } from "./types";
+import type { PostalAddress, Sale, ShippingCarrier } from "./types";
 
 // Orders v2 REST API over plain fetch. https://developer.paypal.com/docs/api/orders/v2/
 
@@ -55,14 +55,57 @@ export class PayPalError extends Error {
 
 type Amount = { currency_code: string; value: string };
 
+type PayPalAddress = {
+  address_line_1?: string;
+  address_line_2?: string;
+  admin_area_2?: string;
+  admin_area_1?: string;
+  postal_code?: string;
+  country_code: string;
+};
+
 type Order = {
   id: string;
   status: string;
+  payer?: { name?: { given_name?: string; surname?: string } };
   purchase_units: {
     reference_id?: string;
+    shipping?: { name?: { full_name?: string }; address?: PayPalAddress };
     payments?: { captures?: { id: string; status: string; amount: Amount }[] };
   }[];
 };
+
+/** Where PayPal says the buyer wants a shipped order sent. */
+export type OrderShipping = { recipient?: string; address?: PostalAddress };
+
+function saleUnit(sale: Sale, order: Order) {
+  return order.purchase_units.find((u) => u.reference_id === sale.id) ?? order.purchase_units[0];
+}
+
+/** The shipping name and address on an order, in our own shape. null when the order has none. */
+export function orderShipping(sale: Sale, order: Order): OrderShipping | null {
+  const shipping = saleUnit(sale, order)?.shipping;
+  if (!shipping) return null;
+  const a = shipping.address;
+  return {
+    recipient: shipping.name?.full_name?.trim() || undefined,
+    address: a
+      ? {
+          line1: a.address_line_1 ?? "",
+          ...(a.address_line_2 ? { line2: a.address_line_2 } : {}),
+          city: a.admin_area_2 ?? "",
+          ...(a.admin_area_1 ? { region: a.admin_area_1 } : {}),
+          ...(a.postal_code ? { postalCode: a.postal_code } : {}),
+          country: a.country_code,
+        }
+      : undefined,
+  };
+}
+
+function payerName(order: Order): string | undefined {
+  const name = [order.payer?.name?.given_name, order.payer?.name?.surname].filter(Boolean).join(" ").trim();
+  return name || undefined;
+}
 
 /**
  * `checkoutUrl` is the buyer page; PayPal returns there after a redirect approval or cancel.
@@ -71,7 +114,9 @@ type Order = {
 export async function createOrder(sale: Sale, checkoutUrl: string, brandName: string): Promise<{ id: string }> {
   const itemTotal = sale.lines.reduce((sum, line) => sum + line.unitPriceCents * line.quantity, 0);
   const discount = sale.lines.reduce((sum, line) => sum + (line.discountCents ?? 0), 0);
-  if (itemTotal - discount !== sale.totalCents) throw new Error(`Sale ${sale.id} lines don't add up to its total`);
+  const shipping = sale.shippingCents ?? 0;
+  if (itemTotal - discount + shipping !== sale.totalCents) throw new Error(`Sale ${sale.id} lines don't add up to its total`);
+  const ships = sale.fulfillment?.method === "ship";
   const order = await paypalFetch<Order>("/v2/checkout/orders", {
     method: "POST",
     requestId: `create-${sale.id}`,
@@ -84,7 +129,8 @@ export async function createOrder(sale: Sale, checkoutUrl: string, brandName: st
             return_url: checkoutUrl,
             cancel_url: checkoutUrl,
             user_action: "PAY_NOW",
-            shipping_preference: "NO_SHIPPING",
+            // A shipped order asks the buyer for an address in PayPal. Everything else never shows one.
+            shipping_preference: ships ? "GET_FROM_FILE" : "NO_SHIPPING",
           },
         },
       },
@@ -94,10 +140,11 @@ export async function createOrder(sale: Sale, checkoutUrl: string, brandName: st
           amount: {
             currency_code: sale.currency,
             value: toPayPalValue(sale.totalCents),
-            // PayPal checks that amount = item_total − discount, so deals go in as a discount, not lower unit prices.
+            // PayPal checks that amount = item_total − discount + shipping, so deals go in as a discount, not lower unit prices.
             breakdown: {
               item_total: { currency_code: sale.currency, value: toPayPalValue(itemTotal) },
               ...(discount > 0 ? { discount: { currency_code: sale.currency, value: toPayPalValue(discount) } } : {}),
+              ...(ships ? { shipping: { currency_code: sale.currency, value: toPayPalValue(shipping) } } : {}),
             },
           },
           items: sale.lines.map((line) => ({
@@ -113,8 +160,13 @@ export async function createOrder(sale: Sale, checkoutUrl: string, brandName: st
 }
 
 export type CaptureResult =
-  | { ok: true; captureId: string }
+  | { ok: true; captureId: string; shipping: OrderShipping | null; payerName?: string }
   | { ok: false; reason: string };
+
+/** Reads an order, so the capture route can check a shipping address before any money moves. */
+export async function getOrder(orderId: string): Promise<Order> {
+  return paypalFetch<Order>(`/v2/checkout/orders/${encodeURIComponent(orderId)}`, { method: "GET" });
+}
 
 /** Captures the order and checks the result matches the sale before anyone calls it paid. */
 export async function captureOrder(sale: Sale, orderId: string): Promise<CaptureResult> {
@@ -128,11 +180,32 @@ export async function captureOrder(sale: Sale, orderId: string): Promise<Capture
 
 export function verifyCapture(sale: Sale, order: Order): CaptureResult {
   if (order.status !== "COMPLETED") return { ok: false, reason: `order status ${order.status}` };
-  const unit = order.purchase_units.find((u) => u.reference_id === sale.id) ?? order.purchase_units[0];
-  const capture = unit?.payments?.captures?.[0];
+  const capture = saleUnit(sale, order)?.payments?.captures?.[0];
   if (!capture) return { ok: false, reason: "no capture on order" };
   if (capture.status !== "COMPLETED") return { ok: false, reason: `capture status ${capture.status}` };
   if (capture.amount.currency_code !== sale.currency) return { ok: false, reason: "currency mismatch" };
   if (fromPayPalValue(capture.amount.value) !== sale.totalCents) return { ok: false, reason: "amount mismatch" };
-  return { ok: true, captureId: capture.id };
+  return { ok: true, captureId: capture.id, shipping: orderShipping(sale, order), payerName: payerName(order) };
+}
+
+/**
+ * Adds a tracking number to a captured order, so the buyer sees it in PayPal and the seller's shipment counts
+ * toward PayPal Seller Protection. https://developer.paypal.com/docs/api/orders/v2/#orders_track_create
+ */
+export async function addTracking(
+  sale: Sale,
+  shipment: { tracking: string; carrier: ShippingCarrier; carrierName?: string },
+): Promise<void> {
+  if (!sale.paypalOrderId || !sale.paypalCaptureId) throw new Error(`Sale ${sale.id} has no capture to track`);
+  await paypalFetch(`/v2/checkout/orders/${encodeURIComponent(sale.paypalOrderId)}/track`, {
+    method: "POST",
+    requestId: `track-${sale.id}-${shipment.tracking}`.slice(0, 108),
+    body: {
+      capture_id: sale.paypalCaptureId,
+      tracking_number: shipment.tracking,
+      carrier: shipment.carrier,
+      ...(shipment.carrier === "OTHER" && shipment.carrierName ? { carrier_name_other: shipment.carrierName } : {}),
+      notify_payer: true,
+    },
+  });
 }
