@@ -7,7 +7,7 @@ import type { PostalAddress, Sale, ShippingCarrier } from "./types";
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
-async function accessToken(): Promise<string> {
+export async function paypalAccessToken(signal?: AbortSignal): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.value;
   const basic = Buffer.from(`${env.paypalClientId()}:${env.paypalClientSecret()}`).toString("base64");
   const res = await fetch(`${env.paypalApiBase()}/v1/oauth2/token`, {
@@ -15,6 +15,7 @@ async function accessToken(): Promise<string> {
     headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
     body: "grant_type=client_credentials",
     cache: "no-store",
+    signal,
   });
   if (!res.ok) throw new Error(`PayPal auth failed: ${res.status}`);
   const json = (await res.json()) as { access_token: string; expires_in: number };
@@ -26,7 +27,7 @@ async function paypalFetch<T>(path: string, init: { method: string; body?: unkno
   const res = await fetch(`${env.paypalApiBase()}${path}`, {
     method: init.method,
     headers: {
-      Authorization: `Bearer ${await accessToken()}`,
+      Authorization: `Bearer ${await paypalAccessToken()}`,
       "Content-Type": "application/json",
       Prefer: "return=representation",
       // Makes retries idempotent: PayPal returns the original result for a repeated request id.

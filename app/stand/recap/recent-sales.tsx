@@ -3,7 +3,7 @@
 import type { AgWidgetFieldReference, AgWidgetParams } from "ag-studio";
 import { AgIncompleteDataMappingOverlay } from "ag-studio-react";
 import { createContext, use, useState } from "react";
-import { ArrowUturnIcon, Button, ChevronRightIcon, Money, SaleStatusPill, Sheet, cn } from "@/components/kit";
+import { ArrowUturnIcon, Button, ChevronRightIcon, Money, SaleStatusPill, Sheet, SparklesIcon, cn } from "@/components/kit";
 import type { RecapData, RecapLineRow, RecapSaleRow } from "@/lib/recap";
 import { receiptRef, receiptTime } from "./recap-metrics";
 import { RecapCurrency } from "./recap-widgets";
@@ -38,7 +38,7 @@ export function RecentSalesWidget({ widgetApi, dataMapping }: AgWidgetParams<Rec
     <div className="flex h-full min-h-0 flex-col gap-2">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-headline font-semibold">Recent sales</p>
-        {rows.length > 0 && <p className="text-caption text-ink-2">Tap one to refund</p>}
+        {rows.length > 0 && <p className="text-caption text-ink-2">Tap for receipt</p>}
       </div>
       {rows.length === 0 ? (
         <p className="text-subhead text-ink-2">Payments show here as they clear, newest first.</p>
@@ -87,6 +87,7 @@ export function ReceiptSheet({
   currency,
   onClose,
   onRefunded,
+  onCheckPayPal,
 }: {
   /** The receipt to show, or null to close the sheet. */
   saleId: string | null;
@@ -96,6 +97,7 @@ export function ReceiptSheet({
   currency: string;
   onClose: () => void;
   onRefunded: () => void;
+  onCheckPayPal?: (id: string) => void;
 }) {
   const sale = recap?.sales.find((s) => s.id === shownId) ?? null;
   const lines = recap?.lines.filter((l) => l.saleId === shownId) ?? [];
@@ -138,6 +140,12 @@ export function ReceiptSheet({
           </div>
 
           <Receipt sale={sale} lines={lines} currency={currency} />
+
+          {state.step === "view" && sale.hasPayPalReceipt && onCheckPayPal && (
+            <Button variant="tinted" icon={<SparklesIcon />} onClick={() => onCheckPayPal(sale.id)}>
+              Check with PayPal in Booth Analyst
+            </Button>
+          )}
 
           {state.step === "done" || (refunded && state.step === "view") ? (
             <RefundedNote cents={capturedCents} currency={currency} fresh={state.step === "done"} onClose={onClose} />

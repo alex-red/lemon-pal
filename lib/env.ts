@@ -9,6 +9,7 @@ function required(name: string): string {
 export const env = {
   paypalClientId: () => required("PAYPAL_CLIENT_ID"),
   paypalClientSecret: () => required("PAYPAL_CLIENT_SECRET"),
+  paypalReceiptCheck: () => process.env.PAYPAL_ENV !== "live" && process.env.PAYPAL_MCP_RECEIPT_CHECK === "1",
   paypalApiBase: () =>
     process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com",
   paypalSdkUrl: () =>

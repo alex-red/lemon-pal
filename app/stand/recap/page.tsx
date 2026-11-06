@@ -37,7 +37,7 @@ export default async function RecapPage() {
           </header>
           {/* Studio fills its parent, so the parent needs a definite height, not just a minimum. */}
           <div className="h-[max(33rem,calc(100dvh-12rem))] overflow-hidden rounded-card bg-surface shadow-card ring-[0.5px] ring-hairline">
-            <RecapLoader licenseKey={env.agStudioLicenseKey()} currency={env.currency()} />
+            <RecapLoader licenseKey={env.agStudioLicenseKey()} currency={env.currency()} paypalReceiptCheck={env.paypalReceiptCheck()} />
           </div>
         </main>
       </FirstSaleProvider>
