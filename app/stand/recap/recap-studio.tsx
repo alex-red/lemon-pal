@@ -2,12 +2,13 @@
 
 import {
   AgStudioAiModule,
-  createAiHarness,
+  createDataEngine,
   type AgPanelConfig,
   type AgResponsiveLayoutBreakpoint,
-  type AgAiHarnessSetup,
-  type AgAiPromptStarter,
   type AgStudioApi,
+  type AgAiHarnessSetup,
+  type AgDataTransaction,
+  type AgDataMappingDefinition,
   type AgStudioLocaleText,
   type AgDataEngine,
   type AgDataSourcesDefinition,
@@ -17,56 +18,65 @@ import {
   type AgWidgetFormParams,
 } from "ag-studio";
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { RecapData } from "@/lib/recap";
-import { claudeAdapter, isThinking, subscribeThinking } from "./claude-adapter";
+import { isThinking, subscribeThinking } from "./claude-adapter";
+import { Button, CheckIcon, ClockIcon, ExclamationIcon, Pill, SparklesIcon, Spinner } from "@/components/kit";
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
 import { useSetFirstSale } from "./first-sale";
-import { TodaySalesWidget, type RecapRegistry, type TodaySalesDef } from "./today-widget";
+import { boothAnalyst } from "./booth-analyst";
+import { receiptRef, receiptTime } from "./recap-metrics";
+import { ProductLeadersWidget, RecapCurrency, SalesPulseWidget, type ProductLeadersDef, type RecapRegistry, type SalesPulseDef } from "./recap-widgets";
 
-// Opening suggestions in the assistant panel. They show until the first message is sent.
-const PROMPT_STARTERS: AgAiPromptStarter[] = [
-  { label: "What sold by item", prompt: "Show me what sold today by item." },
-  { label: "Best seller", prompt: "Which item made the most money today, and how many did I sell?" },
-  { label: "Sales over time", prompt: "Add a chart of sales over time today." },
-];
+const category: AgDataMappingDefinition<string> = { type: "field", supportedRoles: ["category"], requires: { cardinality: "many" }, required: true };
+const numeric: AgDataMappingDefinition<string> = { type: "field", supportedRoles: ["numeric"], requires: { cardinality: "one" }, required: true };
 
-// Studio's built-in agents, run on Claude through our server route so the key stays server-side.
-// The setup params are typed with the core API, but Studio passes its full API at runtime.
-const ai: AgAiHarnessSetup = ({ api }) =>
-  createAiHarness(api as AgStudioApi, { adapter: claudeAdapter, promptStarters: PROMPT_STARTERS });
-
-// Adds the custom "Today's sales" widget next to Studio's built-in ones.
 const widgets = createWidgets<RecapRegistry>({
   additionalTypes: [
     {
-      id: "todaySales",
-      label: "Today's sales",
+      id: "salesPulse",
+      label: "Stand total",
       dataMapping: {
+        sale: category,
         paidAt: { type: "field", supportedRoles: ["temporal"], requires: { cardinality: "many" }, required: true },
-        gross: { type: "field", supportedRoles: ["numeric"], requires: { cardinality: "one" }, required: true },
-        units: { type: "field", supportedRoles: ["numeric"], requires: { cardinality: "one" }, required: true },
+        total: numeric,
+        units: numeric,
       },
-      // Studio's standard edit form, with a picker for each mapped field.
-      form: (params: AgWidgetFormParams<TodaySalesDef>) =>
+      form: (params: AgWidgetFormParams<SalesPulseDef>) =>
         params.createDefaults({
           dataMappingItems: [
+            { key: "sale", label: "Sale ID" },
             { key: "paidAt", label: "Paid at" },
-            { key: "gross", label: "Sales" },
+            { key: "total", label: "Captured total" },
             { key: "units", label: "Units" },
           ],
         }),
-      comp: TodaySalesWidget,
-      defaultSize: { width: 360, height: 220 },
-      minSize: { width: 240, height: 160 },
-      ai: { description: "Gross sales, number of sales and units sold today at the stand, from captured PayPal payments." },
+      comp: SalesPulseWidget,
+      defaultSize: { width: 460, height: 255 },
+      minSize: { width: 200, height: 225 },
+      ai: { description: "Captured PayPal sales, payment count, units and latest receipt. Ignores item selections." },
+    },
+    {
+      id: "productLeaders",
+      label: "Standouts",
+      dataMapping: { item: category, units: numeric, sales: numeric },
+      form: (params: AgWidgetFormParams<ProductLeadersDef>) =>
+        params.createDefaults({
+          dataMappingItems: [
+            { key: "item", label: "Item" },
+            { key: "units", label: "Units" },
+            { key: "sales", label: "Item sales" },
+          ],
+        }),
+      comp: ProductLeadersWidget,
+      defaultSize: { width: 420, height: 255 },
+      minSize: { width: 200, height: 225 },
+      ai: { description: "Compare the top items by units and sales. Select an item to filter the linked receipts." },
     },
   ],
 });
 
-// The filter card's title already says what it filters, so drop Studio's "Filter by: Item" label.
-// studio-layout.ts hides the empty label.
-const localeText: AgStudioLocaleText = { filterWidgetFilterBy: "" };
+const localeText: AgStudioLocaleText = { filterWidgetFilterBy: "", panelTitleAi: "Booth Analyst" };
 
 const POLL_MS = 2000;
 
@@ -75,16 +85,17 @@ function moneyFormat(currency: string) {
 }
 
 // Studio's date formats need Date values; the API sends ISO strings.
-const saleRows = (recap: RecapData) => recap.sales.map((s) => ({ ...s, paidAt: new Date(s.paidAt) }));
+const saleRows = (recap: RecapData) => recap.sales.map((s) => ({ ...s, receipt: receiptRef(s.id), paidAt: new Date(s.paidAt) }));
 const lineRows = (recap: RecapData) => recap.lines.map((l) => ({ ...l, paidAt: new Date(l.paidAt) }));
 
-function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinition<RecapRegistry> {
+function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinition {
   const money = moneyFormat(currency);
   const saleFields: AgFieldDefinition[] = [
-    { id: "id", name: "Sale", format: "textFormat" },
-    { id: "paidAt", name: "Paid at", format: "dateTimeFormat" },
+    { id: "id", name: "Sale ID", format: "textFormat" },
+    { id: "receipt", name: "Receipt", format: "textFormat" },
+    { id: "paidAt", name: "Paid at", format: "dateTimeFormat", formatOptions: { format: receiptTime } },
     { id: "units", name: "Units", format: "integerFormat" },
-    { id: "total", name: "Total", format: "currencyFormat", formatOptions: money },
+    { id: "total", name: "Receipt total", format: "currencyFormat", formatOptions: money },
   ];
   const lineFields: AgFieldDefinition[] = [
     { id: "id", name: "Line", format: "textFormat" },
@@ -93,19 +104,18 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
     // Short, so "Units (sum)" fits the narrow grid column without truncating.
     { id: "quantity", name: "Units", format: "integerFormat" },
     { id: "unitPrice", name: "Unit price", format: "currencyFormat", formatOptions: money },
-    { id: "lineTotal", name: "Sales", format: "currencyFormat", formatOptions: money },
+    { id: "lineTotal", name: "Item sales", format: "currencyFormat", formatOptions: money },
     { id: "discount", name: "Deal savings", format: "currencyFormat", formatOptions: money },
-    { id: "paidAt", name: "Paid at", format: "dateTimeFormat" },
+    { id: "paidAt", name: "Paid at", format: "dateTimeFormat", formatOptions: { format: receiptTime } },
   ];
   return {
-    description: "Completed PayPal sales at a pop-up stand. Only captured payments are included.",
+    description: "Captured PayPal payments at a pop-up stand. Sales has one row per receipt. Items sold has one row per receipt line. Item sales and receipt totals are after deals.",
     sources: [
       {
         id: "sales",
         name: "Sales",
         fields: saleFields,
-        // New sales are added in place by transaction, keyed by sale id.
-        transactions: "add",
+        transactions: "all",
         primaryKeyField: "id",
         data: saleRows(recap),
       },
@@ -113,7 +123,7 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
         id: "lines",
         name: "Items sold",
         fields: lineFields,
-        transactions: "add",
+        transactions: "all",
         primaryKeyField: "id",
         data: lineRows(recap),
       },
@@ -142,13 +152,40 @@ const initialState: AgReportState<RecapRegistry> = {
     {
       id: "recap",
       widgets: {
-        today: {
-          type: "todaySales",
+        pulse: {
+          type: "salesPulse",
           dataMapping: {
+            sale: [{ id: "sales.id" }],
             paidAt: [{ id: "sales.paidAt" }],
-            gross: [{ id: "sales.total", aggregation: "sum" }],
+            total: [{ id: "sales.total", aggregation: "sum" }],
             units: [{ id: "sales.units", aggregation: "sum" }],
           },
+        },
+        leaders: {
+          type: "productLeaders",
+          dataMapping: {
+            item: [{ id: "lines.item" }],
+            units: [{ id: "lines.quantity", aggregation: "sum" }],
+            sales: [{ id: "lines.lineTotal", aggregation: "sum" }],
+          },
+        },
+        unitsChart: {
+          type: "bar-chart-grouped",
+          dataMapping: {
+            categoryKey: [{ id: "lines.item" }],
+            valueKey: [{ id: "lines.quantity", aggregation: "sum" }],
+            tooltipKey: [],
+          },
+          sort: [{ field: { id: "lines.quantity", aggregation: "sum" }, direction: "desc" }],
+          format: { title: { enabled: true, text: "Units sold by item" }, crossFilter: "highlight" },
+        },
+        sales: {
+          type: "grid",
+          dataMapping: {
+            cols: [{ id: "sales.receipt" }, { id: "sales.paidAt" }, { id: "sales.total" }],
+          },
+          sort: [{ field: { id: "sales.paidAt" }, direction: "desc" }],
+          format: { title: { enabled: true, text: "Paid receipts" }, crossFilter: "filter" },
         },
         itemFilter: {
           type: "button-filter",
@@ -166,31 +203,14 @@ const initialState: AgReportState<RecapRegistry> = {
           },
           format: { title: { enabled: true, text: "Sold by item" } },
         },
-        unitsChart: {
-          type: "column-chart-grouped",
-          dataMapping: {
-            categoryKey: [{ id: "lines.item" }],
-            valueKey: [{ id: "lines.quantity", aggregation: "sum" }],
-            tooltipKey: [],
-          },
-          format: { title: { enabled: true, text: "Units sold by item" } },
-        },
-        sales: {
-          type: "grid",
-          dataMapping: {
-            cols: [{ id: "sales.paidAt" }, { id: "sales.units" }, { id: "sales.total" }],
-          },
-          format: { title: { enabled: true, text: "Paid sales" } },
-        },
       },
       widgetLayout: {
-        // Rows are 16px and cards sit 20px apart, so a card is 16n - 20px tall (see studio-layout.ts). The
-        // filter is a title and one row of 44px buttons: exactly 9 rows.
-        today: { xTrack: 0, yTrack: 0, xSpan: 9, ySpan: 13 },
-        unitsChart: { xTrack: 9, yTrack: 0, xSpan: 15, ySpan: 13 },
-        itemFilter: { xTrack: 0, yTrack: 13, xSpan: 24, ySpan: 9 },
-        byItem: { xTrack: 0, yTrack: 22, xSpan: 10, ySpan: 17 },
-        sales: { xTrack: 10, yTrack: 22, xSpan: 14, ySpan: 17 },
+        pulse: { xTrack: 0, yTrack: 0, xSpan: 13, ySpan: 19 },
+        leaders: { xTrack: 13, yTrack: 0, xSpan: 11, ySpan: 19 },
+        unitsChart: { xTrack: 0, yTrack: 19, xSpan: 12, ySpan: 20 },
+        sales: { xTrack: 12, yTrack: 19, xSpan: 12, ySpan: 20 },
+        itemFilter: { xTrack: 0, yTrack: 39, xSpan: 24, ySpan: 12 },
+        byItem: { xTrack: 0, yTrack: 51, xSpan: 24, ySpan: 20 },
       },
     },
   ],
@@ -235,55 +255,68 @@ const stacked: AgResponsiveLayoutBreakpoint[] = [
 
 const phonePanels: AgPanelConfig = { view: { left: [], right: [] } };
 
+function changes(previous: RecapData, next: RecapData): AgDataTransaction[] {
+  const previousSales = new Set(previous.sales.map((sale) => sale.id));
+  const nextSales = new Set(next.sales.map((sale) => sale.id));
+  const fresh = next.sales.filter((sale) => !previousSales.has(sale.id));
+  const removed = previous.sales.filter((sale) => !nextSales.has(sale.id));
+  if (!fresh.length && !removed.length) return [];
+
+  const freshIds = new Set(fresh.map((sale) => sale.id));
+  const additions = { sales: fresh, lines: next.lines.filter((line) => freshIds.has(line.saleId)) };
+  return [
+    { tableId: "sales", add: saleRows(additions), remove: removed.map((sale) => sale.id) },
+    { tableId: "lines", add: lineRows(additions), remove: previous.lines.filter((line) => !nextSales.has(line.saleId)).map((line) => line.id) },
+  ];
+}
+
 export function RecapStudio({ licenseKey, currency }: { licenseKey: string | null; currency: string }) {
-  const [initial, setInitial] = useState<RecapData | null>(null);
+  const [data, setData] = useState<AgDataEngine | null>(null);
+  const [online, setOnline] = useState<boolean | null>(null);
+  const [studioApi, setStudioApi] = useState<AgStudioApi | null>(null);
   const phone = useMedia(PHONE);
   const thinking = useSyncExternalStore(subscribeThinking, isThinking, () => false);
-  // What the first load held, and every sale added since. A remount starts again from the first load,
-  // so it re-adds the rest (see onStudioReady).
-  const firstSaleIds = useRef<Set<string>>(new Set());
-  const latest = useRef<RecapData | null>(null);
-  const engine = useRef<AgDataEngine | null>(null);
+  const applied = useRef<RecapData | null>(null);
   const setFirstSale = useSetFirstSale();
+  const ai: AgAiHarnessSetup = useCallback(
+    (params) => boothAnalyst(params, () => applied.current, currency),
+    [currency],
+  );
 
-  // Load paid sales once, then poll and add only sales Studio hasn't seen, so widgets update in place.
   useEffect(() => {
-    const known = new Set<string>();
-    let loaded = false;
     let busy = false;
-    let stopped = false;
+    let engine: AgDataEngine | null = null;
+    const controller = new AbortController();
 
     async function poll() {
-      if (busy || stopped) return;
+      if (busy || controller.signal.aborted) return;
       busy = true;
       try {
-        const res = await fetch("/api/stand/recap", { cache: "no-store" });
-        if (!res.ok || stopped) return;
-        const recap = (await res.json()) as RecapData;
-        setFirstSale?.(recap.firstSaleSeconds ?? null);
-        if (!loaded) {
-          loaded = true;
-          recap.sales.forEach((s) => known.add(s.id));
-          firstSaleIds.current = new Set(known);
-          latest.current = recap;
-          setInitial(recap);
-          return;
+        const res = await fetch("/api/stand/recap", { cache: "no-store", signal: controller.signal });
+        if (!res.ok) throw new Error(`Recap request returned ${res.status}`);
+        const response = (await res.json()) as RecapData;
+        if (controller.signal.aborted) return;
+        const sales = response.sales.filter((sale) => sale.currency === currency);
+        const saleIds = new Set(sales.map((sale) => sale.id));
+        const recap = { sales, lines: response.lines.filter((line) => saleIds.has(line.saleId)) };
+
+        if (!engine) {
+          // Share the engine across phone and desktop layouts so a rotation keeps the live ledger.
+          engine = createDataEngine(toDataSources(recap, currency));
+          setData(engine);
+        } else if (applied.current && engine.applyTransaction) {
+          const transactions = changes(applied.current, recap);
+          if (transactions.length) await engine.applyTransaction(transactions);
         }
-        const fresh = recap.sales.filter((s) => !known.has(s.id));
-        const apply = engine.current?.applyTransaction?.bind(engine.current);
-        // Until Studio is ready there's no engine; the next poll picks these sales up.
-        if (fresh.length === 0 || !apply) return;
-        const freshIds = new Set(fresh.map((s) => s.id));
-        const delta = { sales: fresh, lines: recap.lines.filter((l) => freshIds.has(l.saleId)) };
-        // Both tables change together or not at all.
-        await apply([
-          { tableId: "sales", add: saleRows(delta) },
-          { tableId: "lines", add: lineRows(delta) },
-        ]);
-        freshIds.forEach((id) => known.add(id));
-        latest.current = recap;
+        if (controller.signal.aborted) return;
+        applied.current = recap;
+        setFirstSale?.(response.firstSaleSeconds ?? null);
+        setOnline(true);
       } catch (error) {
-        console.error("Recap update failed", error);
+        if (!controller.signal.aborted) {
+          setOnline(false);
+          console.error("Recap update failed", error);
+        }
       } finally {
         busy = false;
       }
@@ -292,51 +325,69 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
     void poll();
     const timer = setInterval(poll, POLL_MS);
     return () => {
-      stopped = true;
+      controller.abort();
       clearInterval(timer);
+      engine?.dispose?.();
     };
-  }, [setFirstSale]);
-
-  // Built once from the first load; later sales arrive as transactions, not a new data prop.
-  const data = useMemo(() => (initial ? toDataSources(initial, currency) : undefined), [initial, currency]);
+  }, [currency, setFirstSale]);
 
   function onStudioReady(event: AgStudioReadyEvent) {
-    engine.current = event.api.getDataEngine() ?? null;
-    // After a remount Studio holds only the first load. Add the sales that arrived since.
-    const since = latest.current?.sales.filter((s) => !firstSaleIds.current.has(s.id)) ?? [];
-    if (since.length && latest.current && engine.current?.applyTransaction) {
-      const ids = new Set(since.map((s) => s.id));
-      const delta = { sales: since, lines: latest.current.lines.filter((l) => ids.has(l.saleId)) };
-      void engine.current.applyTransaction([
-        { tableId: "sales", add: saleRows(delta) },
-        { tableId: "lines", add: lineRows(delta) },
-      ]);
-    }
+    setStudioApi(event.api);
+  }
+
+  function openAnalyst() {
+    if (!studioApi) return;
+    const state = studioApi.getState();
+    studioApi.setState({ ...state, panels: { ...state.panels, ai: { ...state.panels?.ai, collapsed: false } } });
   }
 
   return (
-    <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
-      {/* Lights the assistant's input while Claude answers (see the AI glow in globals.css). */}
-      <div data-assistant-thinking={thinking || undefined} style={{ height: "100%", width: "100%" }}>
-        <AgStudio<RecapRegistry>
-          // Studio opens every panel when it switches into edit mode, so a mode change remounts it instead,
-          // starting again from initialState with the panels collapsed. An open assistant chat is lost.
-          key={phone ? "view" : "edit"}
-          // Without an explicit size, Studio's own wrapper falls back to 600px tall.
-          style={{ height: "100%", width: "100%" }}
-          data={data}
-          initialState={initialState}
-          widgets={widgets}
-          theme={lemonTheme}
-          localeText={localeText}
-          ai={ai}
-          // The assistant adds and changes widgets, which needs edit mode. Phones get a read-only report.
-          mode={phone ? "view" : "edit"}
-          panels={phone ? phonePanels : undefined}
-          responsiveLayoutBreakpoints={stacked}
-          onStudioReady={onStudioReady}
-        />
-      </div>
-    </AgStudioProvider>
+    <RecapCurrency value={currency}>
+      <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
+        <section aria-label="Sales dashboard" className="flex h-full min-h-0 flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-hairline px-4 py-2 sm:px-5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <div role="status">
+                {online ? (
+                  <Pill tone="leaf" icon={<CheckIcon />}>Live sales</Pill>
+                ) : online === false ? (
+                  <Pill tone="berry" icon={<ExclamationIcon />}>Reconnecting</Pill>
+                ) : (
+                  <Pill icon={<ClockIcon />}>Connecting</Pill>
+                )}
+              </div>
+              <span className="text-footnote text-ink-2">All captured PayPal payments · {currency}</span>
+            </div>
+            {!phone && (
+              <Button variant="filled" icon={<SparklesIcon />} disabled={!studioApi} onClick={openAnalyst}>
+                Ask Booth Analyst
+              </Button>
+            )}
+          </div>
+          <div data-assistant-thinking={thinking || undefined} className="min-h-0 flex-1">
+            {data ? (
+              <AgStudio<RecapRegistry>
+                key={phone ? "view" : "edit"}
+                style={{ height: "100%", width: "100%" }}
+                data={data}
+                initialState={initialState}
+                widgets={widgets}
+                theme={lemonTheme}
+                localeText={localeText}
+                ai={ai}
+                mode={phone ? "view" : "edit"}
+                panels={phone ? phonePanels : undefined}
+                responsiveLayoutBreakpoints={stacked}
+                onStudioReady={onStudioReady}
+              />
+            ) : (
+              <p role="status" className="flex h-full items-center justify-center gap-2 text-subhead text-ink-2">
+                <Spinner /> Waiting for sales data…
+              </p>
+            )}
+          </div>
+        </section>
+      </AgStudioProvider>
+    </RecapCurrency>
   );
 }

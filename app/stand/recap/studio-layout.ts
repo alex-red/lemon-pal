@@ -18,7 +18,13 @@ const css = /* css */ `
   padding: 20px;
 }
 
-/* Hidden headers (the custom Today's sales widget) keep Studio's margin: 0. */
+@media (max-width: 39.99rem) {
+  .ag-studio-layout-widget-container {
+    padding: 12px;
+  }
+}
+
+/* Hidden headers (the custom recap widgets) keep Studio's margin: 0. */
 .ag-studio-layout-widget-header:not(.ag-studio-layout-widget-header-hidden) {
   margin: 0 0 16px;
 }

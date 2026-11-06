@@ -16,7 +16,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Sta
 | Ring up a sale | `/stand/register` | Tap item tiles, then show a lemon-badged QR code for this sale. The server snapshots the cart and prices it from the confirmed catalog. |
 | Pay | `/pay/[saleId]` | The buyer's phone shows the stand name and order, then opens PayPal Checkout. The server creates and captures the order. PayPal emails the buyer a receipt. |
 | Confirm | `/stand/register` | The seller tablet polls the sale status and shows **Paid** only after a completed capture for the expected amount and currency. |
-| Recap | `/stand/recap` | AG Studio report over completed sales and line items, with a custom **Today's sales** widget, an item filter, and an assistant that answers questions and adds charts. |
+| Recap | `/stand/recap` | AG Studio dashboard with live stand totals, product leaders by units and sales, linked receipt filtering, and a Booth Analyst that can add charts. |
 
 All pricing, PayPal calls, and AI calls run on the server. Secrets never reach the browser.
 
@@ -28,7 +28,7 @@ You need two screens: a tablet or laptop for the seller and a phone for the buye
 2. On **Take a payment**, tap a few items and press **Charge**.
 3. Scan the QR code with the phone's camera. Check the items and total, then pay with PayPal using the Sandbox buyer account below.
 4. The seller screen shows **Paid** and plays a ding (tap anything on the seller screen first so the browser allows sound).
-5. Open **See your sales** to see the sale in AG Studio. Ask the assistant "Show me what sold today by item."
+5. Open **See your sales** to find the receipt in AG Studio. Select a product to filter its receipts. On a tablet or laptop, open **Ask Booth Analyst** and choose **Chart sales by item**.
 
 **Sandbox buyer:** TODO: Sandbox personal account email and password. These are PayPal test credentials that only work in the Sandbox.
 
