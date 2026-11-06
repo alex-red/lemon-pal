@@ -2,23 +2,27 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Button,
   CameraIcon,
   Card,
-  cn,
   ConfidencePill,
   ExclamationIcon,
   LemonIcon,
+  ListIcon,
+  PhotoIcon,
   Pill,
   PlusIcon,
+  SparklesIcon,
   Spinner,
+  TextArea,
   TextField,
   XmarkIcon,
 } from "@/components/kit";
 import { cleanEmoji } from "@/lib/emoji";
 import type { DraftItem, SignDraft } from "@/lib/types";
+import { CameraSheet, canUseLiveCamera } from "./camera-sheet";
 
 type Row = { key: number; emoji: string; name: string; price: string; confidence: "high" | "low" | null; unreadPrice: boolean };
 
@@ -56,8 +60,10 @@ function currencySymbol(currency: string) {
   );
 }
 
+const emptyRow = (): Row => ({ key: nextKey++, emoji: "", name: "", price: "", confidence: null, unreadPrice: false });
+
 /** Phone photos are often larger than the model's 5 MB image limit, so shrink before upload. */
-async function shrinkPhoto(file: File): Promise<Blob> {
+async function shrinkPhoto(file: Blob): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
@@ -81,23 +87,40 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
   const [rows, setRows] = useState<Row[] | null>(null);
   const [busy, setBusy] = useState<"reading" | "publishing" | `sample:${string}` | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Where the draft came from, which changes the review copy.
+  const [source, setSource] = useState<"photo" | "list" | "blank" | null>(null);
+  const [camera, setCamera] = useState(false);
+  const [pasting, setPasting] = useState(false);
+  const [list, setList] = useState("");
+  const libraryInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const symbol = currencySymbol(currency);
 
-  async function onPhoto(file: File | undefined) {
-    if (!file) return;
+  /** The in-page camera where the browser allows it, otherwise the device's own camera app or file picker. */
+  function openCamera() {
+    if (canUseLiveCamera()) setCamera(true);
+    else cameraInput.current?.click();
+  }
+
+  /** Sends a photo or a pasted list to the reader and fills the review form with what it found. */
+  async function read(kind: "photo" | "list", body: FormData) {
     setError(null);
     setRows(null);
-    setPreview(URL.createObjectURL(file));
     setBusy("reading");
     try {
-      const form = new FormData();
-      form.append("photo", await shrinkPhoto(file), "sign.jpg");
-      const res = await fetch("/api/stand/sign", { method: "POST", body: form });
+      const res = await fetch("/api/stand/sign", { method: "POST", body });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Couldn't read the sign.");
+      if (!res.ok) throw new Error(json.error ?? "Couldn't read that.");
       const draft = json as SignDraft;
-      if (draft.items.length === 0) throw new Error("No prices found in that photo. Try a closer, straighter shot.");
+      if (draft.items.length === 0) {
+        throw new Error(
+          kind === "photo"
+            ? "No prices found in that photo. Try a closer, straighter shot."
+            : "No items with prices found. Put each item on its own line with its price.",
+        );
+      }
       if (draft.standName) setName(draft.standName);
+      setSource(kind);
       setRows(draft.items.map(toRow));
     } catch (e) {
       setError((e as Error).message);
@@ -106,11 +129,38 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
     }
   }
 
+  async function onPhoto(photo: Blob | undefined) {
+    if (!photo) return;
+    setCamera(false);
+    setPasting(false);
+    setPreview(URL.createObjectURL(photo));
+    const form = new FormData();
+    form.append("photo", await shrinkPhoto(photo), "sign.jpg");
+    await read("photo", form);
+  }
+
+  async function readList() {
+    setPreview(null);
+    const form = new FormData();
+    form.append("text", list);
+    await read("list", form);
+  }
+
+  function startBlank() {
+    setError(null);
+    setPreview(null);
+    setPasting(false);
+    setName("");
+    setSource("blank");
+    setRows([emptyRow()]);
+  }
+
   function update(key: number, change: Partial<Row>) {
     setRows((current) => current?.map((row) => (row.key === key ? { ...row, ...change } : row)) ?? null);
   }
 
-  const invalid = !rows?.length || rows.some((row) => !row.name.trim() || parsePrice(row.price) === null);
+  const invalid =
+    !name.trim() || !rows?.length || rows.some((row) => !row.name.trim() || parsePrice(row.price) === null);
   const toCheck = rows?.filter((row) => row.confidence === "low").length ?? 0;
 
   async function publish() {
@@ -157,12 +207,11 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
       </header>
 
       <Card className="overflow-hidden">
-        <label
-          className={cn(
-            "flex cursor-pointer flex-col items-center gap-3 p-8 text-center",
-            "has-[:focus-visible]:shadow-[inset_0_0_0_3px_var(--focus)]",
-            busy ? "pointer-events-none" : "pressable",
-          )}
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={openCamera}
+          className="pressable flex w-full flex-col items-center gap-3 p-8 text-center outline-none focus-visible:shadow-[inset_0_0_0_3px_var(--focus)] disabled:pointer-events-none"
         >
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element -- local object URL preview
@@ -172,28 +221,95 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
               <CameraIcon />
             </span>
           )}
-          <span className="text-title3 font-semibold">{rows || preview ? "Retake photo" : "Photograph your sign"}</span>
-          <span className="text-subhead text-ink-2">
-            {preview ? "Lemon Pal reads the names and prices for you to check." : "Lemon Pal reads your items and prices. Or choose a photo you already took."}
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="sr-only"
+          <span className="text-title3 font-semibold">{preview ? "Retake photo" : "Photograph your sign"}</span>
+          <span className="text-subhead text-ink-2">Lemon Pal reads your items and prices for you to check.</span>
+        </button>
+        <div className="flex flex-wrap justify-center gap-2 border-t border-hairline p-4">
+          <Button variant="tinted" icon={<PhotoIcon />} disabled={busy !== null} onClick={() => libraryInput.current?.click()}>
+            Choose a photo
+          </Button>
+          <Button
+            variant="tinted"
+            icon={<ListIcon />}
+            aria-expanded={pasting}
+            aria-controls="paste-list"
             disabled={busy !== null}
-            onChange={(e) => {
-              void onPhoto(e.target.files?.[0]);
-              e.target.value = ""; // lets the same photo be picked again
-            }}
-          />
-        </label>
+            onClick={() => setPasting((open) => !open)}
+          >
+            Paste a list
+          </Button>
+          <Button variant="tinted" icon={<PlusIcon />} disabled={busy !== null} onClick={startBlank}>
+            Start blank
+          </Button>
+        </div>
+        {/* The library picker has no capture hint, so phones offer saved photos. The other opens the camera app. */}
+        <input
+          ref={libraryInput}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden
+          onChange={(e) => {
+            void onPhoto(e.target.files?.[0]);
+            e.target.value = ""; // lets the same photo be picked again
+          }}
+        />
+        <input
+          ref={cameraInput}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden
+          onChange={(e) => {
+            void onPhoto(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
       </Card>
+
+      {pasting ? (
+        <Card id="paste-list" className="flex flex-col gap-4 p-5">
+          <TextArea
+            label="Your price list"
+            rows={6}
+            autoFocus
+            maxLength={4000}
+            value={list}
+            placeholder={"Lemonade $2\nPink lemonade $2.50\nCookie $1"}
+            hint="Paste a menu or type one item per line. Lemon Pal reads it like a sign."
+            onChange={(e) => setList(e.target.value)}
+          />
+          <Button
+            variant={rows ? "tinted" : "filled"}
+            size="lg"
+            icon={<SparklesIcon />}
+            disabled={!list.trim() || busy !== null}
+            loading={busy === "reading"}
+            onClick={readList}
+          >
+            Read my list
+          </Button>
+        </Card>
+      ) : null}
+
+      {camera ? (
+        <CameraSheet
+          onCapture={(photo) => void onPhoto(photo)}
+          onClose={() => setCamera(false)}
+          onFallback={() => {
+            setCamera(false);
+            cameraInput.current?.click();
+          }}
+        />
+      ) : null}
 
       <div aria-live="polite" className="flex flex-col items-center gap-2 text-center empty:hidden">
         {busy === "reading" ? (
           <p className="flex items-center gap-2 text-headline">
-            <Spinner className="text-[1.2rem]" /> Reading your sign…
+            <Spinner className="text-[1.2rem]" /> {pasting ? "Reading your list…" : "Reading your sign…"}
           </p>
         ) : null}
         {error ? (
@@ -210,12 +326,14 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
         <section aria-labelledby="review-heading" className="flex flex-col gap-4">
           <div className="flex flex-col gap-1 px-1">
             <h2 id="review-heading" className="font-display text-title2 font-semibold">
-              Check your items
+              {source === "blank" ? "Add your items" : "Check your items"}
             </h2>
             <p className="text-subhead text-ink-2">
-              {toCheck > 0
-                ? `${toCheck} ${toCheck === 1 ? "item was" : "items were"} hard to read. Check ${toCheck === 1 ? "it" : "them"} before you publish.`
-                : "Everything read clearly. Fix anything that looks off."}
+              {source === "blank"
+                ? "Name each thing you sell and give it a price. Add as many as you like."
+                : toCheck > 0
+                  ? `${toCheck} ${toCheck === 1 ? "item was" : "items were"} hard to read. Check ${toCheck === 1 ? "it" : "them"} before you publish.`
+                  : "Everything read clearly. Fix anything that looks off."}
             </p>
           </div>
 
@@ -285,12 +403,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
             variant="tinted"
             icon={<PlusIcon />}
             className="self-start"
-            onClick={() =>
-              setRows((current) => [
-                ...(current ?? []),
-                { key: nextKey++, emoji: "", name: "", price: "", confidence: null, unreadPrice: false },
-              ])
-            }
+            onClick={() => setRows((current) => [...(current ?? []), emptyRow()])}
           >
             Add item
           </Button>
@@ -306,7 +419,9 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
             Publish stand
           </Button>
           {invalid ? (
-            <p className="-mt-2 text-center text-footnote text-ink-2">Every item needs a name and a price.</p>
+            <p className="-mt-2 text-center text-footnote text-ink-2">
+              {name.trim() ? "Every item needs a name and a price." : "Give your stand a name, and every item a name and a price."}
+            </p>
           ) : null}
         </section>
       ) : null}

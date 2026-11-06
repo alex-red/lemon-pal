@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { cn } from "./cn";
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "prefix"> & {
@@ -41,6 +41,41 @@ export function TextField({ label, prefix, hint, error, className, id, ...props 
           {...props}
         />
       </div>
+      {note ? (
+        <p id={noteId} role={error ? "alert" : undefined} className={cn("px-1 text-footnote", error ? "text-berry" : "text-ink-2")}>
+          {note}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+type AreaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; hint?: ReactNode; error?: ReactNode };
+
+/** A labelled multi-line field, styled like TextField, for pasting or typing a few lines. */
+export function TextArea({ label, hint, error, className, id, rows = 5, ...props }: AreaProps) {
+  const autoId = useId();
+  const areaId = id ?? autoId;
+  const noteId = `${areaId}-note`;
+  const note = error ?? hint;
+
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <label htmlFor={areaId} className="px-1 text-footnote font-semibold text-ink-2">
+        {label}
+      </label>
+      <textarea
+        id={areaId}
+        rows={rows}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={note ? noteId : undefined}
+        className={cn(
+          "min-h-28 resize-y rounded-field bg-fill px-4 py-3 text-body shadow-[inset_0_0_0_1px_var(--control-edge)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-ink-3",
+          "focus:bg-surface focus:shadow-[inset_0_0_0_2px_var(--focus)]",
+          Boolean(error) && "shadow-[inset_0_0_0_2px_var(--berry)] focus:shadow-[inset_0_0_0_2px_var(--berry)]",
+        )}
+        {...props}
+      />
       {note ? (
         <p id={noteId} role={error ? "alert" : undefined} className={cn("px-1 text-footnote", error ? "text-berry" : "text-ink-2")}>
           {note}

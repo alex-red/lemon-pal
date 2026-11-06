@@ -78,6 +78,25 @@ export const CameraIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A framed picture: a photo from the library rather than a new one. */
+export const PhotoIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="m4 17.5 4.6-4.4a1.5 1.5 0 0 1 2.1 0l1.8 1.8 2.8-2.8a1.5 1.5 0 0 1 2.1 0l3.1 3" />
+  </Icon>
+);
+
+/** Lines of text with bullets: a typed or pasted list. */
+export const ListIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9.5 7h10M9.5 12h10M9.5 17h10" />
+    <circle cx="5" cy="7" r="1" fill="currentColor" stroke="none" />
+    <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="5" cy="17" r="1" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
 export const QrCodeIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="4" y="4" width="6" height="6" rx="1.5" />

@@ -2,7 +2,7 @@
 export { Button, type ButtonSize, type ButtonVariant } from "./button";
 export { cn } from "./cn";
 export { SegmentedControl, Stepper, Switch } from "./controls";
-export { TextField } from "./field";
+export { TextArea, TextField } from "./field";
 export * from "./icons";
 export { ItemTile } from "./item-tile";
 export { LemonQR } from "./lemon-qr";

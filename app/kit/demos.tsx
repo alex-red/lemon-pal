@@ -20,6 +20,7 @@ import {
   Sheet,
   Stepper,
   Switch,
+  TextArea,
   TextField,
   Toolbar,
   ArrowUturnIcon,
@@ -82,6 +83,12 @@ export function ControlsDemo() {
           onChange={(e) => setPrice(e.target.value)}
           error={priceError}
           hint="What the sign says, before any tip."
+        />
+        <TextArea
+          label="Price list"
+          rows={3}
+          placeholder={"Lemonade $2\nCookie $1.50"}
+          hint="Paste or type a few lines. Lemon Pal reads them like a sign."
         />
         <div className="flex items-center gap-3">
           <ConfidencePill confidence="low" />

@@ -12,7 +12,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Sta
 
 | Step | Route | What happens |
 | --- | --- | --- |
-| Create your stand | `/stand/setup` | Photo of the sign → vision model → reviewable draft catalog with the stand name and an emoji per item. Unreadable prices must be entered by the seller. Sample stands (lemonade, bake sale, merch table, garage sale) skip the photo. |
+| Create your stand | `/stand/setup` | A photo of the sign (taken with the in-page camera or chosen from the library) or a pasted price list → vision model → reviewable draft catalog with the stand name and an emoji per item. Unreadable prices must be entered by the seller. Sellers can also start blank, or pick a sample stand (lemonade, bake sale, merch table, garage sale). |
 | Ring up a sale | `/stand/register` | Tap item tiles, then show a lemon-badged QR code for this sale. The server snapshots the cart and prices it from the confirmed catalog. |
 | Pay | `/pay/[saleId]` | The buyer's phone shows the stand name and order, then opens PayPal Checkout. The server creates and captures the order. PayPal emails the buyer a receipt. |
 | Confirm | `/stand/register` | The seller tablet polls the sale status and shows **Paid** only after a completed capture for the expected amount and currency. |
