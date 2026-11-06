@@ -467,6 +467,53 @@
   }
 }
 
+/*
+ * The scroll edge effect (ScrollEdge). A band that blurs and fades what scrolls under it. The top band fades
+ * in over the first 3rem of scrolling with a scroll-driven animation; where those aren't supported it stays
+ * hidden, so nothing at rest is ever blurred.
+ */
+@utility scroll-edge {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 15;
+  pointer-events: none;
+  backdrop-filter: blur(12px) saturate(160%);
+  &[data-edge="top"] {
+    top: 0;
+    height: calc(env(safe-area-inset-top) + 3rem);
+    background: linear-gradient(to bottom, color-mix(in oklch, var(--canvas) 72%, transparent), transparent);
+    mask: linear-gradient(to bottom, #000 35%, transparent);
+    opacity: 0;
+    @supports (animation-timeline: scroll()) {
+      animation: edge-in linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 3rem;
+    }
+  }
+  &[data-edge="bottom"] {
+    bottom: 0;
+    height: calc(env(safe-area-inset-bottom) + 8rem);
+    background: linear-gradient(to top, color-mix(in oklch, var(--canvas) 72%, transparent), transparent);
+    mask: linear-gradient(to top, #000 40%, transparent);
+  }
+}
+@keyframes edge-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Floating chrome that minimizes while the page scrolls down (useScrollCompact sets data-compact). */
+@utility minimizable {
+  transition:
+    transform 500ms var(--ease-spring),
+    opacity 300ms var(--ease-glide);
+  transform-origin: bottom center;
+  &[data-compact] {
+    transform: scale(0.92) translateY(6px);
+  }
+}
+
 /* A light band that passes over a photo while it's read. Put it inside an overflow-hidden frame. */
 @utility scan-band {
   pointer-events: none;
@@ -709,6 +756,41 @@
 ::view-transition-old(.step-aside) {
   animation: step-aside 360ms var(--ease-smooth) both;
 }
+/* Page slides (PageTransition): 60px is enough to say which way you went without a long sweep. */
+::view-transition-old(.nav-forward),
+::view-transition-old(.nav-back) {
+  animation:
+    150ms var(--ease-glide) both vt-fade-out,
+    400ms var(--ease-smooth) both nav-slide-out;
+}
+::view-transition-new(.nav-forward),
+::view-transition-new(.nav-back) {
+  animation:
+    220ms var(--ease-glide) 120ms both vt-fade-in,
+    450ms var(--ease-smooth) both nav-slide-in;
+}
+::view-transition-old(.nav-forward) {
+  --slide-to: -60px;
+}
+::view-transition-new(.nav-forward) {
+  --slide-from: 60px;
+}
+::view-transition-old(.nav-back) {
+  --slide-to: 60px;
+}
+::view-transition-new(.nav-back) {
+  --slide-from: -60px;
+}
+@keyframes nav-slide-out {
+  to {
+    translate: var(--slide-to);
+  }
+}
+@keyframes nav-slide-in {
+  from {
+    translate: var(--slide-from);
+  }
+}
 @keyframes via-blur {
   30% {
     filter: blur(3px);
@@ -763,6 +845,9 @@
   .ai-glow[data-active]::after,
   .shimmer-text {
     animation: var(--animate-breathe) !important;
+  }
+  .minimizable[data-compact] {
+    transform: none;
   }
   /* The input holds what the person is typing, so its glow stays still rather than breathing. */
   [data-assistant-thinking] .ag-studio-ai-assistant-panel .ag-studio-ai-assistant-input {

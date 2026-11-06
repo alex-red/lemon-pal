@@ -78,7 +78,8 @@ export function ListRow({
   return (
     <li className="group">
       {href ? (
-        <Link href={href} className={cn(rowClass, "focus-ring transition-colors active:bg-fill-2 hover:bg-fill")}>
+        // A row with a chevron drills in, so it slides the next page in from the trailing edge.
+        <Link href={href} transitionTypes={["nav-forward"]} className={cn(rowClass, "focus-ring transition-colors active:bg-fill-2 hover:bg-fill")}>
           {body}
         </Link>
       ) : (

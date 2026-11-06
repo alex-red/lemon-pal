@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { PageTransition } from "@/components/kit";
 import { getOrCreateDemoStand, sampleChoices } from "@/lib/demo";
 import { env } from "@/lib/env";
 import { Setup } from "./setup";
@@ -6,5 +7,9 @@ import { Setup } from "./setup";
 export default async function SetupPage() {
   await connection(); // read env at request time, not build time
   const stand = await getOrCreateDemoStand();
-  return <Setup currency={env.currency()} standName={stand.name} samples={sampleChoices} />;
+  return (
+    <PageTransition>
+      <Setup currency={env.currency()} standName={stand.name} samples={sampleChoices} />
+    </PageTransition>
+  );
 }

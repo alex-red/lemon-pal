@@ -21,6 +21,7 @@ import {
   PlusIcon,
   QrCodeIcon,
   SaleStatusPill,
+  ScrollEdge,
   SparklesIcon,
   Spinner,
   WalletIcon,
@@ -150,6 +151,7 @@ export default function KitPage() {
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col gap-24 pb-24">
+        <ScrollEdge />
         <Hero />
 
         <Section
@@ -457,7 +459,7 @@ export default function KitPage() {
           id="motion"
           eyebrow="08 · Motion"
           title="Springs, and a glow for thinking"
-          lede="Every move uses a named spring, so the app feels like one hand made it. When Lemon Pal is reading a sign or a list, the edge it's working on glows and the status words shimmer. When results run past the screen, rows settle in as you reach them and a pill says how many are left."
+          lede="Every move uses a named spring, so the app feels like one hand made it. When Lemon Pal is reading a sign or a list, the edge it's working on glows and the status words shimmer. When results run past the screen, rows settle in as you reach them and a pill says how many are left. Content softens as it scrolls under the top of the screen (ScrollEdge), floating bars minimize while you scroll down, sheets grow out of their button, and pages slide forward and back (PageTransition)."
         >
           <MotionDemo />
           <div className="mt-6">
