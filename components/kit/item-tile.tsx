@@ -28,7 +28,7 @@ export function ItemTile({
   count?: number;
   /** Optional glyph from the sign, shown large. */
   emoji?: string;
-  /** Optional thumbnail cropped from the seller's photo. Fills the tile in place of the emoji, fading out behind the name. */
+  /** Optional cropped photo or bundled demo sticker. */
   image?: string;
   /** A multi-buy price to show under the price, such as "2 for $5.00". */
   deal?: string;
@@ -40,6 +40,7 @@ export function ItemTile({
 }) {
   const active = count > 0;
   const price = formatMoney(priceCents, currency);
+  const sticker = image?.startsWith("/demo/stickers/");
 
   return (
     // A spacer holds the 5:4 shape and the button shares its grid cell, so the tile grows taller than 5:4
@@ -63,16 +64,20 @@ export function ItemTile({
         )}
       >
         {image ? (
-          // The photo fills the tile and fades into it above the name, so it reads as part of the card.
-          // The empty span keeps the name and price at the bottom, as with an emoji.
+          // Photos fill and fade into the tile. Stickers sit above the label so the whole cutout is visible.
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element -- small data URL thumbnail */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- small local or data URL thumbnail */}
             <img
               src={image}
               alt=""
-              className="pointer-events-none absolute inset-0 size-full object-cover [mask-image:linear-gradient(to_bottom,#000_25%,transparent_72%)]"
+              className={cn(
+                "pointer-events-none",
+                sticker
+                  ? "h-20 w-full object-contain sm:h-24 xl:h-28"
+                  : "absolute inset-0 size-full object-cover [mask-image:linear-gradient(to_bottom,#000_25%,transparent_72%)]",
+              )}
             />
-            <span aria-hidden />
+            {sticker ? null : <span aria-hidden />}
           </>
         ) : emoji ? (
           <span aria-hidden className="text-[2.5rem] leading-none drop-shadow-sm">

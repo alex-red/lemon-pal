@@ -41,7 +41,7 @@ import { playDing, unlockDing } from "@/lib/ding";
 const sampleItems: { id: string; name: string; priceCents: number; emoji: string; image?: string; deal?: Deal; soldOut?: boolean }[] = [
   // A photo thumbnail, as the setup screen crops from a display photo. It takes the emoji's place.
   { id: "lemonade", name: "Lemonade", priceCents: 250, emoji: "🍋", image: "/demo/lemons-thumb.jpg" },
-  { id: "pink", name: "Pink lemonade", priceCents: 300, emoji: "🌸" },
+  { id: "sleepy-cat", name: "Sleepy Cat", priceCents: 400, emoji: "🐱", image: "/demo/stickers/sleepy-cat.webp" },
   { id: "iced-tea", name: "Iced tea", priceCents: 200, emoji: "🧊" },
   { id: "cookie", name: "Cookie", priceCents: 150, emoji: "🍪", deal: { quantity: 2, priceCents: 250 } },
   // Sold out: greyed, labelled, and not tappable.

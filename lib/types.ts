@@ -7,7 +7,7 @@ export type CatalogItem = {
   priceCents: Cents;
   /** One emoji shown large on the register tile. Optional: tiles fall back to the item's initial. */
   emoji?: string;
-  /** A small JPEG data URL cropped from the seller's photo. Shown on the register tile in place of the emoji. */
+  /** A cropped JPEG data URL or a bundled demo sticker path, shown in place of the emoji. */
   image?: string;
   /** A confirmed multi-buy price, such as 2 for $5. The server applies it when pricing a sale. */
   deal?: Deal;

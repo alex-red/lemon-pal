@@ -41,7 +41,7 @@ function catalog(): CatalogItem[] {
   return ITEMS.map((item) => {
     const { weight, ...rest } = item;
     void weight;
-    return { ...rest, ships: item.ships ?? true };
+    return { ...rest, image: `/demo/stickers/${item.id}.webp`, ships: item.ships ?? true };
   });
 }
 
