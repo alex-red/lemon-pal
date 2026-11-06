@@ -78,7 +78,8 @@ async function shrinkPhoto(file: Blob): Promise<Blob> {
   }
 }
 
-const DEMO_SIGN = "/demo/lemonade-stand-sign.jpg";
+/** A real lemonade stand sign, bundled for demos without a sign on hand. */
+const DEMO_SIGN = { src: "/demo/lemonade-stand-sign.jpg", standName: "Lemonade Stand" };
 
 type SampleChoice = { id: string; name: string; emoji: string };
 
@@ -142,11 +143,11 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
   }
 
   /** Runs the bundled lemonade stand sign through the photo reader, for demos without a real sign. */
-  async function readDemoSign(standName: string) {
+  async function readDemoSign() {
     setBusy("reading");
-    setName(standName); // the sign has no stand name, so the reader won't supply one
+    setName(DEMO_SIGN.standName); // the sign has no stand name, so the reader won't supply one
     setError(null);
-    const photo = await fetch(DEMO_SIGN)
+    const photo = await fetch(DEMO_SIGN.src)
       .then((res) => (res.ok ? res.blob() : undefined))
       .catch(() => undefined);
     if (photo) return onPhoto(photo);
@@ -443,36 +444,32 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
         </section>
       ) : null}
 
+      <section aria-labelledby="demo-heading" className="flex flex-col items-center gap-3 text-center">
+        <h2 id="demo-heading" className="text-subhead text-ink-2">
+          Demo: watch Lemon Pal read a real sign.
+        </h2>
+        <Button variant="tinted" icon={<PhotoIcon />} disabled={busy !== null} onClick={readDemoSign}>
+          Lemonade stand sign
+        </Button>
+      </section>
+
       <section aria-labelledby="samples-heading" className="flex flex-col items-center gap-3 text-center">
         <h2 id="samples-heading" className="text-subhead text-ink-2">
           No sign handy? Start from a sample stand.
         </h2>
         <div className="flex flex-wrap justify-center gap-2">
-          {samples.map((sample) =>
-            // The lemonade sample reads a real sign photo instead, so the demo shows the camera flow.
-            sample.id === "lemonade" ? (
-              <Button
-                key={sample.id}
-                variant="tinted"
-                icon={<span aria-hidden>{sample.emoji}</span>}
-                disabled={busy !== null}
-                onClick={() => readDemoSign(sample.name)}
-              >
-                Demo – {sample.name}
-              </Button>
-            ) : (
-              <Button
-                key={sample.id}
-                variant="tinted"
-                icon={<span aria-hidden>{sample.emoji}</span>}
-                loading={busy === `sample:${sample.id}`}
-                disabled={busy !== null}
-                onClick={() => loadSample(sample.id)}
-              >
-                {sample.name}
-              </Button>
-            ),
-          )}
+          {samples.map((sample) => (
+            <Button
+              key={sample.id}
+              variant="tinted"
+              icon={<span aria-hidden>{sample.emoji}</span>}
+              loading={busy === `sample:${sample.id}`}
+              disabled={busy !== null}
+              onClick={() => loadSample(sample.id)}
+            >
+              {sample.name}
+            </Button>
+          ))}
         </div>
       </section>
     </main>
