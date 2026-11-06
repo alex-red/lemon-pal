@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { playDing, unlockDing } from "@/lib/ding";
 import { formatMoney } from "@/lib/money";
 import type { PublicSale } from "@/lib/sales";
 import type { CatalogItem } from "@/lib/types";
@@ -13,6 +14,14 @@ export function Register({ standName, currency, items }: Props) {
   const [sale, setSale] = useState<PublicSale | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dingedSaleId = useRef<string | null>(null);
+
+  // Ding once per sale, even if two status checks both see it paid.
+  function dingFor(saleId: string) {
+    if (dingedSaleId.current === saleId) return;
+    dingedSaleId.current = saleId;
+    playDing();
+  }
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + item.priceCents * (cart[item.id] ?? 0), 0),
@@ -26,6 +35,7 @@ export function Register({ standName, currency, items }: Props) {
       const res = await fetch(`/api/sales/${sale.id}`, { cache: "no-store" });
       if (res.ok) {
         const next = (await res.json()) as PublicSale;
+        if (next.status === "paid") dingFor(next.id);
         if (next.status !== "open") setSale(next);
       }
     }, 1000);
@@ -33,6 +43,7 @@ export function Register({ standName, currency, items }: Props) {
   }, [sale]);
 
   async function startSale() {
+    unlockDing();
     setError(null);
     const res = await fetch("/api/sales", {
       method: "POST",
@@ -56,6 +67,19 @@ export function Register({ standName, currency, items }: Props) {
     setQr(null);
   }
 
+  // Cancel on the server so the QR code can't be paid later. If the buyer already paid, show that instead.
+  async function cancel() {
+    if (!sale) return;
+    const res = await fetch(`/api/sales/${sale.id}/cancel`, { method: "POST" });
+    const next = res.ok ? ((await res.json()) as PublicSale) : null;
+    if (next?.status === "paid") {
+      dingFor(next.id);
+      setSale(next);
+    } else {
+      reset();
+    }
+  }
+
   if (sale) {
     return (
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-6 px-4 py-10 text-center">
@@ -71,8 +95,11 @@ export function Register({ standName, currency, items }: Props) {
           )
         )}
         <p className="opacity-70">{sale.status === "open" ? "Scan with your phone camera to pay" : null}</p>
-        <button onClick={reset} className="rounded-xl border-2 px-6 py-3 text-lg">
-          {sale.status === "paid" ? "Next customer" : "Cancel"}
+        <button
+          onClick={sale.status === "paid" ? reset : cancel}
+          className="rounded-xl border-2 px-6 py-3 text-lg"
+        >
+          {sale.status === "paid" ? "Next customer" : "Cancel sale"}
         </button>
       </main>
     );

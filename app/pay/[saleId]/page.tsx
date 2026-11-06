@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { env } from "@/lib/env";
 import { formatMoney } from "@/lib/money";
 import { store } from "@/lib/store";
+import { Checkout } from "./checkout";
 
 // Buyer checkout opened from the QR code. Keep this page small: it loads on a phone over cell data.
 export default async function PayPage({ params }: { params: Promise<{ saleId: string }> }) {
@@ -28,10 +30,11 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
         <span>{formatMoney(sale.totalCents, sale.currency)}</span>
       </p>
       {sale.status === "paid" ? (
-        <p className="mt-8 text-center text-3xl font-bold text-leaf">Paid. Thank you!</p>
+        <p className="mt-8 text-center text-3xl font-bold text-leaf">🍋 Paid. Thank you!</p>
+      ) : sale.status === "canceled" ? (
+        <p className="mt-8 text-center text-lg">The seller canceled this sale. Ask them for a new code.</p>
       ) : (
-        // TODO: mount PayPal JS SDK buttons: createOrder → POST /api/sales/[id]/order, onApprove → POST /api/sales/[id]/capture
-        <p className="mt-8 rounded-xl border border-dashed p-6 text-center opacity-60">PayPal checkout goes here.</p>
+        <Checkout saleId={sale.id} clientId={env.paypalClientId()} sdkUrl={env.paypalSdkUrl()} currency={sale.currency} />
       )}
     </main>
   );

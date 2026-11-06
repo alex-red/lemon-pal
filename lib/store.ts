@@ -11,6 +11,11 @@ export interface Store {
   saveStand(stand: Stand): Promise<void>;
   getSale(id: string): Promise<Sale | null>;
   saveSale(sale: Sale): Promise<void>;
+  /**
+   * Atomically read, change, and write one sale, so a cancel and a capture can't overwrite each other.
+   * `change` returns the new sale, or null to leave it as is. Resolves to the stored sale.
+   */
+  updateSale(id: string, change: (sale: Sale) => Sale | null): Promise<Sale | null>;
   listSales(standId: string): Promise<Sale[]>;
 }
 
@@ -29,6 +34,14 @@ class MemoryStore implements Store {
   }
   async saveSale(sale: Sale) {
     this.sales.set(sale.id, structuredClone(sale));
+  }
+  async updateSale(id: string, change: (sale: Sale) => Sale | null) {
+    // Synchronous between read and write, so it's atomic within one process.
+    const current = this.sales.get(id);
+    if (!current) return null;
+    const next = change(structuredClone(current));
+    if (next) this.sales.set(id, structuredClone(next));
+    return structuredClone(next ?? current);
   }
   async listSales(standId: string) {
     return [...this.sales.values()].filter((s) => s.standId === standId).map((s) => structuredClone(s));

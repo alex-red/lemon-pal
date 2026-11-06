@@ -11,6 +11,10 @@ export const env = {
   paypalClientSecret: () => required("PAYPAL_CLIENT_SECRET"),
   paypalApiBase: () =>
     process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com",
+  paypalSdkUrl: () =>
+    process.env.PAYPAL_ENV === "live"
+      ? "https://www.paypal.com/web-sdk/v6/core"
+      : "https://www.sandbox.paypal.com/web-sdk/v6/core",
   currency: () => process.env.STAND_CURRENCY || "USD",
   anthropicApiKey: () => required("ANTHROPIC_API_KEY"),
   publicAppUrl: () => process.env.PUBLIC_APP_URL || null,

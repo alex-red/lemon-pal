@@ -2,7 +2,7 @@
 
 LemonPal turns a handwritten price sign into a working register for a pop-up stand. The seller photographs the sign, checks the names and prices an AI vision model read from it, and rings up sales on a tablet. The buyer scans a QR code and pays with PayPal on their own phone. The seller's screen flips to **Paid** the moment PayPal confirms the capture, and the stand recap in AG Studio shows what sold.
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: early scaffold, not yet functional.
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: in development. The register-to-PayPal sale is implemented with a sample catalog. Sign reading and the recap are not built yet.
 
 ## How it works
 
