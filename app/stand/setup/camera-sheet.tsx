@@ -17,7 +17,12 @@ export function CameraSheet({
   onCapture,
   onClose,
   onFallback,
+  title = "Photograph your sign",
+  hint = "Fit the whole sign in the frame, as straight on as you can.",
 }: {
+  /** What's being photographed: the sign by default, or one item. */
+  title?: string;
+  hint?: string;
   onCapture: (photo: Blob) => void;
   onClose: () => void;
   onFallback: () => void;
@@ -57,7 +62,7 @@ export function CameraSheet({
   }
 
   return (
-    <Sheet open onClose={onClose} title="Photograph your sign">
+    <Sheet open onClose={onClose} title={title}>
       <div className="flex flex-col gap-5">
         <div className="relative grid aspect-[4/3] place-items-center overflow-hidden rounded-[18px] bg-fill">
           <video
@@ -92,7 +97,7 @@ export function CameraSheet({
             <Button variant="filled" size="xl" className="w-full" icon={<CameraIcon />} disabled={state !== "live"} onClick={shoot}>
               Take photo
             </Button>
-            <p className="-mt-2 text-center text-footnote text-ink-2">Fit the whole sign in the frame, as straight on as you can.</p>
+            <p className="-mt-2 text-center text-footnote text-ink-2">{hint}</p>
           </>
         )}
       </div>

@@ -37,6 +37,7 @@ import { cleanEmoji } from "@/lib/emoji";
 import { standApi, standHome } from "@/lib/stands";
 import type { CatalogItem, DraftItem, Region, SignDraft, StandKind } from "@/lib/types";
 import { CameraSheet, canUseLiveCamera } from "./camera-sheet";
+import { PhotoSheet, THUMB_SIZE } from "./photo-sheet";
 
 type Row = {
   key: number;
@@ -123,7 +124,7 @@ function rowChanges(row: Row) {
   const before = row.before;
   const price = parsePrice(row.price);
   const deal = parseDeal(row);
-  if (!before) return { added: true, price: null, soldOut: false, restocked: false, renamed: false, otherEdit: false };
+  if (!before) return { added: true, price: null, soldOut: false, restocked: false, renamed: false, photo: false, otherEdit: false };
   // A half-typed deal isn't a change yet: the form already asks for it to be finished.
   const dealChanged = row.deal
     ? deal !== null && (deal.quantity !== before.deal?.quantity || deal.priceCents !== before.deal?.priceCents)
@@ -134,13 +135,14 @@ function rowChanges(row: Row) {
     soldOut: row.soldOut && !before.soldOut,
     restocked: !row.soldOut && Boolean(before.soldOut),
     renamed: row.name.trim() !== before.name,
+    photo: row.image !== before.image,
     otherEdit: dealChanged || row.emoji !== (before.emoji ?? ""),
   };
 }
 
 function isChanged(row: Row) {
   const c = rowChanges(row);
-  return c.added || c.price !== null || c.soldOut || c.restocked || c.renamed || c.otherEdit;
+  return c.added || c.price !== null || c.soldOut || c.restocked || c.renamed || c.photo || c.otherEdit;
 }
 
 /** A pasted note that raises a price, sells one item out, drops one, and adds one, for demoing an update. */
@@ -261,8 +263,6 @@ async function cropThumbnails(photo: Blob, regions: (Region | undefined)[]): Pro
   }
 }
 
-/** Register tiles fill with the thumbnail, about 20rem across at most, so this stays sharp on a 2x screen. */
-const THUMB_SIZE = 480;
 
 /**
  * Stand photos bundled for demos without a stand on hand. The art table sign is generated: it's the video fixture,
@@ -317,6 +317,11 @@ export function Setup({
   const [camera, setCamera] = useState(false);
   const [pasting, setPasting] = useState(false);
   const [list, setList] = useState("");
+  // The item whose photo is open large, and the item being photographed with the in-page camera.
+  const [photoFor, setPhotoFor] = useState<number | null>(null);
+  const [cameraFor, setCameraFor] = useState<number | null>(null);
+  // A photo just taken for that item, which the photo sheet opens straight into framing.
+  const [takenPhoto, setTakenPhoto] = useState<Blob | null>(null);
   // Full cards to edit everything, or a compact grid for scanning prices and sold-out switches. Tiles open into a
   // full card to edit the rest. The choice is remembered on this device.
   const [layout, setLayout] = useState<"list" | "grid">("list");
@@ -470,6 +475,7 @@ export function Setup({
   function update(key: number, change: Partial<Row>) {
     setRows((current) => current?.map((row) => (row.key === key ? { ...row, ...change } : row)) ?? null);
   }
+
 
   const invalid =
     !name.trim() || !rows?.length || rows.some((row) => !row.name.trim() || parsePrice(row.price) === null || (row.deal !== null && !parseDeal(row)));
@@ -642,6 +648,55 @@ export function Setup({
         </AIGlow>
       ) : null}
 
+      {photoFor !== null && rows?.some((row) => row.key === photoFor) ? (
+        (() => {
+          const row = rows.find((r) => r.key === photoFor)!;
+          return (
+            <PhotoSheet
+              name={row.name.trim() || "Item photo"}
+              image={row.image}
+              emoji={row.emoji}
+              liveCamera={canUseLiveCamera()}
+              initialPhoto={takenPhoto}
+              onLiveCamera={() => {
+                setPhotoFor(null);
+                setCameraFor(row.key);
+              }}
+              onReplace={(image) => {
+                update(row.key, { image });
+                setTakenPhoto(null);
+              }}
+              onRemove={() => update(row.key, { image: undefined })}
+              onClose={() => {
+                setPhotoFor(null);
+                setTakenPhoto(null);
+              }}
+            />
+          );
+        })()
+      ) : null}
+
+      {cameraFor !== null ? (
+        <CameraSheet
+          title="Photograph your item"
+          hint="Fill the frame with the item. Lemon Pal crops it square."
+          onCapture={(photo) => {
+            const key = cameraFor;
+            setCameraFor(null);
+            setTakenPhoto(photo); // framed in the photo sheet before it replaces anything
+            setPhotoFor(key);
+          }}
+          onClose={() => {
+            setPhotoFor(cameraFor);
+            setCameraFor(null);
+          }}
+          onFallback={() => {
+            setPhotoFor(cameraFor);
+            setCameraFor(null);
+          }}
+        />
+      ) : null}
+
       {camera ? (
         <CameraSheet
           onCapture={(photo) => void onPhoto(photo)}
@@ -736,6 +791,7 @@ export function Setup({
                       onPrice={(price) => update(row.key, { price })}
                       onSoldOut={(soldOut) => update(row.key, { soldOut })}
                       onEdit={() => toggleExpanded(row.key)}
+                      onPhoto={() => setPhotoFor(row.key)}
                     />
                   </li>
                 );
@@ -745,18 +801,7 @@ export function Setup({
                   <Card className={row.confidence === "low" ? "attention flex flex-col gap-3 p-4" : "flex flex-col gap-3 p-4"}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        {row.image ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- data URL cropped in the browser
-                          <img
-                            src={row.image}
-                            alt={`Photo of ${row.name || `item ${i + 1}`}`}
-                            className={
-                              row.soldOut
-                                ? "size-16 shrink-0 rounded-[14px] object-cover opacity-50 shadow-card grayscale"
-                                : "size-16 shrink-0 rounded-[14px] object-cover shadow-card"
-                            }
-                          />
-                        ) : null}
+                        <PhotoButton row={row} itemName={itemName} onOpen={() => setPhotoFor(row.key)} />
                         {/* While updating, most items read clearly and haven't changed, so only flag the ones to check. */}
                         {row.confidence === "low" || (row.confidence && !updating) ? (
                           <ConfidencePill confidence={row.confidence} />
@@ -968,6 +1013,35 @@ export function Setup({
 const LAYOUT_KEY = "lemonpal.setup-layout";
 
 /**
+ * An item's picture, which opens it large to view, replace, or remove. Without a photo, the full card shows an empty
+ * camera slot and the grid tile shows the item's icon, so there's always somewhere to add one.
+ */
+function PhotoButton({ row, itemName, compact = false, onOpen }: { row: Row; itemName: string; compact?: boolean; onOpen: () => void }) {
+  const shape = compact ? "size-12 rounded-[12px]" : "size-16 rounded-[14px]";
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={row.image ? `View the photo of ${itemName}` : `Add a photo of ${itemName}`}
+      className={cn("pressable focus-ring shrink-0", shape)}
+    >
+      {row.image ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a data URL cropped in the browser, or a bundled demo photo
+        <img src={row.image} alt="" className={cn("block object-cover shadow-card", shape, row.soldOut && "opacity-50 grayscale")} />
+      ) : compact ? (
+        <span aria-hidden className={cn("grid place-items-center text-[2rem] leading-none", shape, row.soldOut && "opacity-50 grayscale")}>
+          {row.emoji || <span className="font-display text-title2 font-semibold text-ink-3">{row.name.trim().charAt(0).toUpperCase()}</span>}
+        </span>
+      ) : (
+        <span aria-hidden className={cn("grid place-items-center border border-dashed border-ink-3 text-[1.5rem] text-ink-3", shape)}>
+          <CameraIcon />
+        </span>
+      )}
+    </button>
+  );
+}
+
+/**
  * One item as a small grid tile: its picture, name, what changed, the price, and the sold-out switch. Everything else
  * (name, icon, deal, removing it) opens in the full card with Edit.
  */
@@ -981,6 +1055,7 @@ function CompactItem({
   onPrice,
   onSoldOut,
   onEdit,
+  onPhoto,
 }: {
   row: Row;
   itemName: string;
@@ -991,23 +1066,13 @@ function CompactItem({
   onPrice: (price: string) => void;
   onSoldOut: (soldOut: boolean) => void;
   onEdit: () => void;
+  onPhoto: () => void;
 }) {
   const deal = parseDeal(row);
   return (
     <Card className={cn("flex h-full flex-col gap-2 p-3", row.confidence === "low" && "attention")}>
       <div className="flex items-start justify-between gap-2">
-        {row.image ? (
-          // eslint-disable-next-line @next/next/no-img-element -- data URL cropped in the browser
-          <img
-            src={row.image}
-            alt=""
-            className={cn("size-12 shrink-0 rounded-[12px] object-cover shadow-card", row.soldOut && "opacity-50 grayscale")}
-          />
-        ) : (
-          <span aria-hidden className={cn("grid size-12 place-items-center text-[2rem] leading-none", row.soldOut && "opacity-50 grayscale")}>
-            {row.emoji || <span className="font-display text-title2 font-semibold text-ink-3">{row.name.trim().charAt(0).toUpperCase()}</span>}
-          </span>
-        )}
+        <PhotoButton row={row} itemName={itemName} compact onOpen={onPhoto} />
         <Button variant="ghost" iconOnly aria-label={`Edit ${itemName}`} icon={<PencilIcon />} onClick={onEdit} />
       </div>
       <p className="text-headline font-semibold text-balance [overflow-wrap:anywhere]">{row.name || "Unnamed item"}</p>
@@ -1105,6 +1170,9 @@ function ChangePills({ row, currency, updating }: { row: Row; currency: string; 
       ) : null}
       {row.onSign === false ? (
         <Pill icon={<ExclamationIcon />}>Not on sign</Pill>
+      ) : null}
+      {change.photo ? (
+        <Pill icon={<PhotoIcon />}>{row.image ? "New photo" : "Photo removed"}</Pill>
       ) : null}
       {change.renamed || change.otherEdit ? (
         <Pill icon={<PencilIcon />}>Edited</Pill>
