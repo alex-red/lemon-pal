@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "LemonPal",
     short_name: "LemonPal",
-    description: "Turn a price sign into a register and take PayPal payments at a pop-up stand.",
+    description: "Create a stand for anything and get paid instantly with PayPal.",
     start_url: "/stand/register",
     display: "standalone",
     orientation: "any",

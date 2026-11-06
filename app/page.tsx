@@ -8,19 +8,20 @@ export default function Home() {
           <LemonIcon />
         </span>
         <h1 className="font-display text-hero font-semibold">LemonPal</h1>
-        <p className="max-w-sm text-body text-ink-2">From a handwritten price sign to your first PayPal sale.</p>
+        <p className="font-display text-title1 font-semibold text-balance">A lemonade stand for everyone.</p>
+        <p className="max-w-sm text-body text-ink-2 text-balance">Create a stand for anything. Get paid instantly.</p>
       </header>
 
-      <GroupedList header="Your stand" footer="Buyers pay with PayPal on their own phone. You never handle card details.">
-        <ListRow icon={<CameraIcon />} title="Set up the stand" subtitle="Photograph your price sign" href="/stand/setup" />
+      <GroupedList header="Start selling in a minute" footer="Customers pay with PayPal on their own phone. No card reader, no cash box.">
+        <ListRow icon={<CameraIcon />} title="Create your stand" subtitle="Snap your price sign and you’re set up" href="/stand/setup" />
         <ListRow
           icon={<QrCodeIcon />}
           iconTone="ink"
-          title="Open the register"
-          subtitle="Ring up a sale and show the QR code"
+          title="Take a payment"
+          subtitle="Tap what they bought, they scan and pay"
           href="/stand/register"
         />
-        <ListRow icon={<ChartIcon />} iconTone="leaf" title="Stand recap" subtitle="See what sold" href="/stand/recap" />
+        <ListRow icon={<ChartIcon />} iconTone="leaf" title="See your sales" subtitle="What sold and what you made" href="/stand/recap" />
       </GroupedList>
     </main>
   );

@@ -18,8 +18,8 @@ const hanken = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "LemonPal",
-  description: "Turn a price sign into a register and take PayPal payments at a pop-up stand.",
+  title: "LemonPal: a lemonade stand for everyone",
+  description: "Create a stand for anything and get paid instantly with PayPal.",
   appleWebApp: { capable: true, title: "LemonPal", statusBarStyle: "default" },
 };
 

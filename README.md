@@ -1,6 +1,10 @@
 # LemonPal 🍋
 
-LemonPal turns a handwritten price sign into a working register for a pop-up stand. The seller photographs the sign, checks the names and prices an AI vision model read from it, and rings up sales on a tablet. The buyer scans a QR code and pays with PayPal on their own phone. The seller's screen flips to **Paid** the moment PayPal confirms the capture, and the stand recap in AG Studio shows what sold.
+**A lemonade stand for everyone.** Create a stand for anything, and get paid instantly.
+
+Bake sale, garage sale, merch table, a kid's lemonade stand: if you can write a price sign, you can sell with LemonPal. There's no card reader to buy and no cash box to watch. Snap a photo of your sign, and customers pay with PayPal on their own phone.
+
+Under the hood, LemonPal turns that handwritten price sign into a working register. The seller photographs the sign, checks the names and prices an AI vision model read from it, and rings up sales on a tablet. The buyer scans a QR code and pays with PayPal on their own phone. The seller's screen flips to **Paid** the moment PayPal confirms the capture, and the stand recap in AG Studio shows what sold.
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: in development. Sign reading, the register, PayPal checkout, and the AG Studio recap are implemented. Not yet deployed.
 
@@ -8,13 +12,27 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Sta
 
 | Step | Route | What happens |
 | --- | --- | --- |
-| Set up the stand | `/stand/setup` | Photo of the sign → vision model → reviewable draft catalog. Unreadable prices must be entered by the seller. |
+| Create your stand | `/stand/setup` | Photo of the sign → vision model → reviewable draft catalog. Unreadable prices must be entered by the seller. |
 | Ring up a sale | `/stand/register` | Tap item tiles, then show a QR code for this sale. The server snapshots the cart and prices it from the confirmed catalog. |
 | Pay | `/pay/[saleId]` | The buyer's phone opens PayPal Checkout. The server creates and captures the order. |
 | Confirm | `/stand/register` | The seller tablet polls the sale status and shows **Paid** only after a completed capture for the expected amount and currency. |
 | Recap | `/stand/recap` | AG Studio report over completed sales and line items, with a custom **Today's sales** widget, an item filter, and an assistant that answers questions and adds charts. |
 
 All pricing, PayPal calls, and AI calls run on the server. Secrets never reach the browser.
+
+## Try the demo
+
+You need two screens: a tablet or laptop for the seller and a phone for the buyer. Everything runs in PayPal's Sandbox, so no real money moves.
+
+1. Open **TODO: hosted demo URL** on the seller screen and choose **Create your stand**. Photograph a price sign, or pick **Use the sample lemonade stand instead**.
+2. On **Take a payment**, tap a few items and press **Charge**.
+3. Scan the QR code with the phone's camera. Check the items and total, then pay with PayPal using the Sandbox buyer account below.
+4. The seller screen shows **Paid** and plays a ding (tap anything on the seller screen first so the browser allows sound).
+5. Open **See your sales** to see the sale in AG Studio. Ask the assistant "Show me what sold today by item."
+
+**Sandbox buyer:** TODO: Sandbox personal account email and password. These are PayPal test credentials that only work in the Sandbox.
+
+**Starting over:** **Reset demo** on the recap restores the sample stand and deletes test sales. Other people may be trying the demo at the same time, so you might see their sales too.
 
 ## Built with
 

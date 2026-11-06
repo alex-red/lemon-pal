@@ -126,9 +126,9 @@ export function Setup({ currency }: { currency: string }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
-            <LemonIcon className="text-[1.1rem]" /> Set up
+            <LemonIcon className="text-[1.1rem]" /> Create your stand
           </p>
-          <h1 className="font-display text-large-title font-semibold">Your price sign</h1>
+          <h1 className="font-display text-large-title font-semibold">Snap your price sign</h1>
         </div>
         <Link
           href="/stand/register"
@@ -156,7 +156,7 @@ export function Setup({ currency }: { currency: string }) {
           )}
           <span className="text-title3 font-semibold">{rows || preview ? "Retake photo" : "Photograph your sign"}</span>
           <span className="text-subhead text-ink-2">
-            {preview ? "LemonPal reads the names and prices for you to check." : "Or choose a photo you already took."}
+            {preview ? "LemonPal reads the names and prices for you to check." : "LemonPal reads your items and prices. Or choose a photo you already took."}
           </span>
           <input
             type="file"
