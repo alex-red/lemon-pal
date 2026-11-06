@@ -110,7 +110,8 @@ class SqliteStore implements Store {
 }
 
 export function databasePath() {
-  return resolve(process.env.DATABASE_PATH || ".data/lemonpal.sqlite");
+  // A runtime data path, not a source file, so Turbopack shouldn't trace it into the build output.
+  return resolve(/*turbopackIgnore: true*/ process.env.DATABASE_PATH || ".data/lemonpal.sqlite");
 }
 
 // Opened on first use, not at import, so `next build` doesn't create a database file.

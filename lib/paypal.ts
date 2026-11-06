@@ -64,8 +64,11 @@ type Order = {
   }[];
 };
 
-/** `checkoutUrl` is the buyer page; PayPal returns there after a redirect approval or cancel. */
-export async function createOrder(sale: Sale, checkoutUrl: string): Promise<{ id: string }> {
+/**
+ * `checkoutUrl` is the buyer page; PayPal returns there after a redirect approval or cancel.
+ * `brandName` is what PayPal shows the buyer as the seller, instead of the account's business name.
+ */
+export async function createOrder(sale: Sale, checkoutUrl: string, brandName: string): Promise<{ id: string }> {
   const order = await paypalFetch<Order>("/v2/checkout/orders", {
     method: "POST",
     requestId: `create-${sale.id}`,
@@ -74,6 +77,7 @@ export async function createOrder(sale: Sale, checkoutUrl: string): Promise<{ id
       payment_source: {
         paypal: {
           experience_context: {
+            brand_name: brandName.slice(0, 127),
             return_url: checkoutUrl,
             cancel_url: checkoutUrl,
             user_action: "PAY_NOW",

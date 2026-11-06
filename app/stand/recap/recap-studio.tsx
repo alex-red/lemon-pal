@@ -193,7 +193,8 @@ const initialState: AgReportState<RecapRegistry> = {
     },
   ],
   selectedPageId: "recap",
-  panels: { filters: { collapsed: true }, edit: { collapsed: true } },
+  // Start with the dashboard at full width on a tablet. The assistant and data panels open with one tap.
+  panels: { ai: { collapsed: true }, filters: { collapsed: true }, edit: { collapsed: true }, data: { collapsed: true } },
 };
 
 export function RecapStudio({ licenseKey, currency }: { licenseKey: string | null; currency: string }) {
@@ -258,6 +259,8 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
     <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
       <div style={{ height: "100%", width: "100%" }}>
         <AgStudio<RecapRegistry>
+          // Without an explicit size, Studio's own wrapper falls back to 600px tall.
+          style={{ height: "100%", width: "100%" }}
           data={data}
           initialState={initialState}
           widgets={widgets}
