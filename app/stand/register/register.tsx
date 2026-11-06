@@ -1,9 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
+import {
+  ArrowUturnIcon,
+  Button,
+  CameraIcon,
+  ChartIcon,
+  ItemTile,
+  LemonIcon,
+  Money,
+  PaidMoment,
+  QrCodeIcon,
+  SaleStatusPill,
+  Toolbar,
+  XmarkIcon,
+} from "@/components/kit";
 import { playDing, unlockDing } from "@/lib/ding";
-import { formatMoney } from "@/lib/money";
 import type { PublicSale } from "@/lib/sales";
 import type { CatalogItem } from "@/lib/types";
 
@@ -14,6 +28,7 @@ export function Register({ standName, currency, items }: Props) {
   const [sale, setSale] = useState<PublicSale | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [charging, setCharging] = useState(false);
   const dingedSaleId = useRef<string | null>(null);
 
   // Ding once per sale, even if two status checks both see it paid.
@@ -45,6 +60,17 @@ export function Register({ standName, currency, items }: Props) {
   async function startSale() {
     unlockDing();
     setError(null);
+    setCharging(true);
+    try {
+      await createSale();
+    } catch {
+      setError("Could not start the sale. Check the connection and try again.");
+    } finally {
+      setCharging(false);
+    }
+  }
+
+  async function createSale() {
     const res = await fetch("/api/sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -82,63 +108,104 @@ export function Register({ standName, currency, items }: Props) {
 
   if (sale) {
     return (
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-6 px-4 py-10 text-center">
-        <p className="text-5xl font-bold">{formatMoney(sale.totalCents, sale.currency)}</p>
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-7 px-5 py-10 text-center">
         {sale.status === "paid" ? (
-          <p className="text-6xl font-bold text-leaf">🍋 Paid</p>
+          <PaidMoment cents={sale.totalCents} currency={sale.currency} className="animate-rise" />
         ) : (
-          qr && (
-            <div className="rounded-3xl bg-lemon p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element -- data URL from the qrcode package */}
-              <img src={qr} alt="Scan to pay with PayPal" width={320} height={320} className="rounded-xl bg-white" />
-            </div>
-          )
+          <>
+            <SaleStatusPill status={sale.status} />
+            <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
+            {sale.status === "open" && qr ? (
+              <div className="animate-rise rounded-[34px] bg-lemon p-4 shadow-float">
+                {/* eslint-disable-next-line @next/next/no-img-element -- data URL from the qrcode package */}
+                <img src={qr} alt="Scan to pay with PayPal" width={320} height={320} className="rounded-[18px] bg-white" />
+              </div>
+            ) : null}
+            <p className="max-w-xs text-body text-ink-2">
+              {sale.status === "open"
+                ? "Point your phone camera at the code. You\u2019ll pay with PayPal."
+                : "This sale was canceled. Start a new one for the next customer."}
+            </p>
+          </>
         )}
-        <p className="opacity-70">{sale.status === "open" ? "Scan with your phone camera to pay" : null}</p>
-        <button
-          onClick={sale.status === "paid" ? reset : cancel}
-          className="rounded-xl border-2 px-6 py-3 text-lg"
-        >
-          {sale.status === "paid" ? "Next customer" : "Cancel sale"}
-        </button>
+        {sale.status === "open" ? (
+          <Button variant="destructive" size="lg" icon={<XmarkIcon />} onClick={cancel}>
+            Cancel sale
+          </Button>
+        ) : (
+          <Button variant="filled" size="xl" className="min-w-64" onClick={reset}>
+            Next customer
+          </Button>
+        )}
       </main>
     );
   }
 
+  const count = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
+
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
-      <h1 className="text-2xl font-bold">{standName}</h1>
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+    <main className="mx-auto w-full max-w-5xl flex-1 px-5 pt-8 pb-44 sm:px-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
+            <LemonIcon className="text-[1.1rem]" /> Register
+          </p>
+          <h1 className="font-display text-large-title font-semibold">{standName}</h1>
+        </div>
+        <Toolbar aria-label="Stand">
+          <Link href="/stand/setup" className={toolbarLink}>
+            <CameraIcon /> Sign
+          </Link>
+          <Link href="/stand/recap" className={toolbarLink}>
+            <ChartIcon /> Recap
+          </Link>
+        </Toolbar>
+      </header>
+
+      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {items.map((item) => (
-          <button
+          <ItemTile
             key={item.id}
-            onClick={() => setCart((c) => ({ ...c, [item.id]: (c[item.id] ?? 0) + 1 }))}
-            className="relative aspect-square rounded-3xl border-4 border-lemon-deep bg-lemon/50 p-4 text-left active:bg-lemon"
-          >
-            <span className="block text-2xl font-semibold">{item.name}</span>
-            <span className="block text-xl">{formatMoney(item.priceCents, currency)}</span>
-            {cart[item.id] ? (
-              <span className="absolute right-3 top-3 rounded-full bg-foreground px-3 py-1 text-background">
-                {cart[item.id]}
-              </span>
-            ) : null}
-          </button>
+            name={item.name}
+            priceCents={item.priceCents}
+            currency={currency}
+            count={cart[item.id] ?? 0}
+            onAdd={() => setCart((c) => ({ ...c, [item.id]: (c[item.id] ?? 0) + 1 }))}
+            onRemove={() => setCart((c) => ({ ...c, [item.id]: Math.max(0, (c[item.id] ?? 0) - 1) }))}
+          />
         ))}
       </div>
-      <div className="mt-8 flex items-center justify-between gap-4">
-        <button onClick={() => setCart({})} className="rounded-xl border-2 px-5 py-3">
-          Clear
-        </button>
-        <span className="text-3xl font-bold">{formatMoney(total, currency)}</span>
-        <button
-          onClick={startSale}
-          disabled={total === 0}
-          className="rounded-xl bg-foreground px-6 py-3 text-lg text-background disabled:opacity-40"
-        >
-          Charge
-        </button>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {error ? (
+          <p role="alert" className="glass pointer-events-auto rounded-full px-4 py-2 text-subhead font-semibold text-berry">
+            {error}
+          </p>
+        ) : null}
+        <div className="glass pointer-events-auto flex w-full max-w-2xl items-center gap-3 rounded-full p-2 pl-3">
+          <Button
+            variant="tinted"
+            size="lg"
+            iconOnly
+            aria-label="Clear sale"
+            icon={<ArrowUturnIcon />}
+            disabled={count === 0 || charging}
+            onClick={() => setCart({})}
+          />
+          <div className="flex min-w-0 flex-1 flex-col leading-tight" aria-live="polite">
+            <span className="text-footnote text-ink-2">
+              {count === 0 ? "Tap an item to start" : `${count} ${count === 1 ? "item" : "items"}`}
+            </span>
+            <Money cents={total} currency={currency} size="title" />
+          </div>
+          <Button variant="filled" size="xl" icon={<QrCodeIcon />} disabled={total === 0} loading={charging} onClick={startSale}>
+            Charge
+          </Button>
+        </div>
       </div>
-      {error ? <p className="mt-4 text-red-600">{error}</p> : null}
     </main>
   );
 }
+
+const toolbarLink =
+  "pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full px-5 text-callout font-semibold text-ink hover:bg-fill-2 [&_svg]:text-[1.15em]";

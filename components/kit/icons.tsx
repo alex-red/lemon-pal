@@ -1,0 +1,127 @@
+import type { SVGProps } from "react";
+
+// A small symbol set drawn on a 24pt grid with a 1.75 stroke and round joins, in the spirit of SF Symbols.
+// Icons inherit currentColor and scale with font size (1em), so they align with the text beside them.
+
+type IconProps = SVGProps<SVGSVGElement> & { title?: string };
+
+function Icon({ title, children, ...props }: IconProps & { children: React.ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+      {...props}
+    >
+      {title ? <title>{title}</title> : null}
+      {children}
+    </svg>
+  );
+}
+
+export const PlusIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+export const MinusIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 12h14" />
+  </Icon>
+);
+
+export const CheckIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Icon>
+);
+
+export const XmarkIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+  </Icon>
+);
+
+export const ChevronRightIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9.5 5.5 6.5 6.5-6.5 6.5" />
+  </Icon>
+);
+
+export const ClockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </Icon>
+);
+
+export const ExclamationIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10.3 4.3 2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
+    <path d="M12 9.5v4M12 17h.01" />
+  </Icon>
+);
+
+export const CameraIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.3l1.4-2h5.6l1.4 2h1.3A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5Z" />
+    <circle cx="12" cy="12.5" r="3.5" />
+  </Icon>
+);
+
+export const QrCodeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4" y="4" width="6" height="6" rx="1.5" />
+    <rect x="14" y="4" width="6" height="6" rx="1.5" />
+    <rect x="4" y="14" width="6" height="6" rx="1.5" />
+    <path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM14 20h.01M20 14h.01" />
+  </Icon>
+);
+
+export const ChartIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 19.5V13M10 19.5V8.5M15 19.5v-5M20 19.5V5" />
+  </Icon>
+);
+
+export const SparklesIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 3.5 11.6 8a3 3 0 0 0 1.9 1.9L18 11.5l-4.5 1.6a3 3 0 0 0-1.9 1.9L10 19.5l-1.6-4.5a3 3 0 0 0-1.9-1.9L2 11.5l4.5-1.6A3 3 0 0 0 8.4 8Z" />
+    <path d="M18.5 3v4M16.5 5h4" />
+  </Icon>
+);
+
+export const ArrowUturnIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 14 4.5 9.5 9 5" />
+    <path d="M4.5 9.5h10a5 5 0 0 1 0 10H11" />
+  </Icon>
+);
+
+export const WalletIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h10A2.5 2.5 0 0 1 19 7.5V9" />
+    <rect x="4" y="9" width="16.5" height="10" rx="2.5" />
+    <path d="M16.5 14h.01" strokeWidth={2.5} />
+  </Icon>
+);
+
+/** The LemonPal mark: a lemon with a leaf, drawn to sit on the same grid as the symbols. */
+export const LemonIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path
+      d="M5.2 15.6c-1.6-3.9.4-8.6 4.4-10.2 2.6-1 5.4-.6 7.4.9l1.3-.4.2 1.4c1.5 2 1.9 4.8.9 7.4-1.6 4-6.3 6-10.2 4.4l-1.3.4-.2-1.4c-1.1-.7-2-1.5-2.5-2.5Z"
+      fill="var(--lemon)"
+      stroke="currentColor"
+    />
+    <path d="M17.6 6.3c.2-1.8 1.4-3 3.4-3.1-.2 2-1.4 3.2-3.4 3.1Z" fill="var(--leaf)" stroke="currentColor" />
+  </Icon>
+);

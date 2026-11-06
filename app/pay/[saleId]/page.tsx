@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { env } from "@/lib/env";
+import { GroupedList, LemonIcon, ListRow, Money, PaidMoment, SaleStatusPill } from "@/components/kit";
 import { formatMoney } from "@/lib/money";
 import { store } from "@/lib/store";
 import { Checkout } from "./checkout";
@@ -13,28 +14,41 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
   if (!sale) notFound();
 
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-4 py-8">
-      <h1 className="text-2xl font-bold">🍋 Your order</h1>
-      <ul className="mt-4 divide-y">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 pt-10 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <header className="flex flex-col items-center gap-3 text-center">
+        <span className="grid size-14 place-items-center rounded-[18px] bg-lemon text-[2rem] shadow-card">
+          <LemonIcon className="text-[oklch(0.23_0.03_85)]" />
+        </span>
+        <h1 className="font-display text-large-title font-semibold">Your order</h1>
+        <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
+      </header>
+
+      <GroupedList header="Items">
         {sale.lines.map((line) => (
-          <li key={line.itemId} className="flex justify-between py-2">
-            <span>
-              {line.quantity} × {line.name}
-            </span>
-            <span>{formatMoney(line.unitPriceCents * line.quantity, sale.currency)}</span>
-          </li>
+          <ListRow
+            key={line.itemId}
+            title={line.name}
+            subtitle={`${line.quantity} × ${formatMoney(line.unitPriceCents, sale.currency)}`}
+            trailing={formatMoney(line.unitPriceCents * line.quantity, sale.currency)}
+          />
         ))}
-      </ul>
-      <p className="mt-4 flex justify-between text-xl font-bold">
-        <span>Total</span>
-        <span>{formatMoney(sale.totalCents, sale.currency)}</span>
-      </p>
+      </GroupedList>
+
       {sale.status === "paid" ? (
-        <p className="mt-8 text-center text-3xl font-bold text-leaf">🍋 Paid. Thank you!</p>
+        <PaidMoment cents={sale.totalCents} currency={sale.currency} className="pt-4" />
       ) : sale.status === "canceled" ? (
-        <p className="mt-8 text-center text-lg">The seller canceled this sale. Ask them for a new code.</p>
+        <div className="flex flex-col items-center gap-3 pt-2 text-center">
+          <SaleStatusPill status="canceled" />
+          <p className="text-body text-ink-2">The seller canceled this sale. Ask them for a new code.</p>
+        </div>
       ) : (
-        <Checkout saleId={sale.id} clientId={env.paypalClientId()} sdkUrl={env.paypalSdkUrl()} currency={sale.currency} />
+        <Checkout
+          saleId={sale.id}
+          clientId={env.paypalClientId()}
+          sdkUrl={env.paypalSdkUrl()}
+          currency={sale.currency}
+          totalCents={sale.totalCents}
+        />
       )}
     </main>
   );

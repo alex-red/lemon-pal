@@ -2,9 +2,11 @@
 
 import Script from "next/script";
 import { useRef, useState } from "react";
+import { ExclamationIcon, PaidMoment, Pill, Spinner } from "@/components/kit";
+import type { Cents } from "@/lib/money";
 import type { PayPalOneTimePaymentSession } from "@/types/paypal-web-sdk";
 
-type Props = { saleId: string; clientId: string; sdkUrl: string; currency: string };
+type Props = { saleId: string; clientId: string; sdkUrl: string; currency: string; totalCents: Cents };
 
 type State =
   | { kind: "loading" }
@@ -20,7 +22,7 @@ async function postJson<T>(url: string): Promise<T> {
   return json as T;
 }
 
-export function Checkout({ saleId, clientId, sdkUrl, currency }: Props) {
+export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents }: Props) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const session = useRef<PayPalOneTimePaymentSession | null>(null);
 
@@ -72,17 +74,39 @@ export function Checkout({ saleId, clientId, sdkUrl, currency }: Props) {
   }
 
   if (state.kind === "paid") {
-    return <p className="mt-8 text-center text-3xl font-bold text-leaf">🍋 Paid. Thank you!</p>;
+    return <PaidMoment cents={totalCents} currency={currency} className="pt-4" />;
   }
 
   return (
-    <div className="mt-8 flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-4 pt-2" aria-live="polite">
       <Script src={sdkUrl} strategy="afterInteractive" onReady={() => void onSdkReady()} />
-      {state.kind === "loading" ? <p className="opacity-60">Loading PayPal…</p> : null}
-      {state.kind === "capturing" ? <p className="font-semibold">Confirming your payment…</p> : null}
-      {state.kind === "failed" ? <p className="text-red-600">{state.message}</p> : null}
-      {state.kind === "ready" && state.message ? <p className="text-center">{state.message}</p> : null}
-      <paypal-button type="pay" className="paypal-gold" hidden={state.kind !== "ready"} onClick={pay} />
+      {state.kind === "loading" ? (
+        <p className="flex items-center gap-2 text-subhead text-ink-2">
+          <Spinner className="text-[1.1rem]" /> Loading PayPal…
+        </p>
+      ) : null}
+      {state.kind === "capturing" ? (
+        <p className="flex items-center gap-2 text-headline">
+          <Spinner className="text-[1.2rem]" /> Confirming your payment…
+        </p>
+      ) : null}
+      {state.kind === "failed" ? (
+        <div role="alert" className="flex flex-col items-center gap-2 text-center">
+          <Pill tone="berry" icon={<ExclamationIcon />}>
+            Can&rsquo;t pay yet
+          </Pill>
+          <p className="text-body text-ink-2">{state.message}</p>
+        </div>
+      ) : null}
+      {state.kind === "ready" && state.message ? (
+        <p role="status" className="text-center text-subhead text-ink-2">
+          {state.message}
+        </p>
+      ) : null}
+      <div className="w-full" hidden={state.kind !== "ready"}>
+        <paypal-button type="pay" className="paypal-gold block w-full" onClick={pay} />
+      </div>
+      <p className="text-center text-footnote text-ink-3">Your payment goes straight to PayPal. LemonPal never sees your card.</p>
     </div>
   );
 }

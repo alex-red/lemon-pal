@@ -250,7 +250,6 @@
     radial-gradient(140% 90% at 50% -20%, var(--glass-glow), transparent 55%),
     var(--glass);
   backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
   box-shadow:
     inset 0 1px 0 0 var(--glass-specular),
     inset 0 0 0 0.5px var(--glass-rim),
@@ -259,7 +258,6 @@
 @utility glass-thin {
   background: var(--glass-thin);
   backdrop-filter: blur(16px) saturate(170%);
-  -webkit-backdrop-filter: blur(16px) saturate(170%);
   box-shadow:
     inset 0 1px 0 0 var(--glass-specular),
     inset 0 0 0 0.5px var(--glass-rim);
@@ -269,7 +267,6 @@
     radial-gradient(140% 90% at 50% -20%, var(--glass-glow), transparent 55%),
     var(--glass-thick);
   backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
   box-shadow:
     inset 0 1px 0 0 var(--glass-specular),
     inset 0 0 0 0.5px var(--glass-rim),
@@ -397,7 +394,6 @@
   .glass-thick {
     background: var(--canvas-raised);
     backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 }
 
