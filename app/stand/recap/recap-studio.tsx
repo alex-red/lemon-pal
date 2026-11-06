@@ -1,15 +1,64 @@
 "use client";
 
-import type {
-  AgDataEngine,
-  AgDataSourcesDefinition,
-  AgFieldDefinition,
-  AgReportState,
-  AgStudioReadyEvent,
+import {
+  studioTheme,
+  type AgDataEngine,
+  type AgDataSourcesDefinition,
+  type AgFieldDefinition,
+  type AgReportState,
+  type AgStudioReadyEvent,
+  type AgWidgetFormParams,
 } from "ag-studio";
-import { AgStudio, AgStudioProvider } from "ag-studio-react";
+import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RecapData } from "@/lib/recap";
+import { TodaySalesWidget, type RecapRegistry, type TodaySalesDef } from "./today-widget";
+
+// Citrus Glass tokens, read as CSS variables so Studio follows light and dark mode with the rest of the app.
+const lemonTheme = studioTheme.withParams({
+  accentColor: "var(--lemon-deep)",
+  backgroundColor: "var(--surface)",
+  foregroundColor: "var(--ink)",
+  textColor: "var(--ink)",
+  fontFamily: "var(--font-hanken), ui-sans-serif, system-ui, sans-serif",
+  borderRadius: "14px",
+  chartPaletteFills1Color: "var(--lemon-deep)",
+  chartPaletteStrokes1Color: "var(--peel)",
+  chartPaletteFills2Color: "var(--leaf)",
+  chartPaletteStrokes2Color: "var(--leaf)",
+  chartPaletteFills3Color: "var(--pool)",
+  chartPaletteStrokes3Color: "var(--pool)",
+  chartPaletteFills4Color: "var(--berry)",
+  chartPaletteStrokes4Color: "var(--berry)",
+});
+
+// Adds the custom "Today's sales" widget next to Studio's built-in ones.
+const widgets = createWidgets<RecapRegistry>({
+  additionalTypes: [
+    {
+      id: "todaySales",
+      label: "Today's sales",
+      dataMapping: {
+        paidAt: { type: "field", supportedRoles: ["temporal"], requires: { cardinality: "many" }, required: true },
+        gross: { type: "field", supportedRoles: ["numeric"], requires: { cardinality: "one" }, required: true },
+        units: { type: "field", supportedRoles: ["numeric"], requires: { cardinality: "one" }, required: true },
+      },
+      // Studio's standard edit form, with a picker for each mapped field.
+      form: (params: AgWidgetFormParams<TodaySalesDef>) =>
+        params.createDefaults({
+          dataMappingItems: [
+            { key: "paidAt", label: "Paid at" },
+            { key: "gross", label: "Sales" },
+            { key: "units", label: "Units" },
+          ],
+        }),
+      comp: TodaySalesWidget,
+      defaultSize: { width: 360, height: 220 },
+      minSize: { width: 240, height: 160 },
+      ai: { description: "Gross sales, number of sales and units sold today at the stand, from captured PayPal payments." },
+    },
+  ],
+});
 
 const POLL_MS = 2000;
 
@@ -21,7 +70,7 @@ function moneyFormat(currency: string) {
 const saleRows = (recap: RecapData) => recap.sales.map((s) => ({ ...s, paidAt: new Date(s.paidAt) }));
 const lineRows = (recap: RecapData) => recap.lines.map((l) => ({ ...l, paidAt: new Date(l.paidAt) }));
 
-function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinition {
+function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinition<RecapRegistry> {
   const money = moneyFormat(currency);
   const saleFields: AgFieldDefinition[] = [
     { id: "id", name: "Sale", format: "textFormat" },
@@ -70,11 +119,19 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
   };
 }
 
-const initialState: AgReportState = {
+const initialState: AgReportState<RecapRegistry> = {
   pages: [
     {
       id: "recap",
       widgets: {
+        today: {
+          type: "todaySales",
+          dataMapping: {
+            paidAt: [{ id: "sales.paidAt" }],
+            gross: [{ id: "sales.total", aggregation: "sum" }],
+            units: [{ id: "sales.units", aggregation: "sum" }],
+          },
+        },
         byItem: {
           type: "grid",
           dataMapping: {
@@ -104,9 +161,10 @@ const initialState: AgReportState = {
         },
       },
       widgetLayout: {
-        byItem: { xTrack: 0, yTrack: 0, xSpan: 12, ySpan: 14 },
-        unitsChart: { xTrack: 12, yTrack: 0, xSpan: 12, ySpan: 14 },
-        sales: { xTrack: 0, yTrack: 14, xSpan: 24, ySpan: 14 },
+        today: { xTrack: 0, yTrack: 0, xSpan: 9, ySpan: 11 },
+        unitsChart: { xTrack: 9, yTrack: 0, xSpan: 15, ySpan: 11 },
+        byItem: { xTrack: 0, yTrack: 11, xSpan: 10, ySpan: 14 },
+        sales: { xTrack: 10, yTrack: 11, xSpan: 14, ySpan: 14 },
       },
     },
   ],
@@ -175,7 +233,14 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
   return (
     <AgStudioProvider licenseKey={licenseKey ?? undefined}>
       <div style={{ height: "100%", width: "100%" }}>
-        <AgStudio data={data} initialState={initialState} mode="view" onStudioReady={onStudioReady} />
+        <AgStudio<RecapRegistry>
+          data={data}
+          initialState={initialState}
+          widgets={widgets}
+          theme={lemonTheme}
+          mode="view"
+          onStudioReady={onStudioReady}
+        />
       </div>
     </AgStudioProvider>
   );
