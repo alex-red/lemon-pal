@@ -25,6 +25,7 @@ import {
   TextArea,
   TextField,
   Toolbar,
+  EyeIcon,
   XmarkIcon,
 } from "@/components/kit";
 import { handleProblem, HANDLE_MAX } from "@/lib/handles";
@@ -296,7 +297,19 @@ export function StoreEditor({ origin, currency, published, initial, saved, items
         {/* Preview first on phones, beside the form on wide screens. */}
         <aside className="flex flex-col gap-4 lg:sticky lg:top-8 lg:order-2">
           <Card className="p-4">
-            <p className="mb-3 px-1 text-footnote font-semibold uppercase tracking-[0.06em] text-ink-2">Preview</p>
+            <div className="mb-2 flex items-center justify-between gap-2 pl-1">
+              <p className="text-footnote font-semibold uppercase tracking-[0.06em] text-ink-2">Preview</p>
+              {/* The real page, as a buyer sees it, once the store has a saved address. */}
+              {savedSlug ? (
+                <Link
+                  href={`/${savedSlug}?preview=1`}
+                  transitionTypes={["nav-forward"]}
+                  className="pressable focus-ring -my-1 inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-subhead font-semibold text-peel hover:bg-fill"
+                >
+                  <EyeIcon className="text-[1.1em]" /> Preview as customer
+                </Link>
+              ) : null}
+            </div>
             <StorefrontHeader
               title={form.title}
               intro={form.intro}

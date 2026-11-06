@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { env } from "@/lib/env";
-import { BoxIcon, GroupedList, LemonIcon, ListRow, Money, PaidMoment, PinIcon, SaleStatusPill, TagIcon } from "@/components/kit";
-import { dealLabel, lineTotalCents } from "@/lib/deals";
-import { formatMoney } from "@/lib/money";
+import { Money, PaidMoment, SaleStatusPill } from "@/components/kit";
 import { store } from "@/lib/store";
+import { OrderSummary } from "../order-summary";
 import { Checkout } from "./checkout";
 
 // Buyer checkout opened from the QR code. Keep this page small: it loads on a phone over cell data.
@@ -21,56 +20,16 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 pt-10 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-      <header className="flex flex-col items-center gap-3 text-center">
-        <span className="grid size-14 place-items-center rounded-[18px] bg-lemon text-[2rem] shadow-card">
-          <LemonIcon className="text-[oklch(0.23_0.03_85)]" />
-        </span>
-        <div className="flex flex-col gap-0.5">
-          <p className="text-footnote font-semibold text-ink-2">{sale.status === "refunded" ? "Refunded by" : "You’re paying"}</p>
-          <h1 className="font-display text-large-title font-semibold text-balance">{storefront?.title || stand?.name || "Lemon Pal"}</h1>
-        </div>
-        <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
-      </header>
-
-      <GroupedList header="Your order">
-        {sale.lines.map((line) => (
-          <ListRow
-            key={line.itemId}
-            icon={line.emoji ? <span className="text-[1.1rem]">{line.emoji}</span> : undefined}
-            title={line.name}
-            subtitle={`${line.quantity} × ${formatMoney(line.unitPriceCents, sale.currency)}`}
-            trailing={formatMoney(line.unitPriceCents * line.quantity, sale.currency)}
-          />
-        ))}
-        {/* Each deal is its own line, so the buyer sees the saving, and the lines add up to the total. */}
-        {sale.lines
-          .filter((line) => line.deal && line.discountCents)
-          .map((line) => (
-            <ListRow
-              key={`${line.itemId}-deal`}
-              icon={<TagIcon className="text-[1.1rem] text-leaf" />}
-              title={`${line.name} deal`}
-              subtitle={`${dealLabel(line.deal!, sale.currency)} · ${formatMoney(lineTotalCents(line), sale.currency)} for ${line.quantity}`}
-              trailing={<span className="text-leaf">−{formatMoney(line.discountCents!, sale.currency)}</span>}
-            />
-          ))}
-        {fulfillment?.method === "ship" ? (
-          <ListRow
-            icon={<BoxIcon />}
-            iconTone="pool"
-            title="Shipping"
-            subtitle={
-              fulfillment.address
-                ? `To ${[fulfillment.address.city, fulfillment.address.region].filter(Boolean).join(", ")}`
-                : "PayPal asks where to send it"
-            }
-            trailing={sale.shippingCents ? formatMoney(sale.shippingCents, sale.currency) : "Free"}
-          />
-        ) : null}
-        {fulfillment?.method === "pickup" ? (
-          <ListRow icon={<PinIcon />} title="Pickup" subtitle={storefront?.pickupNote || "Collect it from the seller"} trailing="Free" />
-        ) : null}
-      </GroupedList>
+      <OrderSummary
+        eyebrow={sale.status === "refunded" ? "Refunded by" : "You’re paying"}
+        title={storefront?.title || stand?.name || "Lemon Pal"}
+        currency={sale.currency}
+        lines={sale.lines}
+        totalCents={sale.totalCents}
+        shippingCents={sale.shippingCents}
+        fulfillment={fulfillment}
+        pickupNote={storefront?.pickupNote}
+      />
 
       {sale.status === "paid" ? (
         <PaidMoment

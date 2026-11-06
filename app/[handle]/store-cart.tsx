@@ -35,9 +35,13 @@ type Props = {
   shipping: ShippingSettings;
   pickupNote: string;
   items: StoreItem[];
+  /** The seller looking at their own store. The cart works, even on a closed store, and Checkout opens a preview pay page. */
+  preview?: boolean;
 };
 
-export function StoreCart({ handle, currency, open, methods, shipping, pickupNote, items }: Props) {
+export function StoreCart({ handle, currency, open: storeOpen, methods, shipping, pickupNote, items, preview = false }: Props) {
+  // A preview lets the seller try the cart either way. Only real buyers are held to the store being open.
+  const open = storeOpen || preview;
   const router = useRouter();
   const [method, setMethod] = useState<FulfillmentMethod>(methods[0] ?? "pickup");
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -70,6 +74,12 @@ export function StoreCart({ handle, currency, open, methods, shipping, pickupNot
   const total = subtotal + shippingCost;
 
   async function checkout() {
+    const entries = Object.entries(cart).filter(([, quantity]) => quantity > 0);
+    // A preview shows the pay page from the cart alone. Nothing is posted, so no sale is created.
+    if (preview) {
+      const query = new URLSearchParams({ method, cart: entries.map(([id, quantity]) => `${id}.${quantity}`).join(",") });
+      return router.push(`/${encodeURIComponent(handle)}/checkout?${query}`, { transitionTypes: ["nav-forward"] });
+    }
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/store/${encodeURIComponent(handle)}/sales`, {
@@ -77,9 +87,7 @@ export function StoreCart({ handle, currency, open, methods, shipping, pickupNot
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         method,
-        cart: Object.entries(cart)
-          .filter(([, quantity]) => quantity > 0)
-          .map(([itemId, quantity]) => ({ itemId, quantity })),
+        cart: entries.map(([itemId, quantity]) => ({ itemId, quantity })),
       }),
     }).catch(() => null);
     const json = await res?.json().catch(() => null);
