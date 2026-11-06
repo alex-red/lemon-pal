@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { LemonIcon, PageTransition, StorefrontHeader } from "@/components/kit";
 import { env } from "@/lib/env";
 import { handleProblem } from "@/lib/handles";
+import { kindOf } from "@/lib/stands";
 import { store } from "@/lib/store";
 import { bannerUrl, methodsOffered, onlineItems, shipsOnline } from "@/lib/storefront";
 import { StoreCart } from "./store-cart";
@@ -16,7 +17,8 @@ async function load(handle: string) {
   if (handleProblem(handle)) return null;
   const storefront = await store.getStorefrontBySlug(handle);
   const stand = storefront ? await store.getStand(storefront.standId) : null;
-  return storefront && stand ? { storefront, stand } : null;
+  // Only an online stand has a public store. A storefront left on a local stand stays offline.
+  return storefront && stand && kindOf(stand) === "online" ? { storefront, stand } : null;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {

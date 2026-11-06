@@ -20,7 +20,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Write the product name as "Lemon Pal", two words, in all text. Lowercase `lemonpal` is only for identifiers and paths (package, database file, icons, Render service), so leave those as they are.
 - Keep `typescript` within typescript-eslint's supported range. `bun run typecheck` selects the native compiler via the `typescript7` alias.
-- Files that import `server-only` (everything in `lib/` except `money.ts`, `deals.ts`, `types.ts`, `ding.ts`, `emoji.ts`, `handles.ts`, `shipping.ts`, and `seller-auth.ts`) can't be imported by `"use client"` components. Use `import type` from them in client code.
+- Files that import `server-only` (everything in `lib/` except `money.ts`, `deals.ts`, `types.ts`, `ding.ts`, `emoji.ts`, `handles.ts`, `shipping.ts`, `stands.ts`, `seller-auth.ts`, and `session-token.ts`) can't be imported by `"use client"` components. Use `import type` from them in client code.
 - `lib/store.ts` uses Node's built-in `node:sqlite` with one connection per process, at `DATABASE_PATH` (default `.data/lemonpal.sqlite`). It assumes a single instance, so don't deploy to serverless or scale out. Keep all persistence behind the `Store` interface, and use `updateSale` for any status change.
 - AG Studio is large. Import it only through `app/stand/recap/recap-loader.tsx`, which loads it on the client only.
 - The AG Studio assistant runs its loop in the browser and sends each turn to `/api/studio/llm` (`lib/studio-llm.ts`). Claude's assistant turns, thinking blocks included, are cached there by item id and replayed unchanged. Keep that cache when changing the adapter, or tool loops will fail.
@@ -32,6 +32,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - The server prices every sale from the stored catalog. Never trust a price or total sent by the client.
 - A sale becomes `paid` only in the capture route, and only after `verifyCapture` accepts it. Every PayPal create or capture call sends a `PayPal-Request-Id` derived from the sale id, so retries can't charge twice.
 - Online orders (`channel: "online"`) are priced by `priceOnlineOrder` in `lib/storefront.ts`, shipping included. `totalCents` is the lines after deals plus `shippingCents`, and `createOrder` sends shipping in the breakdown. A shipped order's country is checked against the store's list before capture, so an address the seller can't reach is never charged.
+
+## Sellers and stands
+
+- A user owns several stands, each `local` (the register, at events) or `online` (a storefront and orders). For now `proxy.ts` signs everyone past the passcode in as the demo user (`ensureDemoUser` in `lib/demo.ts`), which starts with one stand of each kind.
+- Seller routes take their stand from `lib/session.ts`, never from a constant. Pages call `currentStand(kind?)`. APIs call `requestStand(request)`, which reads the `?stand=` id the page sends (add it with `standApi`) and returns null for a stand the user doesn't own. Routes that take a sale id check it with `ownedSale`. `DEMO_STAND_ID` is for seeding only.
+- Only a local stand rings up sales, and only an online stand serves a store at `/<handle>`. Both checks are on the server, not just in the UI.
 
 ## Online store and seller pages
 

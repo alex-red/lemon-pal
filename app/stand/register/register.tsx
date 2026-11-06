@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { addTransitionType, startTransition, useEffect, useMemo, useRef, useState, ViewTransition } from "react";
+import { addTransitionType, startTransition, useEffect, useMemo, useRef, useState, ViewTransition, type ReactNode } from "react";
 import {
   ArrowUturnIcon,
   BoxIcon,
   Button,
   CameraIcon,
+  Card,
   ChartIcon,
   cn,
   ItemTile,
@@ -25,6 +26,7 @@ import { dealDiscount, dealLabel } from "@/lib/deals";
 import { playDing, unlockDing } from "@/lib/ding";
 import { formatMoney } from "@/lib/money";
 import type { PublicSale } from "@/lib/sales";
+import { standApi } from "@/lib/stands";
 import type { CatalogItem } from "@/lib/types";
 
 /**
@@ -43,14 +45,16 @@ function moveTo(type: "charge" | "paid" | "back", update: () => void) {
 const LEMON_ART_QR = true;
 
 type Props = {
-  standName: string;
+  standId: string;
+  /** The stand switcher, shown as the page title. */
+  switcher: ReactNode;
   currency: string;
   items: CatalogItem[];
   /** Origin for the sale QR code, such as the dev machine's network address. null uses this page's origin. */
   payOrigin: string | null;
 };
 
-export function Register({ standName, currency, items, payOrigin }: Props) {
+export function Register({ standId, currency, items, payOrigin, switcher }: Props) {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [sale, setSale] = useState<PublicSale | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +110,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
   }
 
   async function createSale() {
-    const res = await fetch("/api/sales", {
+    const res = await fetch(standApi("/api/stand/sales", standId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -138,7 +142,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
   // Cancel on the server so the QR code can't be paid later. If the buyer already paid, show that instead.
   async function cancel() {
     if (!sale) return;
-    const res = await fetch(`/api/sales/${sale.id}/cancel`, { method: "POST" });
+    const res = await fetch(`/api/stand/sales/${sale.id}/cancel`, { method: "POST" });
     const next = res.ok ? ((await res.json()) as PublicSale) : null;
     if (next?.status === "paid") {
       dingFor(next.id);
@@ -223,7 +227,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
           <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
             <LemonIcon className="text-[1.1rem]" /> Register
           </p>
-          <h1 className="font-display text-large-title font-semibold">{standName}</h1>
+          <h1>{switcher}</h1>
         </div>
         <Toolbar aria-label="Stand">
           <Link href="/stand/setup" transitionTypes={["nav-back"]} className={toolbarLink}>
@@ -247,6 +251,25 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
           </Link>
         </Toolbar>
       </header>
+
+      {items.length === 0 ? (
+        <Card className="mt-8 flex flex-col items-center gap-4 p-8 text-center">
+          <span className="grid size-14 place-items-center rounded-full bg-lemon-soft text-title2 text-peel">
+            <CameraIcon />
+          </span>
+          <div>
+            <p className="text-headline font-semibold">Nothing to sell yet</p>
+            <p className="mt-1 text-subhead text-ink-2">Snap your price sign and this stand&rsquo;s items show up here.</p>
+          </div>
+          <Link
+            href="/stand/setup"
+            transitionTypes={["nav-back"]}
+            className="pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full bg-lemon px-5 text-callout font-semibold text-[oklch(0.23_0.03_85)]"
+          >
+            <CameraIcon /> Add items
+          </Link>
+        </Card>
+      ) : null}
 
       <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {items.map((item) => (

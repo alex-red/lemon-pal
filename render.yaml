@@ -40,3 +40,5 @@ services:
         sync: false
       - key: SELLER_PASSCODE
         sync: false
+      - key: SESSION_SECRET
+        generateValue: true

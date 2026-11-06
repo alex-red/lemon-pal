@@ -41,8 +41,22 @@ export type SignDraft = {
   items: DraftItem[];
 };
 
+/** Local stands sell in person through the register. Online stands sell through a storefront. */
+export type StandKind = "local" | "online";
+
+/** A seller. For now everyone past the seller passcode is the demo user. */
+export type User = {
+  id: string;
+  name: string;
+  createdAt: string;
+};
+
 export type Stand = {
   id: string;
+  /** The user who owns it. Missing on stands from before accounts, which belong to the demo user. */
+  ownerId?: string;
+  /** Missing on stands from before accounts, which are local. */
+  kind?: StandKind;
   name: string;
   currency: string;
   items: CatalogItem[];

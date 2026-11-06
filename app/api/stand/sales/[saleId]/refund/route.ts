@@ -1,14 +1,14 @@
-import { DEMO_STAND_ID } from "@/lib/demo";
 import { PayPalError, refundCapture } from "@/lib/paypal";
 import { publicSale } from "@/lib/sales";
+import { ownedSale } from "@/lib/session";
 import { store } from "@/lib/store";
 
 // The seller refunds a paid sale in full, from the recap. Behind the seller passcode, like every /api/stand route.
 // The sale becomes refunded only after PayPal accepts the refund for the captured amount and currency.
 export async function POST(_request: Request, { params }: { params: Promise<{ saleId: string }> }) {
   const { saleId } = await params;
-  const sale = await store.getSale(saleId);
-  if (!sale || sale.standId !== DEMO_STAND_ID) return Response.json({ error: "not found" }, { status: 404 });
+  const sale = (await ownedSale(saleId))?.sale;
+  if (!sale) return Response.json({ error: "not found" }, { status: 404 });
 
   // A repeated refund returns the existing result and never sends a second one.
   if (sale.status === "refunded") return Response.json(publicSale(sale));

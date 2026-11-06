@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isValidDeal, MAX_DEAL_QUANTITY } from "@/lib/deals";
-import { demoStand, getOrCreateDemoStand, isSampleId } from "@/lib/demo";
+import { isSampleId, resetStand, sampleStand } from "@/lib/demo";
+import { requestStand, standNotFound } from "@/lib/session";
 import { cleanEmoji } from "@/lib/emoji";
 import { store } from "@/lib/store";
 
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const current = await getOrCreateDemoStand();
+  const current = await requestStand(request);
+  if (!current) return standNotFound();
   const stand = {
     ...current,
     name: parsed.data.name || current.name,
@@ -69,13 +71,20 @@ export async function POST(request: Request) {
   return Response.json(stand);
 }
 
-// Loads a sample stand: ?sample=bake-sale, or the lemonade stand by default.
-// With ?sales=clear it also deletes the stand's sales, for the judge demo reset.
+// Loads a sample catalog into the stand: ?sample=bake-sale.
+// Without a sample and with ?sales=clear, it's the judge demo reset: the stand's own sample comes back and its sales go.
 export async function DELETE(request: Request) {
+  const current = await requestStand(request);
+  if (!current) return standNotFound();
   const params = new URL(request.url).searchParams;
   const sample = params.get("sample");
-  const stand = demoStand(isSampleId(sample) ? sample : "lemonade");
+  if (!isSampleId(sample)) {
+    if (params.get("sales") !== "clear") return Response.json({ error: "Choose a sample." }, { status: 400 });
+    return Response.json(await resetStand(current));
+  }
+  const stand = sampleStand(sample, current);
   await store.saveStand(stand);
   if (params.get("sales") === "clear") await store.clearSales(stand.id);
   return Response.json(stand);
 }
+

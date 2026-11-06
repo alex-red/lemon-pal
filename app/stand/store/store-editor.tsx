@@ -6,11 +6,13 @@ import {
   BoxIcon,
   Button,
   Card,
+  ChartIcon,
   CheckIcon,
   ExclamationIcon,
   GroupedList,
   LemonQR,
   LinkIcon,
+  ListIcon,
   ListRow,
   Money,
   PhotoIcon,
@@ -31,6 +33,7 @@ import { handleProblem, HANDLE_MAX } from "@/lib/handles";
 import type { Cents } from "@/lib/money";
 import { countryName, parseCountries } from "@/lib/shipping";
 import type { PublicStorefront } from "@/lib/storefront";
+import { standApi } from "@/lib/stands";
 import type { StorefrontAccent } from "@/lib/types";
 
 type EditorItem = {
@@ -44,6 +47,9 @@ type EditorItem = {
 };
 
 type Props = {
+  standId: string;
+  /** The stand switcher, shown above the title. */
+  switcher: ReactNode;
   origin: string;
   currency: string;
   /** Whether the stand has a confirmed catalog. Without one there's nothing to sell. */
@@ -112,7 +118,7 @@ async function bannerFrom(file: Blob): Promise<string> {
   }
 }
 
-export function StoreEditor({ origin, currency, published, initial, saved, items: initialItems }: Props) {
+export function StoreEditor({ standId, switcher, origin, currency, published, initial, saved, items: initialItems }: Props) {
   const [form, setForm] = useState<Form>(() => ({
     slug: initial.slug,
     title: initial.title,
@@ -158,12 +164,12 @@ export function StoreEditor({ origin, currency, published, initial, saved, items
     if (handleProblem(form.slug) || form.slug === savedSlug) return;
     const slug = form.slug;
     const timer = setTimeout(async () => {
-      const res = await fetch(`/api/stand/store/handle?check=${encodeURIComponent(slug)}`, { cache: "no-store" }).catch(() => null);
+      const res = await fetch(standApi(`/api/stand/store/handle?check=${encodeURIComponent(slug)}`, standId), { cache: "no-store" }).catch(() => null);
       const json = await res?.json().catch(() => null);
       if (json) setRemote({ slug, available: Boolean(json.available), problem: json.problem ?? null });
     }, 350);
     return () => clearTimeout(timer);
-  }, [form.slug, savedSlug]);
+  }, [form.slug, savedSlug, standId]);
 
   const flatRateCents = parseCents(form.flatRate);
   const freeOverCents = parseCents(form.freeOver);
@@ -211,7 +217,7 @@ export function StoreEditor({ origin, currency, published, initial, saved, items
       const seq = ++requestSeq.current;
       setSave({ kind: "saving" });
       const body = { ...JSON.parse(payloadKey), ...(sendBanner ? { banner: banner.data } : {}) };
-      const res = await fetch("/api/stand/store", {
+      const res = await fetch(standApi("/api/stand/store", standId), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -227,7 +233,7 @@ export function StoreEditor({ origin, currency, published, initial, saved, items
       }
     }, 700);
     return () => clearTimeout(timer);
-  }, [payloadKey, banner]);
+  }, [payloadKey, banner, standId]);
 
   async function pickBanner(file: File | undefined) {
     if (!file) return;
@@ -264,20 +270,21 @@ export function StoreEditor({ origin, currency, published, initial, saved, items
     <main className="mx-auto w-full max-w-6xl flex-1 px-5 pt-8 pb-16 sm:px-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
-            <LinkIcon className="text-[1.1rem]" /> Online store
-          </p>
+          {switcher}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <h1 className="font-display text-large-title font-semibold">Your store</h1>
             <SaveStatus state={save} />
           </div>
         </div>
         <Toolbar aria-label="Store">
-          <Link href="/stand/register" transitionTypes={["nav-back"]} className={toolbarLink}>
-            <QrCodeIcon /> Register
+          <Link href="/stand/setup" transitionTypes={["nav-back"]} className={toolbarLink}>
+            <ListIcon /> Items
           </Link>
           <Link href="/stand/orders" transitionTypes={["nav-forward"]} className={toolbarLink}>
             <BoxIcon /> Orders
+          </Link>
+          <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
+            <ChartIcon /> Recap
           </Link>
         </Toolbar>
       </header>

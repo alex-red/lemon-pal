@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   AddressBlock,
   addressText,
   BoxIcon,
   Button,
   Card,
+  ChartIcon,
   CheckIcon,
   ExclamationIcon,
   FulfillmentPill,
@@ -16,7 +17,6 @@ import {
   ListRow,
   Pill,
   PinIcon,
-  QrCodeIcon,
   SegmentedControl,
   Sheet,
   TextField,
@@ -25,6 +25,7 @@ import {
 import { lineTotalCents } from "@/lib/deals";
 import { formatMoney } from "@/lib/money";
 import type { SellerOrder } from "@/lib/orders";
+import { standApi } from "@/lib/stands";
 import type { ShippingCarrier } from "@/lib/types";
 
 const CARRIERS: { value: ShippingCarrier; label: string }[] = [
@@ -44,18 +45,29 @@ function orderTitle(order: SellerOrder) {
   return order.buyerName ?? `Order ${order.id.slice(0, 4).toUpperCase()}`;
 }
 
-export function Orders({ initial, hasStore }: { initial: SellerOrder[]; hasStore: boolean }) {
+export function Orders({
+  standId,
+  switcher,
+  initial,
+  hasStore,
+}: {
+  standId: string;
+  /** The stand switcher, shown above the title. */
+  switcher: ReactNode;
+  initial: SellerOrder[];
+  hasStore: boolean;
+}) {
   const [orders, setOrders] = useState(initial);
   const [openId, setOpenId] = useState<string | null>(null);
 
   // New orders arrive while the page is open.
   useEffect(() => {
     const timer = setInterval(async () => {
-      const res = await fetch("/api/stand/orders", { cache: "no-store" }).catch(() => null);
+      const res = await fetch(standApi("/api/stand/orders", standId), { cache: "no-store" }).catch(() => null);
       if (res?.ok) setOrders((await res.json()).orders);
     }, 10_000);
     return () => clearInterval(timer);
-  }, []);
+  }, [standId]);
 
   const toShip = orders.filter((o) => o.fulfillment.status === "to_ship");
   const toCollect = orders.filter((o) => o.fulfillment.status === "to_collect");
@@ -106,17 +118,15 @@ export function Orders({ initial, hasStore }: { initial: SellerOrder[]; hasStore
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 pt-8 pb-16 sm:px-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
-            <BoxIcon className="text-[1.1rem]" /> Online orders
-          </p>
+          {switcher}
           <h1 className="font-display text-large-title font-semibold">Orders</h1>
         </div>
         <Toolbar aria-label="Store">
-          <Link href="/stand/register" transitionTypes={["nav-back"]} className={toolbarLink}>
-            <QrCodeIcon /> Register
-          </Link>
-          <Link href="/stand/store" transitionTypes={["nav-forward"]} className={toolbarLink}>
+          <Link href="/stand/store" transitionTypes={["nav-back"]} className={toolbarLink}>
             <LinkIcon /> Store
+          </Link>
+          <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
+            <ChartIcon /> Recap
           </Link>
         </Toolbar>
       </header>

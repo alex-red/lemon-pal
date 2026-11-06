@@ -2,15 +2,19 @@ import "server-only";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { Sale, Stand, Storefront } from "./types";
+import type { Sale, Stand, Storefront, User } from "./types";
 
 /** Thrown by saveStorefront when another stand already has the slug. */
 export class SlugTakenError extends Error {}
 
 /** Persistence boundary. Every read and write of stands and sales goes through here. */
 export interface Store {
+  getUser(id: string): Promise<User | null>;
+  saveUser(user: User): Promise<void>;
   getStand(id: string): Promise<Stand | null>;
   saveStand(stand: Stand): Promise<void>;
+  /** A user's stands, oldest first. */
+  listStands(ownerId: string): Promise<Stand[]>;
   getSale(id: string): Promise<Sale | null>;
   saveSale(sale: Sale): Promise<void>;
   /**
@@ -41,6 +45,10 @@ class SqliteStore implements Store {
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA busy_timeout = 5000;
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        doc TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS stands (
         id TEXT PRIMARY KEY,
         doc TEXT NOT NULL
@@ -59,6 +67,12 @@ class SqliteStore implements Store {
         doc TEXT NOT NULL
       );
     `);
+    // Stands from before accounts have no owner column. Add it, then index it.
+    const columns = this.db.prepare("PRAGMA table_info(stands)").all() as { name: string }[];
+    if (!columns.some((column) => column.name === "owner_id")) {
+      this.db.exec("ALTER TABLE stands ADD COLUMN owner_id TEXT; ALTER TABLE stands ADD COLUMN created_at TEXT;");
+    }
+    this.db.exec("CREATE INDEX IF NOT EXISTS stands_by_owner ON stands (owner_id, created_at)");
   }
 
   private readSale(id: string): Sale | null {
@@ -81,9 +95,31 @@ class SqliteStore implements Store {
   }
 
   async saveStand(stand: Stand) {
+    // created_at keeps a stand's place in its owner's list; it's set once and never changes.
     this.db
-      .prepare("INSERT INTO stands (id, doc) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET doc = excluded.doc")
-      .run(stand.id, JSON.stringify(stand));
+      .prepare(
+        `INSERT INTO stands (id, owner_id, created_at, doc) VALUES (?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET owner_id = excluded.owner_id, doc = excluded.doc`,
+      )
+      .run(stand.id, stand.ownerId ?? null, new Date().toISOString(), JSON.stringify(stand));
+  }
+
+  async listStands(ownerId: string) {
+    const rows = this.db
+      .prepare("SELECT doc FROM stands WHERE owner_id = ? ORDER BY created_at, id")
+      .all(ownerId) as { doc: string }[];
+    return rows.map((row) => JSON.parse(row.doc) as Stand);
+  }
+
+  async getUser(id: string) {
+    const row = this.db.prepare("SELECT doc FROM users WHERE id = ?").get(id) as { doc: string } | undefined;
+    return row ? (JSON.parse(row.doc) as User) : null;
+  }
+
+  async saveUser(user: User) {
+    this.db
+      .prepare("INSERT INTO users (id, doc) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET doc = excluded.doc")
+      .run(user.id, JSON.stringify(user));
   }
 
   async getSale(id: string) {
@@ -157,7 +193,7 @@ export function databasePath() {
 // One connection per process, kept across dev hot reloads.
 // Bump SCHEMA when the tables or Store methods change, so a running dev server opens a fresh connection
 // instead of keeping one from before the change.
-const SCHEMA = 2;
+const SCHEMA = 4;
 const globalForStore = globalThis as unknown as { lemonpalSqliteStore?: { schema: number; store: Store } };
 
 function instance(): Store {
@@ -169,8 +205,11 @@ function instance(): Store {
 }
 
 export const store: Store = {
+  getUser: (id) => instance().getUser(id),
+  saveUser: (user) => instance().saveUser(user),
   getStand: (id) => instance().getStand(id),
   saveStand: (stand) => instance().saveStand(stand),
+  listStands: (ownerId) => instance().listStands(ownerId),
   getSale: (id) => instance().getSale(id),
   saveSale: (sale) => instance().saveSale(sale),
   updateSale: (id, change) => instance().updateSale(id, change),

@@ -1,4 +1,3 @@
-import { getOrCreateDemoStand } from "@/lib/demo";
 import { firstSale } from "@/lib/first-sale";
 import { publicSale, type PublicSale } from "@/lib/sales";
 import { store } from "@/lib/store";
@@ -10,7 +9,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sal
   if (!sale) return Response.json({ error: "not found" }, { status: 404 });
   const body: PublicSale = publicSale(sale);
   if (sale.status === "paid") {
-    const first = firstSale(await getOrCreateDemoStand(), await store.listSales(sale.standId));
+    const stand = await store.getStand(sale.standId);
+    const first = stand && firstSale(stand, await store.listSales(sale.standId));
     if (first?.saleId === sale.id) body.firstSaleSeconds = first.seconds;
   }
   return Response.json(body, { headers: { "Cache-Control": "no-store" } });

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "./cn";
-import { ChevronRightIcon } from "./icons";
+import { CheckIcon, ChevronRightIcon } from "./icons";
 
 /** An inset grouped list, the Settings pattern: a header, rounded rows, a footer that explains. */
 export function GroupedList({
@@ -43,6 +43,8 @@ export function ListRow({
   subtitle,
   trailing,
   href,
+  onClick,
+  current,
 }: {
   icon?: ReactNode;
   iconTone?: keyof typeof iconTones;
@@ -50,6 +52,10 @@ export function ListRow({
   subtitle?: ReactNode;
   trailing?: ReactNode;
   href?: string;
+  /** Makes the row a button, for a choice made in place, such as picking from a sheet. */
+  onClick?: () => void;
+  /** Marks the chosen row in a list of choices, with a check. */
+  current?: boolean;
 }) {
   const body = (
     <>
@@ -69,6 +75,7 @@ export function ListRow({
           {subtitle ? <span className="block truncate text-subhead text-ink-2">{subtitle}</span> : null}
         </span>
         {trailing ? <span className="shrink-0 text-body text-ink-2 tabular-nums">{trailing}</span> : null}
+        {current ? <CheckIcon strokeWidth={2.5} className="shrink-0 text-[1.1rem] text-peel" /> : null}
         {href ? <ChevronRightIcon className="shrink-0 text-[1.1rem] text-ink-3" /> : null}
       </span>
     </>
@@ -82,6 +89,15 @@ export function ListRow({
         <Link href={href} transitionTypes={["nav-forward"]} className={cn(rowClass, "focus-ring transition-colors active:bg-fill-2 hover:bg-fill")}>
           {body}
         </Link>
+      ) : onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          aria-current={current || undefined}
+          className={cn(rowClass, "focus-ring w-full text-left transition-colors active:bg-fill-2 hover:bg-fill")}
+        >
+          {body}
+        </button>
       ) : (
         <div className={rowClass}>{body}</div>
       )}

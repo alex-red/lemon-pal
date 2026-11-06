@@ -1,4 +1,4 @@
-import { getOrCreateDemoStand } from "@/lib/demo";
+import { requestStand } from "@/lib/session";
 import { startDraft } from "@/lib/first-sale";
 import { clientKey, createRateLimiter } from "@/lib/rate-limit";
 import { MAX_LIST_CHARS, readSign, SIGN_IMAGE_TYPES, SignReadError, type SignImageType } from "@/lib/sign-reader";
@@ -39,9 +39,9 @@ export async function POST(request: Request) {
   try {
     const draft = await readSign(input);
     // The time to first sale counts from here: the seller has a sign and is setting up.
-    const stand = await getOrCreateDemoStand();
-    const started = startDraft(stand, arrivedAt);
-    if (started !== stand) await store.saveStand(started);
+    const stand = await requestStand(request);
+    const started = stand && startDraft(stand, arrivedAt);
+    if (stand && started !== stand) await store.saveStand(started!);
     return Response.json(draft);
   } catch (error) {
     if (error instanceof SignReadError) return Response.json({ error: error.message }, { status: 422 });

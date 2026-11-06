@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { getOrCreateDemoStand } from "@/lib/demo";
 import { handleProblem } from "@/lib/handles";
+import { requestStand, standNotFound } from "@/lib/session";
 import { SlugTakenError, store } from "@/lib/store";
 import { draftStorefront, withoutBanner } from "@/lib/storefront";
+import { kindOf } from "@/lib/stands";
 import type { Storefront } from "@/lib/types";
 
 const cents = (max: number) => z.number().int().min(0).max(max);
@@ -52,7 +53,9 @@ export async function PUT(request: Request) {
     return Response.json({ error: "Turn on pickup or shipping before taking orders.", field: "open" }, { status: 400 });
   }
 
-  const stand = await getOrCreateDemoStand();
+  const stand = await requestStand(request);
+  if (!stand) return standNotFound();
+  if (kindOf(stand) !== "online") return Response.json({ error: "Only an online stand has a store." }, { status: 409 });
   const current = (await store.getStorefront(stand.id)) ?? draftStorefront(stand);
   const flags = new Map(input.items.map((item) => [item.id, item]));
   const items = stand.items.map((item) => {

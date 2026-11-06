@@ -2,6 +2,7 @@ import { z } from "zod";
 import { clientKey, createRateLimiter } from "@/lib/rate-limit";
 import { CartError } from "@/lib/sales";
 import { priceOnlineOrder } from "@/lib/storefront";
+import { kindOf } from "@/lib/stands";
 import { store } from "@/lib/store";
 import type { Sale } from "@/lib/types";
 
@@ -27,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ han
   const { handle } = await params;
   const storefront = await store.getStorefrontBySlug(handle);
   const stand = storefront ? await store.getStand(storefront.standId) : null;
-  if (!storefront || !stand) return Response.json({ error: "not found" }, { status: 404 });
+  if (!storefront || !stand || kindOf(stand) !== "online") return Response.json({ error: "not found" }, { status: 404 });
 
   try {
     const order = priceOnlineOrder(stand, storefront, parsed.data.cart, parsed.data.method);

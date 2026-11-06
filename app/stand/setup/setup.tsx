@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AIGlow,
   Button,
@@ -10,7 +10,6 @@ import {
   Card,
   ConfidencePill,
   ExclamationIcon,
-  LemonIcon,
   ListIcon,
   MoreBelow,
   PhotoIcon,
@@ -28,7 +27,8 @@ import {
 } from "@/components/kit";
 import { isValidDeal, MAX_DEAL_QUANTITY, type Deal } from "@/lib/deals";
 import { cleanEmoji } from "@/lib/emoji";
-import type { DraftItem, Region, SignDraft } from "@/lib/types";
+import { standApi, standHome } from "@/lib/stands";
+import type { DraftItem, Region, SignDraft, StandKind } from "@/lib/types";
 import { CameraSheet, canUseLiveCamera } from "./camera-sheet";
 
 type Row = {
@@ -178,7 +178,23 @@ const DEMO_PHOTOS = [
 
 type SampleChoice = { id: string; name: string; emoji: string };
 
-export function Setup({ currency, standName, samples }: { currency: string; standName: string; samples: SampleChoice[] }) {
+export function Setup({
+  standId,
+  kind,
+  switcher,
+  currency,
+  standName,
+  samples,
+}: {
+  standId: string;
+  kind: StandKind;
+  /** The stand switcher, shown above the title. */
+  switcher: ReactNode;
+  currency: string;
+  standName: string;
+  samples: SampleChoice[];
+}) {
+  const home = standHome(kind);
   const router = useRouter();
   const [name, setName] = useState(standName);
   const [preview, setPreview] = useState<string | null>(null);
@@ -222,7 +238,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
     setBusy("reading");
     const scrolledFrom = window.scrollY;
     try {
-      const res = await fetch("/api/stand/sign", { method: "POST", body });
+      const res = await fetch(standApi("/api/stand/sign", standId), { method: "POST", body });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Couldn't read that.");
       const draft = json as SignDraft;
@@ -296,7 +312,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
     if (!rows || invalid) return;
     setBusy("publishing");
     setError(null);
-    const res = await fetch("/api/stand", {
+    const res = await fetch(standApi("/api/stand", standId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -310,7 +326,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
         })),
       }),
     });
-    if (res.ok) return router.push("/stand/register", { transitionTypes: ["nav-forward"] });
+    if (res.ok) return router.push(home, { transitionTypes: ["nav-forward"] });
     setBusy(null);
     setError((await res.json().catch(() => ({}))).error ?? "Couldn't publish the stand.");
   }
@@ -318,8 +334,8 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
   async function loadSample(id: string) {
     setBusy(`sample:${id}`);
     setError(null);
-    const res = await fetch(`/api/stand?sample=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
-    if (res?.ok) return router.push("/stand/register", { transitionTypes: ["nav-forward"] });
+    const res = await fetch(standApi(`/api/stand?sample=${encodeURIComponent(id)}`, standId), { method: "DELETE" }).catch(() => null);
+    if (res?.ok) return router.push(home, { transitionTypes: ["nav-forward"] });
     setBusy(null);
     setError("Couldn't load the sample. Try again.");
   }
@@ -329,17 +345,15 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
       <ScrollEdge />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
-            <LemonIcon className="text-[1.1rem]" /> Create your stand
-          </p>
+          {switcher}
           <h1 className="font-display text-large-title font-semibold">Snap your price sign</h1>
         </div>
         <Link
-          href="/stand/register"
+          href={home}
           transitionTypes={["nav-forward"]}
           className="pressable focus-ring inline-flex h-11 items-center rounded-full px-4 text-callout font-semibold text-peel hover:bg-fill"
         >
-          Register
+          {kind === "online" ? "Store" : "Register"}
         </Link>
       </header>
 

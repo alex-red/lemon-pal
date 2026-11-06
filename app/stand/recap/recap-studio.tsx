@@ -20,6 +20,7 @@ import {
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { RecapData } from "@/lib/recap";
+import { standApi } from "@/lib/stands";
 import { isThinking, subscribeThinking } from "./claude-adapter";
 import { Button, CheckIcon, ClockIcon, ExclamationIcon, Pill, SparklesIcon, Spinner } from "@/components/kit";
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
@@ -329,7 +330,7 @@ function changes(previous: RecapData, next: RecapData): AgDataTransaction[] {
   ];
 }
 
-export function RecapStudio({ licenseKey, currency }: { licenseKey: string | null; currency: string }) {
+export function RecapStudio({ licenseKey, currency, standId }: { licenseKey: string | null; currency: string; standId: string }) {
   const [data, setData] = useState<AgDataEngine | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
   const [studioApi, setStudioApi] = useState<AgStudioApi | null>(null);
@@ -357,7 +358,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
       if (busy || controller.signal.aborted) return;
       busy = true;
       try {
-        const res = await fetch("/api/stand/recap", { cache: "no-store", signal: controller.signal });
+        const res = await fetch(standApi("/api/stand/recap", standId), { cache: "no-store", signal: controller.signal });
         if (!res.ok) throw new Error(`Recap request returned ${res.status}`);
         const response = (await res.json()) as RecapData;
         if (controller.signal.aborted) return;
@@ -399,7 +400,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
       clearInterval(timer);
       engine?.dispose?.();
     };
-  }, [currency, setFirstSale]);
+  }, [currency, standId, setFirstSale]);
 
   function onStudioReady(event: AgStudioReadyEvent) {
     setStudioApi(event.api);

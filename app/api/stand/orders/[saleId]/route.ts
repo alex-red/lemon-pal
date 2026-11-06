@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { DEMO_STAND_ID } from "@/lib/demo";
 import { toSellerOrder } from "@/lib/orders";
 import { addTracking, PayPalError } from "@/lib/paypal";
+import { ownedSale } from "@/lib/session";
 import { store } from "@/lib/store";
 import type { Fulfillment, Sale } from "@/lib/types";
 
@@ -17,7 +17,7 @@ const ActionSchema = z.discriminatedUnion("action", [
 
 type PaidOnline = Sale & { paidAt: string; fulfillment: Fulfillment };
 const isPaidOnline = (s: Sale | null): s is PaidOnline =>
-  Boolean(s && s.standId === DEMO_STAND_ID && s.channel === "online" && s.status === "paid" && s.paidAt && s.fulfillment);
+  Boolean(s && s.channel === "online" && s.status === "paid" && s.paidAt && s.fulfillment);
 
 // Marks an online order shipped (with optional tracking, passed on to PayPal) or picked up.
 export async function POST(request: Request, { params }: { params: Promise<{ saleId: string }> }) {
@@ -26,7 +26,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sal
   const { saleId } = await params;
   const input = parsed.data;
 
-  const existing = await store.getSale(saleId);
+  // Only the seller's own orders. ownedSale checks the sale is on one of their stands.
+  const existing = (await ownedSale(saleId))?.sale ?? null;
   if (!isPaidOnline(existing)) return Response.json({ error: "not found" }, { status: 404 });
   if (input.action === "ship" && existing.fulfillment.method !== "ship") {
     return Response.json({ error: "This order is for pickup." }, { status: 409 });
