@@ -3,7 +3,6 @@
 import {
   AgStudioAiModule,
   createAiHarness,
-  studioTheme,
   type AgAiHarnessSetup,
   type AgAiPromptStarter,
   type AgStudioApi,
@@ -18,6 +17,7 @@ import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RecapData } from "@/lib/recap";
 import { claudeAdapter } from "./claude-adapter";
+import { filterButtonStyle, lemonTheme } from "./studio-theme";
 import { TodaySalesWidget, type RecapRegistry, type TodaySalesDef } from "./today-widget";
 
 // Opening suggestions in the assistant panel. They show until the first message is sent.
@@ -31,24 +31,6 @@ const PROMPT_STARTERS: AgAiPromptStarter[] = [
 // The setup params are typed with the core API, but Studio passes its full API at runtime.
 const ai: AgAiHarnessSetup = ({ api }) =>
   createAiHarness(api as AgStudioApi, { adapter: claudeAdapter, promptStarters: PROMPT_STARTERS });
-
-// Citrus Glass tokens, read as CSS variables so Studio follows light and dark mode with the rest of the app.
-const lemonTheme = studioTheme.withParams({
-  accentColor: "var(--lemon-deep)",
-  backgroundColor: "var(--surface)",
-  foregroundColor: "var(--ink)",
-  textColor: "var(--ink)",
-  fontFamily: "var(--font-hanken), ui-sans-serif, system-ui, sans-serif",
-  borderRadius: "14px",
-  chartPaletteFills1Color: "var(--lemon-deep)",
-  chartPaletteStrokes1Color: "var(--peel)",
-  chartPaletteFills2Color: "var(--leaf)",
-  chartPaletteStrokes2Color: "var(--leaf)",
-  chartPaletteFills3Color: "var(--pool)",
-  chartPaletteStrokes3Color: "var(--pool)",
-  chartPaletteFills4Color: "var(--berry)",
-  chartPaletteStrokes4Color: "var(--berry)",
-});
 
 // Adds the custom "Today's sales" widget next to Studio's built-in ones.
 const widgets = createWidgets<RecapRegistry>({
@@ -100,7 +82,8 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
     { id: "id", name: "Line", format: "textFormat" },
     { id: "saleId", name: "Sale", format: "textFormat" },
     { id: "item", name: "Item", format: "textFormat" },
-    { id: "quantity", name: "Units sold", format: "integerFormat" },
+    // Short, so "Units (sum)" fits the narrow grid column without truncating.
+    { id: "quantity", name: "Units", format: "integerFormat" },
     { id: "unitPrice", name: "Unit price", format: "currencyFormat", formatOptions: money },
     { id: "lineTotal", name: "Sales", format: "currencyFormat", formatOptions: money },
     { id: "paidAt", name: "Paid at", format: "dateTimeFormat" },
@@ -153,7 +136,7 @@ const initialState: AgReportState<RecapRegistry> = {
         itemFilter: {
           type: "button-filter",
           dataMapping: { value: [{ id: "lines.item" }] },
-          format: { title: { enabled: true, text: "Filter by item" } },
+          format: { title: { enabled: true, text: "Filter by item" }, style: filterButtonStyle },
         },
         byItem: {
           type: "grid",
@@ -258,7 +241,8 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
 
   return (
     <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
-      <div style={{ height: "100%", width: "100%" }}>
+      {/* Fixed-width digits in grid cells, so totals don't jitter as sales arrive. */}
+      <div className="[&_.ag-cell]:tabular-nums" style={{ height: "100%", width: "100%" }}>
         <AgStudio<RecapRegistry>
           // Without an explicit size, Studio's own wrapper falls back to 600px tall.
           style={{ height: "100%", width: "100%" }}
