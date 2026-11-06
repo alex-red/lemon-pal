@@ -31,14 +31,15 @@ import {
   ShimmerText,
   SparklesIcon,
 } from "@/components/kit";
+import { dealDiscount, dealLabel, type Deal } from "@/lib/deals";
 import { playDing, unlockDing } from "@/lib/ding";
 
 // Sample items for the kit only. The real register prices sales from the stored catalog on the server.
-const sampleItems = [
+const sampleItems: { id: string; name: string; priceCents: number; emoji: string; deal?: Deal }[] = [
   { id: "lemonade", name: "Lemonade", priceCents: 250, emoji: "🍋" },
   { id: "pink", name: "Pink lemonade", priceCents: 300, emoji: "🌸" },
   { id: "iced-tea", name: "Iced tea", priceCents: 200, emoji: "🧊" },
-  { id: "cookie", name: "Cookie", priceCents: 150, emoji: "🍪" },
+  { id: "cookie", name: "Cookie", priceCents: 150, emoji: "🍪", deal: { quantity: 2, priceCents: 250 } },
   { id: "brownie", name: "Brownie", priceCents: 225, emoji: "🍫" },
   { id: "tip", name: "Tip jar", priceCents: 100, emoji: "🫙" },
 ];
@@ -129,7 +130,11 @@ export function RegisterDemo() {
   const currency = "USD";
 
   const total = useMemo(
-    () => sampleItems.reduce((sum, item) => sum + item.priceCents * (cart[item.id] ?? 0), 0),
+    () =>
+      sampleItems.reduce((sum, item) => {
+        const quantity = cart[item.id] ?? 0;
+        return sum + item.priceCents * quantity - dealDiscount(item.priceCents, quantity, item.deal);
+      }, 0),
     [cart],
   );
   const count = Object.values(cart).reduce((a, b) => a + b, 0);
@@ -179,6 +184,7 @@ export function RegisterDemo() {
               key={item.id}
               name={item.name}
               emoji={item.emoji}
+              deal={item.deal ? dealLabel(item.deal, currency) : undefined}
               priceCents={item.priceCents}
               currency={currency}
               count={cart[item.id] ?? 0}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidDeal, MAX_DEAL_QUANTITY } from "@/lib/deals";
 import { demoStand, getOrCreateDemoStand, isSampleId } from "@/lib/demo";
 import { cleanEmoji } from "@/lib/emoji";
 import { store } from "@/lib/store";
@@ -13,6 +14,16 @@ const PublishSchema = z.object({
         // The seller confirms every price; nothing unreadable gets through.
         priceCents: z.number().int().min(1).max(100_000),
         emoji: z.string().max(16).optional().transform(cleanEmoji),
+        deal: z
+          .object({
+            quantity: z.number().int().min(2).max(MAX_DEAL_QUANTITY),
+            priceCents: z.number().int().min(1).max(100_000),
+          })
+          .optional(),
+      })
+      // A deal that saves nothing is a typo, not a deal.
+      .refine((item) => !item.deal || isValidDeal(item.priceCents, item.deal), {
+        message: "A deal has to cost less than buying the items one at a time.",
       }),
     )
     .min(1)
@@ -23,7 +34,11 @@ const PublishSchema = z.object({
 export async function POST(request: Request) {
   const parsed = PublishSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return Response.json({ error: "Every item needs a name and a price." }, { status: 400 });
+    const dealIssue = parsed.error.issues.find((issue) => issue.code === "custom");
+    return Response.json(
+      { error: dealIssue?.message ?? "Every item needs a name and a price." },
+      { status: 400 },
+    );
   }
   const current = await getOrCreateDemoStand();
   const stand = {

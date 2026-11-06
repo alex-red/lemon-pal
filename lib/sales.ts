@@ -1,4 +1,5 @@
 import "server-only";
+import { dealDiscount, lineTotalCents } from "./deals";
 import type { Sale, SaleLine, Stand } from "./types";
 
 export type CartEntry = { itemId: string; quantity: number };
@@ -13,9 +14,18 @@ export function priceCart(stand: Stand, cart: CartEntry[]): { lines: SaleLine[];
     const item = stand.items.find((i) => i.id === itemId);
     if (!item) throw new CartError(`Unknown item ${itemId}`);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new CartError("Invalid quantity");
-    return { itemId, name: item.name, emoji: item.emoji, unitPriceCents: item.priceCents, quantity };
+    const discountCents = dealDiscount(item.priceCents, quantity, item.deal);
+    return {
+      itemId,
+      name: item.name,
+      emoji: item.emoji,
+      unitPriceCents: item.priceCents,
+      quantity,
+      // Snapshot the deal only when it applied, so the receipt and recap show what the buyer got.
+      ...(discountCents > 0 ? { deal: item.deal, discountCents } : {}),
+    };
   });
-  const totalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
+  const totalCents = lines.reduce((sum, l) => sum + lineTotalCents(l), 0);
   return { lines, totalCents };
 }
 

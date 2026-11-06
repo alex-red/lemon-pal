@@ -1,3 +1,4 @@
+import { lineTotalCents } from "./deals";
 import type { Sale } from "./types";
 
 // Row shapes for the AG Studio recap. Amounts are in currency units because Studio formats them as money.
@@ -9,6 +10,8 @@ export type RecapLineRow = {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  /** What a deal took off this line. 0 when none applied. */
+  discount: number;
   paidAt: string;
 };
 export type RecapData = {
@@ -38,7 +41,8 @@ export function toRecap(sales: Sale[]): RecapData {
         item: l.name,
         quantity: l.quantity,
         unitPrice: l.unitPriceCents / 100,
-        lineTotal: (l.unitPriceCents * l.quantity) / 100,
+        lineTotal: lineTotalCents(l) / 100,
+        discount: (l.discountCents ?? 0) / 100,
         paidAt: s.paidAt,
       })),
     ),

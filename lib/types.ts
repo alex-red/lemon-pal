@@ -1,3 +1,4 @@
+import type { Deal } from "./deals";
 import type { Cents } from "./money";
 
 export type CatalogItem = {
@@ -6,6 +7,8 @@ export type CatalogItem = {
   priceCents: Cents;
   /** One emoji shown large on the register tile. Optional: tiles fall back to the item's initial. */
   emoji?: string;
+  /** A confirmed multi-buy price, such as 2 for $5. The server applies it when pricing a sale. */
+  deal?: Deal;
 };
 
 /** An item the vision model read from a sign, before the seller confirms it. */
@@ -16,6 +19,8 @@ export type DraftItem = {
   confidence: "high" | "low";
   /** An emoji the model picked for the item, for the seller to keep or change. */
   emoji?: string;
+  /** A multi-buy price the model read for this item, for the seller to confirm or remove. */
+  deal?: Deal;
 };
 
 /** What the vision model read from a sign photo. */
@@ -44,6 +49,10 @@ export type SaleLine = {
   emoji?: string;
   unitPriceCents: Cents;
   quantity: number;
+  /** The deal in force when the sale was rung up, if any. */
+  deal?: Deal;
+  /** What the deal took off this line. The line costs unitPriceCents × quantity − discountCents. */
+  discountCents?: Cents;
 };
 
 export type SaleStatus = "open" | "paid" | "canceled";

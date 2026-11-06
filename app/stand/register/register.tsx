@@ -18,7 +18,9 @@ import {
   Toolbar,
   XmarkIcon,
 } from "@/components/kit";
+import { dealDiscount, dealLabel } from "@/lib/deals";
 import { playDing, unlockDing } from "@/lib/ding";
+import { formatMoney } from "@/lib/money";
 import type { PublicSale } from "@/lib/sales";
 import type { CatalogItem } from "@/lib/types";
 
@@ -47,10 +49,18 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
     playDing();
   }
 
-  const total = useMemo(
-    () => items.reduce((sum, item) => sum + item.priceCents * (cart[item.id] ?? 0), 0),
-    [items, cart],
-  );
+  // A preview only: the server prices the sale from the stored catalog, with the same deal math.
+  const { total, saved } = useMemo(() => {
+    let total = 0;
+    let saved = 0;
+    for (const item of items) {
+      const quantity = cart[item.id] ?? 0;
+      const discount = dealDiscount(item.priceCents, quantity, item.deal);
+      total += item.priceCents * quantity - discount;
+      saved += discount;
+    }
+    return { total, saved };
+  }, [items, cart]);
 
   // Poll the saved sale status until it settles. The server only marks it paid after a verified capture.
   useEffect(() => {
@@ -200,6 +210,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
             key={item.id}
             name={item.name}
             emoji={item.emoji}
+            deal={item.deal ? dealLabel(item.deal, currency) : undefined}
             priceCents={item.priceCents}
             currency={currency}
             count={cart[item.id] ?? 0}
@@ -228,6 +239,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
           <div className="flex min-w-0 flex-1 flex-col leading-tight" aria-live="polite">
             <span className="truncate text-footnote text-ink-2">
               {count === 0 ? "Tap an item to start" : `${count} ${count === 1 ? "item" : "items"}`}
+              {saved > 0 ? <span className="font-semibold text-leaf"> · {formatMoney(saved, currency)} off with deals</span> : null}
             </span>
             <Money cents={total} currency={currency} size="title" />
           </div>

@@ -77,6 +77,13 @@ export const StopwatchIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const TagIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 12.1V4.75c0-.69.56-1.25 1.25-1.25h7.35c.33 0 .65.13.88.37l7.4 7.4a1.25 1.25 0 0 1 0 1.76l-7.36 7.36a1.25 1.25 0 0 1-1.76 0l-7.4-7.4a1.25 1.25 0 0 1-.36-.88Z" />
+    <circle cx="8" cy="8" r="1.4" />
+  </Icon>
+);
+
 export const ExclamationIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M10.3 4.3 2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />

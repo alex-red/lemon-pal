@@ -69,6 +69,9 @@ type Order = {
  * `brandName` is what PayPal shows the buyer as the seller, instead of the account's business name.
  */
 export async function createOrder(sale: Sale, checkoutUrl: string, brandName: string): Promise<{ id: string }> {
+  const itemTotal = sale.lines.reduce((sum, line) => sum + line.unitPriceCents * line.quantity, 0);
+  const discount = sale.lines.reduce((sum, line) => sum + (line.discountCents ?? 0), 0);
+  if (itemTotal - discount !== sale.totalCents) throw new Error(`Sale ${sale.id} lines don't add up to its total`);
   const order = await paypalFetch<Order>("/v2/checkout/orders", {
     method: "POST",
     requestId: `create-${sale.id}`,
@@ -91,7 +94,11 @@ export async function createOrder(sale: Sale, checkoutUrl: string, brandName: st
           amount: {
             currency_code: sale.currency,
             value: toPayPalValue(sale.totalCents),
-            breakdown: { item_total: { currency_code: sale.currency, value: toPayPalValue(sale.totalCents) } },
+            // PayPal checks that amount = item_total − discount, so deals go in as a discount, not lower unit prices.
+            breakdown: {
+              item_total: { currency_code: sale.currency, value: toPayPalValue(itemTotal) },
+              ...(discount > 0 ? { discount: { currency_code: sale.currency, value: toPayPalValue(discount) } } : {}),
+            },
           },
           items: sale.lines.map((line) => ({
             name: line.name.slice(0, 127),

@@ -1,6 +1,6 @@
 import { formatMoney, type Cents } from "@/lib/money";
 import { cn } from "./cn";
-import { MinusIcon } from "./icons";
+import { MinusIcon, TagIcon } from "./icons";
 import { Money } from "./money";
 import { CountBadge } from "./status";
 
@@ -15,6 +15,7 @@ export function ItemTile({
   currency,
   count = 0,
   emoji,
+  deal,
   onAdd,
   onRemove,
   className,
@@ -25,6 +26,8 @@ export function ItemTile({
   count?: number;
   /** Optional glyph from the sign, shown large. */
   emoji?: string;
+  /** A multi-buy price to show under the price, such as "2 for $5.00". */
+  deal?: string;
   onAdd?: () => void;
   onRemove?: () => void;
   className?: string;
@@ -41,7 +44,7 @@ export function ItemTile({
       <button
         type="button"
         onClick={onAdd}
-        aria-label={`${name}, ${price}${active ? `, ${count} in sale` : ""}. Add one.`}
+        aria-label={`${name}, ${price}${deal ? `, deal ${deal}` : ""}${active ? `, ${count} in sale` : ""}. Add one.`}
         className={cn(
           "pressable focus-ring flex min-w-0 flex-col justify-between gap-3 overflow-hidden rounded-tile p-5 text-left [grid-area:1/1] max-[24rem]:p-4",
           "ring-[0.5px]",
@@ -63,6 +66,18 @@ export function ItemTile({
         <span className="flex flex-col gap-1">
           <span className="text-title3 font-semibold text-balance [overflow-wrap:anywhere]">{name}</span>
           <Money cents={priceCents} currency={currency} size="title" className={active ? "[&>span]:text-current" : undefined} />
+          {deal ? (
+            <span
+              aria-hidden
+              className={cn(
+                "mt-1 inline-flex h-7 items-center gap-1.5 self-start rounded-full px-3 text-footnote font-semibold whitespace-nowrap [&_svg]:text-[1.15em]",
+                // Text on lemon is always dark, so the active tile keeps a dark label in dark mode too.
+                active ? "bg-[oklch(0.23_0.03_85/0.1)] text-[oklch(0.23_0.03_85)]" : "bg-lemon-soft text-peel",
+              )}
+            >
+              <TagIcon /> {deal}
+            </span>
+          ) : null}
         </span>
       </button>
 

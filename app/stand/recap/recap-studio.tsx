@@ -94,6 +94,7 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
     { id: "quantity", name: "Units", format: "integerFormat" },
     { id: "unitPrice", name: "Unit price", format: "currencyFormat", formatOptions: money },
     { id: "lineTotal", name: "Sales", format: "currencyFormat", formatOptions: money },
+    { id: "discount", name: "Deal savings", format: "currencyFormat", formatOptions: money },
     { id: "paidAt", name: "Paid at", format: "dateTimeFormat" },
   ];
   return {

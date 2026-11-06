@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { env } from "@/lib/env";
-import { GroupedList, LemonIcon, ListRow, Money, PaidMoment, SaleStatusPill } from "@/components/kit";
+import { GroupedList, LemonIcon, ListRow, Money, PaidMoment, SaleStatusPill, TagIcon } from "@/components/kit";
+import { dealLabel, lineTotalCents } from "@/lib/deals";
 import { formatMoney } from "@/lib/money";
 import { store } from "@/lib/store";
 import { Checkout } from "./checkout";
@@ -37,6 +38,18 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
             trailing={formatMoney(line.unitPriceCents * line.quantity, sale.currency)}
           />
         ))}
+        {/* Each deal is its own line, so the buyer sees the saving, and the lines add up to the total. */}
+        {sale.lines
+          .filter((line) => line.deal && line.discountCents)
+          .map((line) => (
+            <ListRow
+              key={`${line.itemId}-deal`}
+              icon={<TagIcon className="text-[1.1rem] text-leaf" />}
+              title={`${line.name} deal`}
+              subtitle={`${dealLabel(line.deal!, sale.currency)} · ${formatMoney(lineTotalCents(line), sale.currency)} for ${line.quantity}`}
+              trailing={<span className="text-leaf">−{formatMoney(line.discountCents!, sale.currency)}</span>}
+            />
+          ))}
       </GroupedList>
 
       {sale.status === "paid" ? (

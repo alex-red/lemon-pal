@@ -19,16 +19,27 @@ import {
   scrollToReveal,
   ShimmerText,
   SparklesIcon,
+  TagIcon,
   TextArea,
   TextField,
   useReveal,
   XmarkIcon,
 } from "@/components/kit";
+import { isValidDeal, MAX_DEAL_QUANTITY, type Deal } from "@/lib/deals";
 import { cleanEmoji } from "@/lib/emoji";
 import type { DraftItem, SignDraft } from "@/lib/types";
 import { CameraSheet, canUseLiveCamera } from "./camera-sheet";
 
-type Row = { key: number; emoji: string; name: string; price: string; confidence: "high" | "low" | null; unreadPrice: boolean };
+type Row = {
+  key: number;
+  emoji: string;
+  name: string;
+  price: string;
+  confidence: "high" | "low" | null;
+  unreadPrice: boolean;
+  /** A multi-buy price, as typed: "2" for "5.00". null when the item has no deal. */
+  deal: { quantity: string; price: string } | null;
+};
 
 let nextKey = 1;
 
@@ -40,7 +51,30 @@ function toRow(item: DraftItem): Row {
     price: item.priceCents === null ? "" : (item.priceCents / 100).toFixed(2),
     confidence: item.priceCents === null ? "low" : item.confidence,
     unreadPrice: item.priceCents === null,
+    deal: item.deal ? { quantity: String(item.deal.quantity), price: (item.deal.priceCents / 100).toFixed(2) } : null,
   };
+}
+
+/** The row's deal in cents, or null when it's missing or not filled in correctly. */
+function parseDeal(row: Row): Deal | null {
+  if (!row.deal) return null;
+  const quantity = /^\d{1,2}$/.test(row.deal.quantity.trim()) ? Number(row.deal.quantity) : NaN;
+  const priceCents = parsePrice(row.deal.price);
+  const unit = parsePrice(row.price);
+  if (priceCents === null || unit === null) return null;
+  const deal = { quantity, priceCents };
+  return isValidDeal(unit, deal) ? deal : null;
+}
+
+/** Why a row's deal can't be published, or undefined when it's fine or the price field already explains. */
+function dealError(row: Row): string | undefined {
+  if (!row.deal || parseDeal(row)) return undefined;
+  const quantity = Number(row.deal.quantity);
+  if (!row.deal.quantity.trim() || !row.deal.price.trim()) return "Fill in both, or remove the deal";
+  if (!Number.isInteger(quantity) || quantity < 2 || quantity > MAX_DEAL_QUANTITY) return `Buy 2 to ${MAX_DEAL_QUANTITY}`;
+  if (parsePrice(row.deal.price) === null) return "Enter an amount like 5.00";
+  if (parsePrice(row.price) === null) return undefined;
+  return "A deal has to cost less than buying them one at a time";
 }
 
 /** "2.5", "$2.50", "2" → cents. null if it isn't a plain positive amount. */
@@ -64,7 +98,15 @@ function currencySymbol(currency: string) {
   );
 }
 
-const emptyRow = (): Row => ({ key: nextKey++, emoji: "", name: "", price: "", confidence: null, unreadPrice: false });
+const emptyRow = (): Row => ({
+  key: nextKey++,
+  emoji: "",
+  name: "",
+  price: "",
+  confidence: null,
+  unreadPrice: false,
+  deal: null,
+});
 
 /** Phone photos are often larger than the model's 5 MB image limit, so shrink before upload. */
 async function shrinkPhoto(file: Blob): Promise<Blob> {
@@ -197,7 +239,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
   }
 
   const invalid =
-    !name.trim() || !rows?.length || rows.some((row) => !row.name.trim() || parsePrice(row.price) === null);
+    !name.trim() || !rows?.length || rows.some((row) => !row.name.trim() || parsePrice(row.price) === null || (row.deal !== null && !parseDeal(row)));
   const toCheck = rows?.filter((row) => row.confidence === "low").length ?? 0;
 
   async function publish() {
@@ -209,7 +251,12 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: name.trim(),
-        items: rows.map((row) => ({ name: row.name.trim(), priceCents: parsePrice(row.price), emoji: row.emoji || undefined })),
+        items: rows.map((row) => ({
+          name: row.name.trim(),
+          priceCents: parsePrice(row.price),
+          emoji: row.emoji || undefined,
+          deal: parseDeal(row) ?? undefined,
+        })),
       }),
     });
     if (res.ok) return router.push("/stand/register");
@@ -445,6 +492,25 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
                         onChange={(e) => update(row.key, { price: e.target.value })}
                       />
                     </div>
+                    {row.deal ? (
+                      <DealFields
+                        deal={row.deal}
+                        symbol={symbol}
+                        itemName={row.name || `item ${i + 1}`}
+                        error={dealError(row)}
+                        onChange={(deal) => update(row.key, { deal })}
+                      />
+                    ) : (
+                      <Button
+                        variant="plain"
+                        size="sm"
+                        icon={<TagIcon />}
+                        className="self-start"
+                        onClick={() => update(row.key, { deal: { quantity: "2", price: "" } })}
+                      >
+                        Add a deal
+                      </Button>
+                    )}
                   </Card>
                 </li>
               );
@@ -508,5 +574,55 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
         </div>
       </section>
     </main>
+  );
+}
+
+/** A multi-buy price for one item: "Buy 2 for $5.00". The seller confirms it like a price. */
+function DealFields({
+  deal,
+  symbol,
+  itemName,
+  error,
+  onChange,
+}: {
+  deal: { quantity: string; price: string };
+  symbol: string;
+  itemName: string;
+  error: string | undefined;
+  onChange: (deal: { quantity: string; price: string } | null) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-[18px] bg-lemon-soft p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="flex items-center gap-1.5 text-subhead font-semibold text-peel">
+          <TagIcon aria-hidden /> Deal
+        </p>
+        <Button variant="plain" size="sm" aria-label={`Remove the deal on ${itemName}`} onClick={() => onChange(null)}>
+          Remove
+        </Button>
+      </div>
+      <div className="grid grid-cols-[5rem_auto_minmax(0,9rem)] items-start gap-2">
+        <TextField
+          label="Buy"
+          aria-label={`How many ${itemName} the deal buys`}
+          inputMode="numeric"
+          placeholder="2"
+          value={deal.quantity}
+          onChange={(e) => onChange({ ...deal, quantity: e.target.value })}
+        />
+        <span aria-hidden className="self-end pb-3 text-body text-ink-2">
+          for
+        </span>
+        <TextField
+          label="Deal price"
+          prefix={symbol}
+          inputMode="decimal"
+          placeholder="0.00"
+          value={deal.price}
+          error={error}
+          onChange={(e) => onChange({ ...deal, price: e.target.value })}
+        />
+      </div>
+    </div>
   );
 }

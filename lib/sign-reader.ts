@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { env } from "./env";
+import { isValidDeal, MAX_DEAL_QUANTITY, type Deal } from "./deals";
 import { cleanEmoji } from "./emoji";
 import type { SignDraft } from "./types";
 
@@ -21,6 +22,13 @@ const SignSchema = z.object({
         .describe("Price in cents, e.g. 250 for $2.50. null if the price is missing, unreadable, or ambiguous."),
       confidence: z.enum(["high", "low"]).describe("low if any part of the name or price was hard to read"),
       emoji: z.string().describe("One emoji that best pictures the item, e.g. 🍪 for Cookie or 🧦 for Socks"),
+      deal: z
+        .object({
+          quantity: z.number().int().describe("How many the deal buys, e.g. 2 in \"2 for $5\""),
+          price_cents: z.number().int().describe("What that many cost together, in cents, e.g. 500 in \"2 for $5\""),
+        })
+        .nullable()
+        .describe("A multi-buy price written for this item, such as \"2 for $5\" or \"3/$10\". null if there isn't one."),
     }),
   ),
 });
@@ -38,9 +46,24 @@ const RULES = `- Use the price exactly as written. Don't guess or calculate a pr
 - Mark confidence low when any part of the name or price was hard to read.
 - Leave out anything that isn't an item for sale, such as slogans or payment notes. Put the stand's name, if shown, in stand_name.
 - Pick one emoji per item that a customer would recognize at a glance. Use a close match when there's no exact one.
-- If there's no price list, return an empty items array.`;
+- If there's no price list, return an empty items array.
+- Put a multi-buy price such as "2 for $5", "3/$10" or "buy 2 for $5" in deal on the item it belongs to, and keep the single-item price in price_cents.
+  Set deal to null when it's unclear, when it covers a mix of different items, or when it's a percentage or "buy one get one" offer.
+  Mark confidence low if any part of the deal was hard to read.`;
 
 export class SignReadError extends Error {}
+
+/** The model's deal, or undefined when it can't be right: fewer than two, or no cheaper than single prices. */
+function toDeal(deal: { quantity: number; price_cents: number } | null, unitPriceCents: number | null): Deal | undefined {
+  if (!deal) return undefined;
+  const read = { quantity: deal.quantity, priceCents: deal.price_cents };
+  if (read.quantity < 2 || read.quantity > MAX_DEAL_QUANTITY || read.priceCents <= 0 || read.priceCents > 100_000) {
+    return undefined;
+  }
+  // With the single price unread, the seller checks the deal against the price they enter.
+  if (unitPriceCents !== null && unitPriceCents > 0 && !isValidDeal(unitPriceCents, read)) return undefined;
+  return read;
+}
 
 let client: Anthropic | null = null;
 
@@ -86,6 +109,7 @@ export async function readSign(input: SignInput): Promise<SignDraft> {
         item.price_cents !== null && item.price_cents > 0 && item.price_cents <= 100_000 ? item.price_cents : null,
       confidence: item.confidence,
       emoji: cleanEmoji(item.emoji),
+      deal: toDeal(item.deal, item.price_cents),
     }))
     .filter((item) => item.name.length > 0);
   return { standName: stand_name?.trim().slice(0, 40) || null, items: draftItems };
