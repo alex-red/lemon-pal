@@ -18,4 +18,6 @@ export const env = {
   currency: () => process.env.STAND_CURRENCY || "USD",
   anthropicApiKey: () => required("ANTHROPIC_API_KEY"),
   publicAppUrl: () => process.env.PUBLIC_APP_URL || null,
+  // AG licence keys are designed to ship to the browser.
+  agStudioLicenseKey: () => process.env.AG_STUDIO_LICENSE_KEY || null,
 };
