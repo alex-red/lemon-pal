@@ -5,6 +5,7 @@ export { SegmentedControl, Stepper, Switch } from "./controls";
 export { TextField } from "./field";
 export * from "./icons";
 export { ItemTile } from "./item-tile";
+export { LemonQR } from "./lemon-qr";
 export { GroupedList, ListRow } from "./list";
 export { Money } from "./money";
 export { PaidMoment } from "./paid-moment";

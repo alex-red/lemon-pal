@@ -1,6 +1,5 @@
 "use client";
 
-import QRCode from "qrcode";
 import { useMemo, useState } from "react";
 import {
   Button,
@@ -8,6 +7,11 @@ import {
   ChartIcon,
   ConfidencePill,
   ItemTile,
+  LemonQR,
+  Pill,
+  Spinner,
+  CheckIcon,
+  ExclamationIcon,
   Money,
   PaidMoment,
   QrCodeIcon,
@@ -122,9 +126,9 @@ export function RegisterDemo() {
     setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + by) }));
   }
 
-  async function charge() {
+  function charge() {
     unlockDing();
-    setQr(await QRCode.toDataURL("https://example.com/pay/kit-demo", { margin: 1, width: 360 }));
+    setQr("https://example.com/pay/kit-demo");
     setPhase("waiting");
   }
 
@@ -214,8 +218,7 @@ export function RegisterDemo() {
             <Money cents={total} currency={currency} size="hero" />
             {qr ? (
               <div className="rounded-[30px] bg-lemon p-3 shadow-float">
-                {/* eslint-disable-next-line @next/next/no-img-element -- data URL from the qrcode package */}
-                <img src={qr} alt="Sample QR code" width={240} height={240} className="rounded-[18px] bg-white" />
+                <LemonQR value={qr} label="Sample QR code" className="size-60" />
               </div>
             ) : null}
             <p className="text-center text-subhead text-ink-2">Point your phone camera here. You&rsquo;ll pay with PayPal.</p>
@@ -240,4 +243,75 @@ export function RegisterDemo() {
       </Sheet>
     </div>
   );
+}
+
+type ScanResult = "checking" | "reads" | "fails" | "unsupported";
+
+/** Draws a rendered code to a canvas and decodes it with the browser's own QR reader, where it has one. */
+async function scanSvg(svg: SVGSVGElement, expected: string, px: number): Promise<ScanResult> {
+  if (!("BarcodeDetector" in window)) return "unsupported";
+  const markup = new XMLSerializer().serializeToString(svg);
+  const image = new Image();
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
+  await image.decode();
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = px;
+  canvas.getContext("2d")!.drawImage(image, 0, 0, px, px);
+  type Detector = { detect(source: CanvasImageSource): Promise<{ rawValue: string }[]> };
+  const Ctor = (window as unknown as { BarcodeDetector: new (o: { formats: string[] }) => Detector }).BarcodeDetector;
+  const found = await new Ctor({ formats: ["qr_code"] }).detect(canvas);
+  return found.some((code) => code.rawValue === expected) ? "reads" : "fails";
+}
+
+const SAMPLE_PAY_URL = "https://lemonpal.example/pay/3f9c2a71-5b8e-4d0c-9a6f-1e2d3c4b5a60";
+
+/** The lemon code next to the plain fallback, each with a decode check at a few sizes. */
+export function QrDemo() {
+  const [results, setResults] = useState<Record<string, ScanResult>>({});
+
+  async function check() {
+    const next: Record<string, ScanResult> = {};
+    for (const id of ["art", "badge"]) {
+      const svg = document.querySelector<SVGSVGElement>(`[data-qr-demo="${id}"] svg`);
+      if (!svg) continue;
+      setResults((r) => ({ ...r, [id]: "checking" }));
+      // Small renders stand in for a phone held further away.
+      const sizes = await Promise.all([400, 240, 160].map((px) => scanSvg(svg, SAMPLE_PAY_URL, px)));
+      next[id] = sizes.includes("unsupported") ? "unsupported" : sizes.every((r) => r === "reads") ? "reads" : "fails";
+      setResults((r) => ({ ...r, [id]: next[id] }));
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="grid gap-6 sm:grid-cols-2">
+        {[
+          { id: "art", title: "Lemon art", note: "Pal is imprinted into the modules. Used on the register.", art: true },
+          { id: "badge", title: "Plain with badge", note: "The fallback if a phone struggles with the art.", art: false },
+        ].map((v) => (
+          <figure key={v.id} className="flex flex-col items-center gap-3 text-center">
+            <div data-qr-demo={v.id} className="rounded-[30px] bg-lemon p-3 shadow-float">
+              <LemonQR value={SAMPLE_PAY_URL} label={`${v.title} sample QR code`} art={v.art} className="size-60" />
+            </div>
+            <figcaption className="flex flex-col items-center gap-1.5">
+              <span className="text-headline">{v.title}</span>
+              <span className="text-subhead text-ink-2">{v.note}</span>
+              <ScanPill result={results[v.id]} />
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      <Button variant="tinted" icon={<QrCodeIcon />} className="self-center" onClick={check}>
+        Check both codes scan
+      </Button>
+    </div>
+  );
+}
+
+function ScanPill({ result }: { result: ScanResult | undefined }) {
+  if (!result) return null;
+  if (result === "checking") return <Pill tone="neutral" icon={<Spinner />}>Checking…</Pill>;
+  if (result === "reads") return <Pill tone="leaf" icon={<CheckIcon />}>Scans at 3 sizes</Pill>;
+  if (result === "fails") return <Pill tone="berry" icon={<ExclamationIcon />}>Didn’t scan</Pill>;
+  return <Pill tone="neutral">This browser can’t check</Pill>;
 }

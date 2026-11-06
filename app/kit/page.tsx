@@ -25,7 +25,7 @@ import {
   WalletIcon,
   XmarkIcon,
 } from "@/components/kit";
-import { ControlsDemo, RegisterDemo } from "./demos";
+import { ControlsDemo, QrDemo, RegisterDemo } from "./demos";
 
 export const metadata: Metadata = {
   title: "Citrus Glass · Lemon Pal design kit",
@@ -428,6 +428,16 @@ export default function KitPage() {
           </div>
           <Card className="mt-6 grid place-items-center p-10">
             <PaidMoment cents={650} currency="USD" />
+          </Card>
+          <Card className="mt-6 flex flex-col gap-6 p-6 sm:p-8">
+            <div className="flex flex-col gap-1">
+              <h3 className="font-display text-title2 font-semibold">The lemon code</h3>
+              <p className="text-subhead text-ink-2">
+                A halftone QR: every module keeps a true-color center dot for the scanner, and the rest of it is tinted
+                from a picture of Pal. Finder squares stay solid. Test on real phones before an event.
+              </p>
+            </div>
+            <QrDemo />
           </Card>
         </Section>
 

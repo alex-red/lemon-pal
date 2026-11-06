@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import QRCode from "qrcode";
 import {
   ArrowUturnIcon,
   Button,
@@ -10,9 +9,9 @@ import {
   ChartIcon,
   ItemTile,
   LemonIcon,
+  LemonQR,
   Money,
   PaidMoment,
-  PalAppIcon,
   QrCodeIcon,
   SaleStatusPill,
   Toolbar,
@@ -22,12 +21,14 @@ import { playDing, unlockDing } from "@/lib/ding";
 import type { PublicSale } from "@/lib/sales";
 import type { CatalogItem } from "@/lib/types";
 
+// The sale code with Pal imprinted in it. Set to false for a plain code with a lemon badge, if a phone struggles to scan.
+const LEMON_ART_QR = true;
+
 type Props = { standName: string; currency: string; items: CatalogItem[] };
 
 export function Register({ standName, currency, items }: Props) {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [sale, setSale] = useState<PublicSale | null>(null);
-  const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [charging, setCharging] = useState(false);
   const dingedSaleId = useRef<string | null>(null);
@@ -84,17 +85,12 @@ export function Register({ standName, currency, items }: Props) {
     const json = await res.json();
     if (!res.ok) return setError(json.error ?? "Could not start the sale");
     const created = json as PublicSale;
-    // High error correction (30%) leaves room for the lemon badge over the middle of the code.
-    setQr(
-      await QRCode.toDataURL(`${window.location.origin}/pay/${created.id}`, { margin: 2, width: 320, errorCorrectionLevel: "H" }),
-    );
     setSale(created);
   }
 
   function reset() {
     setCart({});
     setSale(null);
-    setQr(null);
   }
 
   // Cancel on the server so the QR code can't be paid later. If the buyer already paid, show that instead.
@@ -119,16 +115,14 @@ export function Register({ standName, currency, items }: Props) {
           <>
             <SaleStatusPill status={sale.status} />
             <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
-            {sale.status === "open" && qr ? (
+            {sale.status === "open" ? (
               <div className="animate-rise rounded-[34px] bg-lemon p-4 shadow-float">
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL from the qrcode package */}
-                  <img src={qr} alt="Scan to pay with PayPal" width={320} height={320} className="rounded-[18px] bg-white" />
-                  {/* About 4% of the code's area, well inside what level H can lose. The white rim keeps modules crisp. */}
-                  <span aria-hidden className="absolute top-1/2 left-1/2 size-[20%] -translate-x-1/2 -translate-y-1/2 rounded-[22%] bg-white p-[3%]">
-                    <PalAppIcon className="size-full" />
-                  </span>
-                </div>
+                <LemonQR
+                  value={`${window.location.origin}/pay/${sale.id}`}
+                  label="Scan to pay with PayPal"
+                  art={LEMON_ART_QR}
+                  className="size-[min(22rem,75vw)]"
+                />
               </div>
             ) : null}
             <p className="max-w-xs text-body text-ink-2">
