@@ -607,15 +607,18 @@
     color: oklch(0.23 0.03 85);
   }
 
-  /* Native <dialog> sheets: spring in, fade out. */
+  /*
+   * Native <dialog> sheets. Form sheets grow out of the control that opened them (Sheet sets --sheet-from to
+   * a small copy over that control) and shrink back into it. Without one, and on phones, they rise and fade.
+   */
   dialog[data-sheet] {
     transition:
       opacity 260ms var(--ease-glide),
       transform 560ms var(--ease-spring),
-      overlay 260ms allow-discrete,
-      display 260ms allow-discrete;
+      overlay 560ms allow-discrete,
+      display 560ms allow-discrete;
     opacity: 0;
-    transform: translateY(32px) scale(0.97);
+    transform: var(--sheet-from, translateY(32px) scale(0.97));
   }
   dialog[data-sheet][open] {
     opacity: 1;
@@ -624,7 +627,24 @@
   @starting-style {
     dialog[data-sheet][open] {
       opacity: 0;
-      transform: translateY(32px) scale(0.97);
+      transform: var(--sheet-from, translateY(32px) scale(0.97));
+    }
+  }
+  /* Phones: a bottom sheet slides up from the edge and back down, without a bounce that would lift it off the edge. */
+  @media (max-width: 39.99rem) {
+    dialog[data-sheet] {
+      opacity: 1;
+      transform: translateY(100%);
+      transition:
+        transform 500ms var(--ease-smooth),
+        overlay 500ms allow-discrete,
+        display 500ms allow-discrete;
+    }
+    @starting-style {
+      dialog[data-sheet][open] {
+        opacity: 1;
+        transform: translateY(100%);
+      }
     }
   }
   dialog[data-sheet]::backdrop {
