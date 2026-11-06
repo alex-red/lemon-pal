@@ -53,12 +53,10 @@ type SignInput = { image: { data: string; mediaType: SignImageType } } | { text:
 export async function readSign(input: SignInput): Promise<SignDraft> {
   client ??= new Anthropic({ apiKey: env.anthropicApiKey() });
 
+  // Haiku reads clear signs as well as Sonnet, at about twice the speed. It has no server-side refusal fallback.
   const response = await client.beta.messages.parse({
-    model: "claude-sonnet-5-5",
+    model: "claude-haiku-5-5",
     max_tokens: 16000,
-    // On a safety decline, the API retries on a fallback model within the same call.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
     output_config: { effort: "medium", format: betaZodOutputFormat(SignSchema) },
     messages: [
       {
