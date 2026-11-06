@@ -58,7 +58,7 @@ export function TodaySalesWidget({ widgetApi, dataMapping }: AgWidgetParams<Toda
       <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
         <LemonIcon className="text-[1.1rem]" /> Today&rsquo;s sales
       </p>
-      <p className="font-display text-hero font-semibold tabular-nums">{widgetApi.formatFieldValue(gross, total)}</p>
+      <p className="font-price text-hero font-semibold">{widgetApi.formatFieldValue(gross, total)}</p>
       <p className="text-body text-ink-2 tabular-nums">
         {today.length} {today.length === 1 ? "sale" : "sales"} · {unitCount} {unitCount === 1 ? "item" : "items"} sold
       </p>

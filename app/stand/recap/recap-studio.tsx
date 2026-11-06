@@ -184,11 +184,12 @@ const initialState: AgReportState<RecapRegistry> = {
         },
       },
       widgetLayout: {
-        today: { xTrack: 0, yTrack: 0, xSpan: 9, ySpan: 11 },
-        unitsChart: { xTrack: 9, yTrack: 0, xSpan: 15, ySpan: 11 },
-        itemFilter: { xTrack: 0, yTrack: 11, xSpan: 24, ySpan: 5 },
-        byItem: { xTrack: 0, yTrack: 16, xSpan: 10, ySpan: 14 },
-        sales: { xTrack: 10, yTrack: 16, xSpan: 14, ySpan: 14 },
+        // The filter's title takes about 70px, and its item buttons need 50px more below it.
+        today: { xTrack: 0, yTrack: 0, xSpan: 9, ySpan: 13 },
+        unitsChart: { xTrack: 9, yTrack: 0, xSpan: 15, ySpan: 13 },
+        itemFilter: { xTrack: 0, yTrack: 13, xSpan: 24, ySpan: 13 },
+        byItem: { xTrack: 0, yTrack: 26, xSpan: 10, ySpan: 16 },
+        sales: { xTrack: 10, yTrack: 26, xSpan: 14, ySpan: 16 },
       },
     },
   ],
