@@ -114,14 +114,17 @@ export function StandSwitcher({
         aria-haspopup="dialog"
         aria-label={label}
         className={cn(
-          "pressable focus-ring group -mx-2 inline-flex max-w-full items-center rounded-full px-2 text-left",
+          "pressable focus-ring group -mx-2 inline-flex min-h-11 items-center rounded-full px-2 text-left",
+          // max-w-full lets the small line truncate. The title skips it: a percentage max-width would size the header
+          // from the title's narrowest width and wrap it early.
           variant === "title"
-            ? "min-h-11 gap-2 font-display text-large-title font-semibold"
-            : "min-h-11 gap-1.5 text-footnote font-semibold text-ink-2 hover:text-ink",
+            ? "gap-2 font-display text-large-title font-semibold"
+            : "max-w-full gap-1.5 text-footnote font-semibold text-ink-2 hover:text-ink",
         )}
       >
         {variant === "eyebrow" && <span className="text-[1.1rem]">{kindIcon[current.kind]}</span>}
-        <span className="min-w-0 truncate">{current.name}</span>
+        {/* The register's title wraps rather than cut off a long stand name. The small line above other titles truncates. */}
+        <span className={variant === "title" ? undefined : "min-w-0 truncate"}>{current.name}</span>
         <ChevronDownIcon
           className={cn(
             "shrink-0 text-ink-3 transition-transform duration-300 ease-snappy group-hover:translate-y-0.5",

@@ -12,7 +12,7 @@ import {
   sessionToken,
   STAND_COOKIE,
 } from "@/lib/session-token";
-import { callbackUrl } from "../callback-url";
+import { appOrigin, callbackUrl } from "../callback-url";
 
 // PayPal sends the seller back here with a one-time code. Checks the state, trades the code for who they are,
 // then signs them in as their own seller, with their own stands.
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const [expected, savedNext] = (request.cookies.get(PAYPAL_STATE_COOKIE)?.value ?? "").split("|");
   const go = (path: string) => {
-    const response = NextResponse.redirect(new URL(path, request.url), 303);
+    const response = NextResponse.redirect(new URL(path, appOrigin(request)), 303);
     response.cookies.delete(PAYPAL_STATE_COOKIE);
     return response;
   };

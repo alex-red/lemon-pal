@@ -88,7 +88,7 @@ export function Unlock({
           <form onSubmit={enterDemo} className="flex flex-col gap-5">
             <div>
               <h2 className="text-headline font-semibold">{paypalLogin ? "Or try the demo seller" : "Try the demo seller"}</h2>
-              <p className="mt-1 text-subhead text-ink-2">A lemonade stand and an online shop, ready to sell from.</p>
+              <p className="mt-1 text-subhead text-ink-2">A stand at events and an online shop, ready to sell from.</p>
             </div>
             {demo === "passcode" ? (
               <TextField
