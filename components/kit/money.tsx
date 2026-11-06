@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { formatMoney, type Cents } from "@/lib/money";
 import { cn } from "./cn";
 
@@ -12,16 +13,19 @@ const sizes: Record<Size, string> = {
 /**
  * A price, set like a price tag: a small currency mark and cents raised beside big whole units.
  * Screen readers get the plain formatted amount. font-price has fixed-width digits, so totals don't jitter.
+ * `rolling` makes each digit roll to its new value like an odometer, for a total that changes as you tap.
  */
 export function Money({
   cents,
   currency,
   size = "body",
+  rolling = false,
   className,
 }: {
   cents: Cents;
   currency: string;
   size?: Size;
+  rolling?: boolean;
   className?: string;
 }) {
   const label = formatMoney(cents, currency);
@@ -44,17 +48,37 @@ export function Money({
         if (part.type === "fraction") {
           return (
             <span key={i} aria-hidden className="mt-[0.1em] ml-[0.04em] text-[0.45em] leading-none underline decoration-[0.06em] underline-offset-[0.18em]">
-              {part.value}
+              {rolling ? <Digits text={part.value} /> : part.value}
             </span>
           );
         }
         if (part.type === "literal") return null;
         return (
           <span key={i} aria-hidden>
-            {part.value}
+            {rolling ? <Digits text={part.value} /> : part.value}
           </span>
         );
       })}
     </span>
   );
+}
+
+const STRIP = Array.from({ length: 10 }, (_, d) => d);
+
+/** Each digit is a 0–9 strip that slides to its value. Keyed from the right, so ones stay ones as the total grows. */
+function Digits({ text }: { text: string }) {
+  const chars = [...text];
+  return chars.map((char, i) => {
+    const place = chars.length - i;
+    if (!/\d/.test(char)) return <span key={`sep-${place}`}>{char}</span>;
+    return (
+      <span key={place} className="digit-roll">
+        <span style={{ "--digit": char } as CSSProperties}>
+          {STRIP.map((d) => (
+            <span key={d}>{d}</span>
+          ))}
+        </span>
+      </span>
+    );
+  });
 }

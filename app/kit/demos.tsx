@@ -205,7 +205,7 @@ export function RegisterDemo() {
               <span className="text-footnote text-ink-2">
                 {count === 0 ? "Tap an item to start" : `${count} ${count === 1 ? "item" : "items"}`}
               </span>
-              <Money cents={total} currency={currency} size="title" />
+              <Money cents={total} currency={currency} size="title" rolling className="self-start" />
             </div>
             <Button variant="filled" size="xl" icon={<QrCodeIcon />} disabled={total === 0} onClick={() => void charge()}>
               Charge
