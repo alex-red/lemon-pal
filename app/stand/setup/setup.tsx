@@ -165,8 +165,12 @@ async function cropThumbnails(photo: Blob, regions: (Region | undefined)[]): Pro
 /** Register tiles fill with the thumbnail, about 20rem across at most, so this stays sharp on a 2x screen. */
 const THUMB_SIZE = 480;
 
-/** Real stand photos, bundled for demos without a stand on hand. The reader finds no stand name in either. */
+/**
+ * Stand photos bundled for demos without a stand on hand. The art table sign is generated: it's the video fixture,
+ * with a "2 for $5" deal and a smudged price the seller has to fill in.
+ */
 const DEMO_PHOTOS = [
+  { id: "art", label: "Art Table Sign", src: "/demo/art-table-sign.jpg", standName: "Art Table" },
   { id: "lemonade", label: "Lemonade Stand Sign", src: "/demo/lemonade-stand-sign.jpg", standName: "Lemonade Stand" },
   { id: "booth", label: "Messy Convention Booth", src: "/demo/convention-booth.jpg", standName: "Plush Booth" },
   { id: "bakery", label: "Bakery Display Case", src: "/demo/bakery-case.jpg", standName: "Bakery" },
