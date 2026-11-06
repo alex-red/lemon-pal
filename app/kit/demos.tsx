@@ -35,7 +35,8 @@ import { playDing, unlockDing } from "@/lib/ding";
 
 // Sample items for the kit only. The real register prices sales from the stored catalog on the server.
 const sampleItems = [
-  { id: "lemonade", name: "Lemonade", priceCents: 250, emoji: "🍋" },
+  // A photo thumbnail, as the setup screen crops from a display photo. It takes the emoji's place.
+  { id: "lemonade", name: "Lemonade", priceCents: 250, emoji: "🍋", image: "/demo/lemons-thumb.jpg" },
   { id: "pink", name: "Pink lemonade", priceCents: 300, emoji: "🌸" },
   { id: "iced-tea", name: "Iced tea", priceCents: 200, emoji: "🧊" },
   { id: "cookie", name: "Cookie", priceCents: 150, emoji: "🍪" },
@@ -179,6 +180,7 @@ export function RegisterDemo() {
               key={item.id}
               name={item.name}
               emoji={item.emoji}
+              image={"image" in item ? item.image : undefined}
               priceCents={item.priceCents}
               currency={currency}
               count={cart[item.id] ?? 0}

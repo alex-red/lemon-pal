@@ -13,6 +13,12 @@ const PublishSchema = z.object({
         // The seller confirms every price; nothing unreadable gets through.
         priceCents: z.number().int().min(1).max(100_000),
         emoji: z.string().max(16).optional().transform(cleanEmoji),
+        // A thumbnail the setup screen cropped from the seller's photo. Small enough to keep in the stand record.
+        image: z
+          .string()
+          .max(60_000)
+          .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/)
+          .optional(),
       }),
     )
     .min(1)

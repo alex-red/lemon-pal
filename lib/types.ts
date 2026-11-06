@@ -6,7 +6,12 @@ export type CatalogItem = {
   priceCents: Cents;
   /** One emoji shown large on the register tile. Optional: tiles fall back to the item's initial. */
   emoji?: string;
+  /** A small JPEG data URL cropped from the seller's photo. Shown on the register tile in place of the emoji. */
+  image?: string;
 };
+
+/** Part of a photo, as fractions of its width and height from the top-left corner. */
+export type Region = { x: number; y: number; width: number; height: number };
 
 /** An item the vision model read from a sign, before the seller confirms it. */
 export type DraftItem = {
@@ -16,6 +21,8 @@ export type DraftItem = {
   confidence: "high" | "low";
   /** An emoji the model picked for the item, for the seller to keep or change. */
   emoji?: string;
+  /** Where the item's products are in the photo, when it shows them, for cropping a thumbnail. */
+  region?: Region;
 };
 
 /** What the vision model read from a sign photo. */

@@ -200,6 +200,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
             key={item.id}
             name={item.name}
             emoji={item.emoji}
+            image={item.image}
             priceCents={item.priceCents}
             currency={currency}
             count={cart[item.id] ?? 0}

@@ -15,6 +15,7 @@ export function ItemTile({
   currency,
   count = 0,
   emoji,
+  image,
   onAdd,
   onRemove,
   className,
@@ -25,6 +26,8 @@ export function ItemTile({
   count?: number;
   /** Optional glyph from the sign, shown large. */
   emoji?: string;
+  /** Optional thumbnail cropped from the seller's photo. Shown in place of the emoji. */
+  image?: string;
   onAdd?: () => void;
   onRemove?: () => void;
   className?: string;
@@ -50,7 +53,10 @@ export function ItemTile({
             : "bg-surface text-ink shadow-card ring-hairline hover:shadow-float",
         )}
       >
-        {emoji ? (
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- small data URL thumbnail
+          <img src={image} alt="" className="size-16 rounded-[18px] object-cover shadow-card" />
+        ) : emoji ? (
           <span aria-hidden className="text-[2.5rem] leading-none drop-shadow-sm">
             {emoji}
           </span>
