@@ -133,6 +133,7 @@ const THUMB_SIZE = 480;
 const DEMO_PHOTOS = [
   { id: "lemonade", label: "Lemonade Stand Sign", src: "/demo/lemonade-stand-sign.jpg", standName: "Lemonade Stand" },
   { id: "booth", label: "Messy Convention Booth", src: "/demo/convention-booth.jpg", standName: "Plush Booth" },
+  { id: "bakery", label: "Bakery Display Case", src: "/demo/bakery-case.jpg", standName: "Bakery" },
 ] as const;
 
 type SampleChoice = { id: string; name: string; emoji: string };
