@@ -29,6 +29,20 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - The server prices every sale from the stored catalog. Never trust a price or total sent by the client.
 - A sale becomes `paid` only in the capture route, and only after `verifyCapture` accepts it. Every PayPal create or capture call sends a `PayPal-Request-Id` derived from the sale id, so retries can't charge twice.
 
+## Design kit (Citrus Glass)
+
+- Build UI from `@/components/kit`. `/kit` is the living reference: check it before adding a component, and add new shared pieces to both.
+- Use the semantic tokens from `app/globals.css` (`ink`, `ink-2`, `fill`, `hairline`, `lemon`, `leaf`, `berry`, and so on) and the named text styles (`text-title1`, `text-headline`, …). Don't write raw hex, grey or default Tailwind palette colors, or they'll break in dark mode.
+- Glass (`Glass`, `Toolbar`, `Sheet`, `.glass*`) is for chrome that floats over content. Content goes on `Card` or `GroupedList`. Don't nest glass in glass.
+- Each screen gets one `filled` button: the action the person came to do. Everything else uses `tinted`, `ghost` or `plain`. Inside a toolbar, use `ghost`.
+- Tap targets are at least 44px tall. Register tiles stay the largest target on the seller's screen.
+- Show status with color, an icon and a word together (`SaleStatusPill`, `Pill`). Never use color alone.
+- Show prices with `Money`, which formats from cents and labels the amount for screen readers. Don't hand-format amounts in markup.
+- Text on lemon is always dark (`oklch(0.23 0.03 85)`), not `text-ink`, because `ink` turns light in dark mode.
+- `cn` joins classes but doesn't resolve conflicts. Add a variant or prop instead of overriding a component's color or radius through `className`.
+- Write only the standard `backdrop-filter`. Next's CSS minifier keeps just one copy when both are present and drops the standard one, so blur silently disappears in Chrome.
+- Reduce Motion, Reduce Transparency and Increase Contrast are handled globally in `globals.css`. New animation should use the `--ease-spring` / `--animate-*` tokens so those overrides still apply.
+
 ## Boundaries
 
 - This is a public open-source repo (MIT). Never commit secrets, real customer data, or photos of people. Add new environment variables to `.env.example` with blank values.
