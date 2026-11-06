@@ -18,8 +18,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Gotchas
 
-- There are two TypeScript packages. `typescript` stays on 5.x because typescript-eslint and Next.js load its JavaScript API. `typescript7` is the native compiler that `typecheck` runs. Don't upgrade `typescript` to 7.
-- Files that import `server-only` (`lib/env.ts`, `lib/store.ts`, `lib/paypal.ts`, `lib/sales.ts`, `lib/demo.ts`) can't be imported by `"use client"` components. Use `import type` from them in client code.
+- Keep `typescript` within typescript-eslint's supported range. `bun run typecheck` selects the native compiler via the `typescript7` alias.
+- Files that import `server-only` (everything in `lib/` except `money.ts`, `types.ts`, and `ding.ts`) can't be imported by `"use client"` components. Use `import type` from them in client code.
 - `lib/store.ts` keeps data in memory, so it's lost on restart and doesn't work on serverless hosts. Keep all persistence behind the `Store` interface.
 - AG Studio is large. Import it only through `app/stand/recap/recap-loader.tsx`, which loads it on the client only.
 

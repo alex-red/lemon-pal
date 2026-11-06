@@ -2,7 +2,7 @@
 
 LemonPal turns a handwritten price sign into a working register for a pop-up stand. The seller photographs the sign, checks the names and prices an AI vision model read from it, and rings up sales on a tablet. The buyer scans a QR code and pays with PayPal on their own phone. The seller's screen flips to **Paid** the moment PayPal confirms the capture, and the stand recap in AG Studio shows what sold.
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: in development. The register-to-PayPal sale is implemented with a sample catalog. Sign reading and the recap are not built yet.
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: in development. Sign reading, the register, and PayPal checkout are implemented. The recap is not built yet.
 
 ## How it works
 
@@ -21,7 +21,7 @@ All pricing, PayPal calls, and AI calls run on the server. Secrets never reach t
 - [Next.js 16](https://nextjs.org/) and React 19, TypeScript, Tailwind CSS 4
 - [PayPal Checkout](https://developer.paypal.com/checkout/) and the Orders v2 REST API (Sandbox)
 - [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the stand recap. AG Studio is commercial software under its own licence; it runs with a watermark without a licence key.
-- A vision model to read price signs (Anthropic Claude)
+- [Claude Opus 5.5](https://platform.claude.com/docs) reads price-sign photos into a draft catalog, using structured outputs
 - [Bun](https://bun.sh/) as the package manager
 
 ## Run locally
@@ -38,7 +38,7 @@ Open <http://localhost:3000>. To test the buyer flow from a phone, the phone mus
 
 Other scripts: `bun run typecheck`, `bun run lint`, `bun run build`, `bun run start`.
 
-`typecheck` runs the native TypeScript 7 compiler, installed as `typescript7`. The regular `typescript` package stays on 5.x because typescript-eslint and Next.js still load the TypeScript JavaScript API, which TypeScript 7 doesn't ship yet.
+`bun run typecheck` runs the native TypeScript 7 compiler through the `typescript7` alias. The main `typescript` package is 6.0.3. It provides the compiler API used by typescript-eslint and the default compiler CLI used by `next build`.
 
 ## Project layout
 
