@@ -26,7 +26,8 @@ export default async function RecapPage() {
               <Link
                 href="/stand/register"
                 transitionTypes={["nav-back"]}
-                className="pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full px-5 text-callout font-semibold text-ink hover:bg-fill-2 [&_svg]:text-[1.15em]"
+                // Narrow phones: no icon, so both actions fit in a 320px screen's 280px column.
+                className="pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full px-5 text-callout max-[24rem]:[&_svg]:hidden font-semibold text-ink hover:bg-fill-2 [&_svg]:text-[1.15em]"
               >
                 <QrCodeIcon /> Register
               </Link>
