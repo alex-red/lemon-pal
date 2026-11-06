@@ -44,7 +44,7 @@ export default async function RecapPage() {
                   </>
                 )}
               </Link>
-              <ResetDemo standId={stand.id} kind={kind} />
+              <ResetDemo standId={stand.id} kind={kind} stickerDemo={Boolean(current.user.demo)} />
             </Toolbar>
           </header>
           {/* Studio fills its parent, so the parent needs a definite height, not just a minimum. */}

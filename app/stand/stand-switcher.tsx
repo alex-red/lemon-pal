@@ -20,6 +20,7 @@ import {
   cn,
 } from "@/components/kit";
 import { standApi, type StandSummary } from "@/lib/stands";
+import { forgetDemoAccount } from "./demo-accounts";
 import type { StandKind } from "@/lib/types";
 
 const kindIcon = { local: <QrCodeIcon />, online: <LinkIcon /> } as const;
@@ -40,7 +41,8 @@ export function StandSwitcher({
   stands,
   userName,
   userEmail,
-  ownAccount,
+  userId,
+  demoAccount,
   remembered = true,
   variant = "eyebrow",
 }: {
@@ -48,7 +50,9 @@ export function StandSwitcher({
   stands: StandSummary[];
   userName: string;
   userEmail: string | null;
-  ownAccount: boolean;
+  userId: string;
+  /** A demo account made on the sign-in page, rather than a PayPal login. */
+  demoAccount: boolean;
   /** false when the page opened another stand than the last one switched to, so this one becomes the last. */
   remembered?: boolean;
   variant?: "title" | "eyebrow";
@@ -153,7 +157,6 @@ export function StandSwitcher({
         ) : view === "stand" ? (
           <StandSettings
             stand={current}
-            demo={!ownAccount}
             onlyStand={stands.length <= 1}
             onBack={() => setView("list")}
             onRenamed={() => {
@@ -166,7 +169,8 @@ export function StandSwitcher({
           <Account
             name={userName}
             email={userEmail}
-            ownAccount={ownAccount}
+            userId={userId}
+            demoAccount={demoAccount}
             standCount={stands.length}
             signingOut={busy === "signout"}
             onSignOut={signOut}
@@ -209,7 +213,7 @@ export function StandSwitcher({
                 icon={<PersonIcon />}
                 iconTone="ink"
                 title={userName}
-                subtitle={ownAccount ? (userEmail ?? "Signed in with PayPal") : "Shared demo seller"}
+                subtitle={demoAccount ? "Demo account" : (userEmail ?? "Signed in with PayPal")}
                 trailing={<ChevronRightIcon className="text-ink-3" />}
                 onClick={() => setView("account")}
               />
@@ -306,13 +310,11 @@ function NewStand({ onCancel, onCreated }: { onCancel: () => void; onCreated: (n
 /** Renames the stand on screen, or deletes it with everything it holds after a second, explicit tap. */
 function StandSettings({
   stand,
-  demo,
   onlyStand,
   onBack,
   onRenamed,
 }: {
   stand: StandSummary;
-  demo: boolean;
   onlyStand: boolean;
   onBack: () => void;
   onRenamed: () => void;
@@ -355,11 +357,7 @@ function StandSettings({
   }
 
   const kindWord = stand.kind === "online" ? "store" : "stand";
-  const cantDelete = demo
-    ? "The demo’s stands stay put, since everyone using the demo shares them. Use Reset demo on the recap to start one over."
-    : onlyStand
-      ? "This is your only stand. Make another before deleting this one."
-      : null;
+  const cantDelete = onlyStand ? "This is your only stand. Make another before deleting this one." : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -418,11 +416,12 @@ function StandSettings({
   );
 }
 
-/** Who's signed in, a way out, and for a PayPal seller, a way to delete their Lemon Pal account. */
+/** Who's signed in, a way out, and a way to delete the account. */
 function Account({
   name,
   email,
-  ownAccount,
+  userId,
+  demoAccount,
   standCount,
   signingOut,
   onSignOut,
@@ -430,7 +429,8 @@ function Account({
 }: {
   name: string;
   email: string | null;
-  ownAccount: boolean;
+  userId: string;
+  demoAccount: boolean;
   standCount: number;
   signingOut: boolean;
   onSignOut: () => void;
@@ -448,6 +448,8 @@ function Account({
       setDeleting("confirm");
       return setError(json?.error ?? "Couldn’t delete your account. Try again.");
     }
+    // A deleted demo account can't be opened again, so the sign-in page stops offering it.
+    if (demoAccount) forgetDemoAccount(userId);
     window.location.assign(json.next);
   }
 
@@ -455,16 +457,16 @@ function Account({
     <div className="flex flex-col gap-6">
       <GroupedList
         footer={
-          ownAccount
-            ? "You signed in with PayPal. Signing out of Lemon Pal leaves your PayPal account signed in."
-            : "Everyone using the demo shares this seller. Log in with PayPal for stands of your own."
+          demoAccount
+            ? "This demo account is saved on this browser. Sign out and you can open it again from the sign-in page for 30 days."
+            : "You signed in with PayPal. Signing out of Lemon Pal leaves your PayPal account signed in."
         }
       >
         <ListRow
           icon={<PersonIcon />}
           iconTone="ink"
           title={name}
-          subtitle={ownAccount ? (email ?? "PayPal account") : "Shared demo seller"}
+          subtitle={demoAccount ? "Demo account" : (email ?? "PayPal account")}
         />
       </GroupedList>
 
@@ -474,42 +476,45 @@ function Account({
         </Button>
         {/* While the delete confirmation is up, its button is the one filled action on screen. */}
         <Button variant={deleting === "idle" ? "filled" : "tinted"} onClick={onSignOut} loading={signingOut} disabled={deleting === "busy"}>
-          {ownAccount ? "Sign out" : "Leave the demo"}
+          Sign out
         </Button>
       </div>
 
-      {ownAccount && (
-        <div className="flex flex-col gap-2 border-t border-hairline pt-5">
-          {deleting === "idle" ? (
-            <Button variant="destructive" icon={<TrashIcon />} onClick={() => setDeleting("confirm")}>
-              Delete my account
-            </Button>
-          ) : (
-            <div className="flex animate-rise flex-col gap-3 rounded-field bg-berry-soft p-4" role="alertdialog" aria-labelledby="delete-account">
-              <p id="delete-account" className="text-callout">
-                <strong className="font-semibold">Delete your Lemon Pal account?</strong> Your{" "}
-                {standCount === 1 ? "stand, with its items, store and sales history, is" : `${standCount} stands, with their items, stores and sales history, are`}{" "}
-                deleted.
-                Payments buyers already made stay in your PayPal account, and PayPal itself isn&rsquo;t touched. You
-                can&rsquo;t undo this.
+      <div className="flex flex-col gap-2 border-t border-hairline pt-5">
+        {deleting === "idle" ? (
+          <Button variant="destructive" icon={<TrashIcon />} onClick={() => setDeleting("confirm")}>
+            {demoAccount ? "Delete this demo account" : "Delete my account"}
+          </Button>
+        ) : (
+          <div className="flex animate-rise flex-col gap-3 rounded-field bg-berry-soft p-4" role="alertdialog" aria-labelledby="delete-account">
+            <p id="delete-account" className="text-callout">
+              <strong className="font-semibold">{demoAccount ? "Delete this demo account?" : "Delete your Lemon Pal account?"}</strong>{" "}
+              Your{" "}
+              {standCount === 1
+                ? "stand, with its items, store and sales history, is"
+                : `${standCount} stands, with their items, stores and sales history, are`}{" "}
+              deleted.{" "}
+              {demoAccount
+                ? "You can make a new demo account any time."
+                : "Payments buyers already made stay in your PayPal account, and PayPal itself isn’t touched."}{" "}
+              You can&rsquo;t undo this.
+            </p>
+            {error && (
+              <p role="alert" className="text-footnote font-semibold text-berry">
+                {error}
               </p>
-              {error && (
-                <p role="alert" className="text-footnote font-semibold text-berry">
-                  {error}
-                </p>
-              )}
-              <div className="flex flex-wrap-reverse justify-end gap-2">
-                <Button variant="plain" disabled={deleting === "busy"} onClick={() => setDeleting("idle")}>
-                  Keep my account
-                </Button>
-                <Button variant="filled" icon={<TrashIcon />} loading={deleting === "busy"} onClick={remove}>
-                  {deleting === "busy" ? "Deleting…" : "Yes, delete it"}
-                </Button>
-              </div>
+            )}
+            <div className="flex flex-wrap-reverse justify-end gap-2">
+              <Button variant="plain" disabled={deleting === "busy"} onClick={() => setDeleting("idle")}>
+                Keep my account
+              </Button>
+              <Button variant="filled" icon={<TrashIcon />} loading={deleting === "busy"} onClick={remove}>
+                {deleting === "busy" ? "Deleting…" : "Yes, delete it"}
+              </Button>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,22 +1,39 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Button, Card, ExclamationIcon, LemonIcon, Pill, SparklesIcon, TextField, WalletIcon } from "@/components/kit";
+import { useEffect, useState } from "react";
+import {
+  Button,
+  Card,
+  ChevronRightIcon,
+  ExclamationIcon,
+  GroupedList,
+  LemonIcon,
+  ListRow,
+  Pill,
+  SparklesIcon,
+  TextField,
+  WalletIcon,
+} from "@/components/kit";
+import { forgetDemoAccount, saveDemoAccount, savedDemoAccounts, type SavedDemoAccount } from "../demo-accounts";
 
 /**
- * How a seller gets in. Log in with PayPal gives them their own stands. The demo seller, behind the passcode, is
- * for judges and trying things out: it already has a stand at events and an online shop.
+ * How a seller gets in. Log in with PayPal gives them their own stands. A demo account, behind the passcode, is for
+ * judges and trying things out: each person makes their own, loaded with a sticker shop, and this browser keeps it so
+ * they can come back to it.
  */
 export function Unlock({
   next,
   demo,
+  passcodeRemembered,
   paypalLogin,
   error: arrivedWith,
 }: {
   next: string;
   /** "open" in development without a passcode, "passcode" when one is set, "off" when the server has none. */
   demo: "open" | "passcode" | "off";
+  /** This browser already gave the passcode, so making another demo account doesn't ask again. */
+  passcodeRemembered: boolean;
   paypalLogin: boolean;
   /** Why the seller is back here, such as a canceled PayPal sign-in. */
   error: string | null;
@@ -24,20 +41,48 @@ export function Unlock({
   const router = useRouter();
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [saved, setSaved] = useState<SavedDemoAccount[]>([]);
+  const askPasscode = demo === "passcode" && !passcodeRemembered;
 
-  async function enterDemo(event: React.FormEvent) {
+  // localStorage only exists in the browser, so the saved accounts appear once the page is running there.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setSaved(savedDemoAccounts()), []);
+
+  async function createDemo(event: React.FormEvent) {
     event.preventDefault();
-    setBusy(true);
+    setBusy("new");
     setError(null);
     const res = await fetch("/api/unlock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passcode }),
+      body: JSON.stringify({ passcode: askPasscode ? passcode : undefined, tzOffsetMinutes: new Date().getTimezoneOffset() }),
+    }).catch(() => null);
+    const json = (await res?.json().catch(() => null)) as { account?: SavedDemoAccount; error?: string } | null;
+    if (res?.ok && json?.account) {
+      saveDemoAccount(json.account);
+      return router.replace(next);
+    }
+    setBusy(null);
+    setError(json?.error ?? "Couldn’t make a demo account. Try again.");
+  }
+
+  async function resume(account: SavedDemoAccount) {
+    setBusy(account.id);
+    setError(null);
+    const res = await fetch("/api/unlock/resume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: account.token }),
     }).catch(() => null);
     if (res?.ok) return router.replace(next);
-    setBusy(false);
-    setError((await res?.json().catch(() => null))?.error ?? "Couldn’t check the passcode. Try again.");
+    const json = (await res?.json().catch(() => null)) as { error?: string; gone?: boolean } | null;
+    if (json?.gone) {
+      forgetDemoAccount(account.id);
+      setSaved(savedDemoAccounts());
+    }
+    setBusy(null);
+    setError(json?.error ?? "Couldn’t open that demo account. Try again.");
   }
 
   return (
@@ -84,18 +129,36 @@ export function Unlock({
           </div>
         )
       ) : (
-        <Card className="p-6">
-          <form onSubmit={enterDemo} className="flex flex-col gap-5">
-            <div>
-              <h2 className="text-headline font-semibold">{paypalLogin ? "Or try the demo seller" : "Try the demo seller"}</h2>
-              <p className="mt-1 text-subhead text-ink-2">A stand at events and an online shop, ready to sell from.</p>
-            </div>
-            {demo === "passcode" ? (
+        <Card className="flex flex-col gap-5 p-6">
+          <div>
+            <h2 className="text-headline font-semibold">{paypalLogin ? "Or try a demo account" : "Try a demo account"}</h2>
+            <p className="mt-1 text-subhead text-ink-2">
+              Your own stand at events and online store, filled with a month of sticker shop sales. It stays on this
+              browser for 30 days after you last use it.
+            </p>
+          </div>
+          {saved.length > 0 ? (
+            <GroupedList header="On this browser">
+              {saved.map((account) => (
+                <ListRow
+                  key={account.id}
+                  icon={<SparklesIcon />}
+                  iconTone="lemon"
+                  title={account.name}
+                  subtitle={busy === account.id ? "Opening…" : `Made ${new Date(account.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+                  trailing={<ChevronRightIcon className="text-ink-3" />}
+                  onClick={() => !busy && resume(account)}
+                />
+              ))}
+            </GroupedList>
+          ) : null}
+          <form onSubmit={createDemo} className="flex flex-col gap-5">
+            {askPasscode ? (
               <TextField
                 label="Passcode"
                 type="password"
                 autoComplete="current-password"
-                autoFocus={!paypalLogin}
+                autoFocus={!paypalLogin && saved.length === 0}
                 value={passcode}
                 onChange={(event) => setPasscode(event.target.value)}
                 error={error ?? undefined}
@@ -107,13 +170,13 @@ export function Unlock({
             ) : null}
             <Button
               type="submit"
-              variant={paypalLogin ? "tinted" : "filled"}
+              variant={paypalLogin || saved.length > 0 ? "tinted" : "filled"}
               size="lg"
               icon={<SparklesIcon />}
-              loading={busy}
-              disabled={demo === "passcode" && !passcode}
+              loading={busy === "new"}
+              disabled={Boolean(busy) || (askPasscode && !passcode)}
             >
-              Use the demo seller
+              {busy === "new" ? "Filling your shop…" : "Create new demo account"}
             </Button>
           </form>
         </Card>

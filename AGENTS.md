@@ -31,20 +31,20 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Money is integer cents (`lib/money.ts`). Convert to PayPal's decimal strings only inside `lib/paypal.ts`.
 - The server prices every sale from the stored catalog. Never trust a price or total sent by the client.
 - A sale becomes `paid` only in the capture route, and only after `verifyCapture` accepts it. Every PayPal create or capture call sends a `PayPal-Request-Id` derived from the sale id, so retries can't charge twice.
-- The one exception is the sticker shop demo (`lib/demo-stickers.ts`, `POST /api/stand/demo`), which writes made-up paid sales marked `demo: true`. Any route that calls PayPal for an existing sale (refund, tracking) must check `sale.demo` and stay local for those.
+- The one exception is the sticker shop demo (`lib/demo-stickers.ts`, loaded by `loadStickerShop` in `lib/demo.ts`), which writes made-up paid sales marked `demo: true`, and only into demo accounts. Any route that calls PayPal for an existing sale (refund, tracking) must check `sale.demo` and stay local for those.
 - Online orders (`channel: "online"`) are priced by `priceOnlineOrder` in `lib/storefront.ts`, shipping included. `totalCents` is the lines after deals plus `shippingCents`, and `createOrder` sends shipping in the breakdown. A shipped order's country is checked against the store's list before capture, so an address the seller can't reach is never charged.
 
 ## Sellers and stands
 
 - A user owns several stands, each `local` (the register, at events) or `online` (a storefront and orders).
-- Sellers sign in with Log in with PayPal (`lib/paypal-login.ts`, `/api/auth/paypal`, behind `PAYPAL_LOGIN=on`) and get their own user (`lib/accounts.ts`). The shared demo user (`ensureDemoUser` in `lib/demo.ts`) is behind the passcode: `proxy.ts` lets a PayPal seller straight in, and signs anyone past the passcode in as the demo user. Never let a missing or unknown session fall back to the demo user without the passcode.
-- Seller routes take their stand from `lib/session.ts`, never from a constant. Pages call `currentStand(kind?)`. APIs call `requestStand(request)`, which reads the `?stand=` id the page sends (add it with `standApi`) and returns null for a stand the user doesn't own. Routes that take a sale id check it with `ownedSale`. `DEMO_STAND_ID` is for seeding only.
+- Sellers sign in with Log in with PayPal (`lib/paypal-login.ts`, `/api/auth/paypal`, behind `PAYPAL_LOGIN=on`) and get their own user (`lib/accounts.ts`), or make a demo account on the sign-in page past the passcode (`POST /api/unlock`, `createDemoAccount` in `lib/demo.ts`). Each demo account is one person's, starts with the sticker shop, and is deleted after 30 days unused. The browser keeps its signed session token in localStorage (`app/stand/demo-accounts.ts`) to sign back in through `/api/unlock/resume`. There's no shared demo user: `proxy.ts` sends a browser without a valid session to sign in, and nothing falls back to a default seller.
+- Seller routes take their stand from `lib/session.ts`, never from a constant. Pages call `currentStand(kind?)`. APIs call `requestStand(request)`, which reads the `?stand=` id the page sends (add it with `standApi`) and returns null for a stand the user doesn't own. Routes that take a sale id check it with `ownedSale`.
 - Only a local stand rings up sales, and only an online stand serves a store at `/<handle>`. Both checks are on the server, not just in the UI.
-- Delete with `store.deleteStand` or `store.deleteUser`, which take a stand's sales and storefront with it in one transaction. The shared demo user's stands and account can't be deleted, and a seller always keeps at least one stand.
+- Delete with `store.deleteStand` or `store.deleteUser`, which take a stand's sales and storefront with it in one transaction. A seller always keeps at least one stand.
 
 ## Online store and seller pages
 
-- `proxy.ts` puts `/stand/*` and `/api/stand/*` behind `SELLER_PASSCODE`. Anything that returns buyer names or addresses goes under `/api/stand/`. Public routes (`/<handle>`, `/pay`, `/api/store/*`) must never return an address. `publicSale` gives only the town.
+- `proxy.ts` puts `/stand/*` and `/api/stand/*` behind a signed-in seller, and only the passcode makes a demo account. Anything that returns buyer names or addresses goes under `/api/stand/`. Public routes (`/<handle>`, `/pay`, `/api/store/*`) must never return an address. `publicSale` gives only the town.
 - Store handles live at the root (`app/[handle]`). Add any new top-level route or `public/` folder name to `RESERVED` in `lib/handles.ts`.
 - Catalog item ids change on every publish, so the online and shipping flags sit on `CatalogItem` and follow an item by name in `POST /api/stand`.
 

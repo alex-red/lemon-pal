@@ -30,6 +30,7 @@ export default async function StoreSettingsPage() {
       <StoreEditor
         key={stand.id}
         standId={stand.id}
+        stickerDemo={Boolean(current.user.demo)}
         switcher={<StandSwitcher {...switcherProps(current)} />}
         origin={origin}
         currency={stand.currency}

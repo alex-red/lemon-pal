@@ -36,7 +36,7 @@ You need two screens: a tablet or laptop for the seller and a phone for the buye
 
 ## What's next
 
-Sellers sign in with Log in with PayPal and get their own stands, or use the shared demo seller behind the passcode. Each seller can run several stands, at events or online, and switch between them. Payments for every stand still go to one PayPal Sandbox seller account. Next up:
+Sellers sign in with Log in with PayPal and get their own stands, or make a demo account of their own behind the passcode, filled with a sticker shop and kept on their browser for 30 days. Each seller can run several stands, at events or online, and switch between them. Payments for every stand still go to one PayPal Sandbox seller account. Next up:
 
 - **Get paid directly.** Each seller links their account through [PayPal's seller onboarding](https://developer.paypal.com/platforms/seller-onboarding), and payments go straight to them.
 - **Native seller apps** for iPhone, iPad and Android, with haptics on every sale. The buyer side stays a web page, so customers never need an app.

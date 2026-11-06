@@ -1,21 +1,20 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { DEMO_ONLINE_STAND_ID, DEMO_STAND_ID } from "./demo";
-import { DEMO_USER_ID } from "./session-token";
 import { env } from "./env";
 import { priceCart, type CartEntry } from "./sales";
 import { priceOnlineOrder } from "./storefront";
 import type { CatalogItem, PostalAddress, Sale, ShippingCarrier, Stand, Storefront } from "./types";
 
 /*
- * The sticker shop demo: one tap fills both of the demo user's stands with the same sticker shop. The local stand gets
+ * The sticker shop demo: fills a demo account's two stands with the same sticker shop. The local stand gets
  * the market sales, and the online stand gets an open store and its orders. A month of sales in all,
  * so the store page, the orders page and the AG Studio recap all have something to show.
  * Everything here is made up. The names, streets and postcodes belong to nobody, and no sale went through PayPal:
  * each one carries `demo: true`, so refunds and tracking for it stay local.
  */
 
+/** Each demo account's store gets this handle plus a short tag of its own, like peel-and-stick-3f2a. */
 export const STICKER_SLUG = "peel-and-stick";
 const DAYS = 30;
 
@@ -140,8 +139,14 @@ function localTime(now: Date, daysAgo: number, minutes: number, tzOffsetMinutes:
 
 export type StickerDemo = { local: Stand; online: Stand; storefront: Storefront; sales: Sale[] };
 
+/** Where the demo goes: whose it is, the two stands' ids, and the store's handle. */
+export type StickerTarget = { ownerId: string; localId: string; onlineId: string; slug: string };
+
 /** Builds the whole demo. Pure apart from reading the banner, so it can be checked on its own. */
-export async function buildStickerDemo(options: { now?: Date; tzOffsetMinutes?: number } = {}): Promise<StickerDemo> {
+export async function buildStickerDemo(
+  target: StickerTarget,
+  options: { now?: Date; tzOffsetMinutes?: number } = {},
+): Promise<StickerDemo> {
   const now = options.now ?? new Date();
   const tz = options.tzOffsetMinutes ?? 0;
   const rand = mulberry32(20261106);
@@ -149,8 +154,8 @@ export async function buildStickerDemo(options: { now?: Date; tzOffsetMinutes?: 
   const banner = await readFile(path.join(process.cwd(), "public/demo/sticker-banner.jpg"));
 
   const stand: Stand = {
-    id: DEMO_STAND_ID,
-    ownerId: DEMO_USER_ID,
+    id: target.localId,
+    ownerId: target.ownerId,
     kind: "local",
     name: "Peel & Stick Club",
     currency: env.currency(),
@@ -160,10 +165,10 @@ export async function buildStickerDemo(options: { now?: Date; tzOffsetMinutes?: 
     items: catalog(),
   };
   // The same shop online: one catalog, sold through the store. Item ids match, so the recaps line up.
-  const online: Stand = { ...stand, id: DEMO_ONLINE_STAND_ID, kind: "online" };
+  const online: Stand = { ...stand, id: target.onlineId, kind: "online" };
   const storefront: Storefront = {
     standId: online.id,
-    slug: STICKER_SLUG,
+    slug: target.slug,
     title: "Peel & Stick Club",
     intro:
       "Tiny waterproof friends for your laptop, water bottle and sketchbook.\n" +

@@ -48,19 +48,23 @@ export type SignDraft = {
 /** Local stands sell in person through the register. Online stands sell through a storefront. */
 export type StandKind = "local" | "online";
 
-/** A seller. For now everyone past the seller passcode is the demo user. */
+/** A seller: someone who logged in with PayPal, or a demo account made past the seller passcode. */
 export type User = {
   id: string;
   name: string;
   createdAt: string;
-  /** The seller's stable PayPal id, for a seller who signed in with PayPal. The demo user has none. */
+  /** The seller's stable PayPal id, for a seller who signed in with PayPal. Demo accounts have none. */
   paypalId?: string;
   email?: string;
+  /** A throwaway demo account, deleted once it goes unused for 30 days. */
+  demo?: true;
+  /** When a demo account was last used, at most an hour out of date. */
+  lastSeenAt?: string;
 };
 
 export type Stand = {
   id: string;
-  /** The user who owns it. Missing on stands from before accounts, which belong to the demo user. */
+  /** The user who owns it. Missing only on stands from before accounts, which nobody can open now. */
   ownerId?: string;
   /** Missing on stands from before accounts, which are local. */
   kind?: StandKind;

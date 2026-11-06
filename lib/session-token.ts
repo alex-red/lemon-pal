@@ -1,13 +1,13 @@
 // The signed-in seller, as a cookie. Used by proxy.ts, so like seller-auth it sticks to Web Crypto and imports
-// nothing server-only. For now everyone past the passcode is signed in as the demo user; real sign-in only has to
-// set this same cookie.
+// nothing server-only. A PayPal login and a demo account both sign in by setting this same cookie.
 import { hmac, sameString } from "./seller-auth";
 
 export const SESSION_COOKIE = "lemonpal_session";
 /** Which of the seller's stands the stand pages open by default. Not a secret: the server checks ownership. */
 export const STAND_COOKIE = "lemonpal_stand";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-export const DEMO_USER_ID = "demo";
+/** The one shared demo seller from before demo accounts. Its sessions no longer sign anyone in. */
+export const LEGACY_DEMO_USER_ID = "demo";
 /** Holds the state for a Log in with PayPal round trip, and where to go after it. Lives ten minutes. */
 export const PAYPAL_STATE_COOKIE = "lemonpal_paypal_state";
 

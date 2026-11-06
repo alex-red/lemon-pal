@@ -7,10 +7,10 @@ import type { StandKind } from "@/lib/types";
 import { loadStickerDemo, STICKER_DEMO_TEXT } from "../sticker-demo";
 
 /**
- * Lets a judge start the demo over: this stand's sample catalog comes back and its test sales are deleted.
- * Or fill both demo stands instead, with the sticker shop and a month of sales for the dashboard.
+ * Lets a seller start this stand over: its sample catalog comes back and its test sales are deleted.
+ * A demo account can fill its stands with the sticker shop instead, with a month of sales for the dashboard.
  */
-export function ResetDemo({ standId, kind }: { standId: string; kind: StandKind }) {
+export function ResetDemo({ standId, kind, stickerDemo }: { standId: string; kind: StandKind; stickerDemo: boolean }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<"reset" | "stickers" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +18,7 @@ export function ResetDemo({ standId, kind }: { standId: string; kind: StandKind 
   async function stickers() {
     setBusy("stickers");
     setError(null);
-    const problem = await loadStickerDemo();
+    const problem = await loadStickerDemo(standId);
     if (problem) {
       setError(problem);
       setBusy(null);
@@ -53,20 +53,22 @@ export function ResetDemo({ standId, kind }: { standId: string; kind: StandKind 
             Reset demo
           </Button>
         </div>
-        <div className="mt-6 border-t border-hairline pt-5">
-          <h3 className="text-headline">Or fill it with a sticker shop</h3>
-          <p className="mt-1 text-subhead text-ink-2">{STICKER_DEMO_TEXT}</p>
-          {error ? (
-            <p role="alert" className="mt-3 text-subhead text-berry">
-              {error}
-            </p>
-          ) : null}
-          <div className="mt-4 flex justify-end">
-            <Button variant="tinted" icon={<SparklesIcon />} loading={busy === "stickers"} disabled={busy === "reset"} onClick={stickers}>
-              Load sticker shop
-            </Button>
+        {stickerDemo ? (
+          <div className="mt-6 border-t border-hairline pt-5">
+            <h3 className="text-headline">Or fill it with a sticker shop</h3>
+            <p className="mt-1 text-subhead text-ink-2">{STICKER_DEMO_TEXT}</p>
+            {error ? (
+              <p role="alert" className="mt-3 text-subhead text-berry">
+                {error}
+              </p>
+            ) : null}
+            <div className="mt-4 flex justify-end">
+              <Button variant="tinted" icon={<SparklesIcon />} loading={busy === "stickers"} disabled={busy === "reset"} onClick={stickers}>
+                Load sticker shop
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : null}
       </Sheet>
     </>
   );

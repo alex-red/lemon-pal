@@ -1,16 +1,13 @@
 import "server-only";
+import { randomBytes } from "node:crypto";
+import { buildStickerDemo, STICKER_SLUG } from "./demo-stickers";
 import { env } from "./env";
-import { DEMO_USER_ID } from "./session-token";
 import { kindOf } from "./stands";
 import { SlugTakenError, store } from "./store";
-import { draftStorefront } from "./storefront";
-import type { CatalogItem, Stand, StandKind, Storefront, User } from "./types";
+import type { CatalogItem, Stand, StandKind, User } from "./types";
 
-/** The demo user's stands. Seeding only: seller routes take their stand from the session. */
-export const DEMO_STAND_ID = "demo";
-export const DEMO_ONLINE_STAND_ID = "demo-online";
-/** The demo shop's public address, at /<handle>. */
-export const DEMO_STORE_HANDLE = "demo-shop";
+/** A demo account unused for this long is deleted, along with its stands and sales. */
+export const DEMO_ACCOUNT_DAYS = 30;
 
 type Sample = { name: string; emoji: string; items: CatalogItem[] };
 
@@ -66,19 +63,16 @@ export function isSampleId(id: string | null): id is SampleId {
 /** Names and emoji of the samples, for the setup screen. */
 export const sampleChoices = Object.entries(SAMPLES).map(([id, { name, emoji }]) => ({ id: id as SampleId, name, emoji }));
 
-/** The sample each kind of demo stand starts from, and goes back to on Reset demo. */
+/** The sample each kind of stand goes back to on Reset demo. */
 const KIND_SAMPLE: Record<StandKind, SampleId> = { local: "lemonade", online: "merch" };
 
-/**
- * A stand loaded with a sample catalog, for the setup screen's samples and the judge demo's reset.
- * `base` keeps the stand's id, owner and kind; without it this is the demo user's local stand.
- */
-export function sampleStand(sample: SampleId, base?: Pick<Stand, "id" | "ownerId" | "kind">): Stand {
+/** A stand loaded with a sample catalog, for the setup screen's samples and Reset demo. Keeps the stand's id, owner and kind. */
+export function sampleStand(sample: SampleId, base: Pick<Stand, "id" | "ownerId" | "kind">): Stand {
   const { name, items } = SAMPLES[sample];
   return {
-    id: base?.id ?? DEMO_STAND_ID,
-    ownerId: base?.ownerId ?? DEMO_USER_ID,
-    kind: base?.kind ?? "local",
+    id: base.id,
+    ownerId: base.ownerId,
+    kind: base.kind ?? "local",
     name,
     currency: env.currency(),
     publishedAt: new Date().toISOString(),
@@ -91,66 +85,61 @@ export function kindSample(kind: StandKind): SampleId {
   return KIND_SAMPLE[kind];
 }
 
-/** The demo shop's store: open, with pickup and shipping, so a judge can order from it straight away. */
-function demoStorefront(stand: Stand): Storefront {
-  const draft = draftStorefront(stand);
-  return {
-    ...draft,
-    slug: DEMO_STORE_HANDLE,
-    title: stand.name,
-    intro: "Prints, stickers and pins from the demo stand. Pick up at the next market or have them posted.",
-    accent: "berry",
-    open: true,
-    pickupNote: "At the Lemon Pal booth on market days",
-    shipping: { ...draft.shipping, enabled: true },
-  };
-}
-
-/** Puts a stand back to its sample and deletes its sales. An online stand's store reopens with the demo settings. */
+/** Puts a stand back to its sample and deletes its sales. An online stand keeps its store and handle. */
 export async function resetStand(stand: Stand): Promise<Stand> {
   const kind = kindOf(stand);
   const fresh = sampleStand(kindSample(kind), { id: stand.id, ownerId: stand.ownerId, kind });
   await store.saveStand(fresh);
   await store.clearSales(stand.id);
-  if (kind === "online" && stand.id === DEMO_ONLINE_STAND_ID) await saveDemoStorefront(fresh);
   return fresh;
 }
 
-async function saveDemoStorefront(stand: Stand) {
-  try {
-    await store.saveStorefront(demoStorefront(stand));
-  } catch (error) {
-    // Someone already took the demo handle for another stand. The seller can name this store in the editor.
-    if (!(error instanceof SlugTakenError)) throw error;
-  }
+/** A short random tag, to tell demo accounts and their store handles apart. */
+const tag = (bytes: number) => randomBytes(bytes).toString("hex");
+
+/**
+ * Makes a new demo account for one person, loaded with the sticker shop: a stand at events and an online store,
+ * each with a month of made-up sales. Unused demo accounts are cleared out first.
+ */
+export async function createDemoAccount(options: { tzOffsetMinutes?: number } = {}): Promise<User> {
+  await store.purgeDemoUsers(new Date(Date.now() - DEMO_ACCOUNT_DAYS * 86_400_000).toISOString());
+  const id = `demo-${tag(8)}`;
+  const now = new Date().toISOString();
+  const user: User = { id, name: `Demo Seller ${id.slice(5, 9).toUpperCase()}`, createdAt: now, demo: true, lastSeenAt: now };
+  await store.saveUser(user);
+  await loadStickerShop(user, options);
+  return user;
 }
 
 /**
- * Makes sure the demo user and its two stands exist: a local stand for the register and an online shop.
- * A stand saved before accounts existed joins the demo user as its local stand, keeping its catalog and sales.
+ * Fills a demo account with the sticker shop: its stand at events (`prefer` if that's one, else its first) gets the
+ * market sales, and its online store (likewise) gets the store and the orders. A missing stand of either kind is made.
+ * Replaces both stands' items, the store settings and every sale on them. The online store keeps its handle.
  */
-export async function ensureDemoUser(): Promise<User> {
-  const existing = await store.getUser(DEMO_USER_ID);
-  if (existing) return existing;
+export async function loadStickerShop(user: User, options: { tzOffsetMinutes?: number; prefer?: Stand } = {}) {
+  const stands = await store.listStands(user.id);
+  const pick = (kind: StandKind) =>
+    (options.prefer && kindOf(options.prefer) === kind ? options.prefer : stands.find((s) => kindOf(s) === kind))?.id ??
+    crypto.randomUUID();
+  const localId = pick("local");
+  const onlineId = pick("online");
+  const kept = (await store.getStorefront(onlineId))?.slug;
 
-  const user: User = { id: DEMO_USER_ID, name: "Demo Seller", createdAt: new Date().toISOString() };
-  const local = await store.getStand(DEMO_STAND_ID);
-  await store.saveStand(local ? { ...local, ownerId: user.id, kind: kindOf(local) } : sampleStand(kindSample("local")));
-  if (!(await store.getStand(DEMO_ONLINE_STAND_ID))) {
-    // A store the old single stand had moves to the online stand, with that stand's catalog, so its link keeps working.
-    const legacyStore = local && (await store.getStorefront(local.id));
-    if (local && legacyStore) {
-      const online: Stand = { ...local, id: DEMO_ONLINE_STAND_ID, ownerId: user.id, kind: "online" };
-      await store.saveStand(online);
-      await store.deleteStorefront(local.id);
-      await store.saveStorefront({ ...legacyStore, standId: online.id });
-    } else {
-      const online = sampleStand(kindSample("online"), { id: DEMO_ONLINE_STAND_ID, ownerId: user.id, kind: "online" });
-      // Everything in the merch sample can be posted, so shipping works on the first order.
-      await store.saveStand(online);
-      await saveDemoStorefront(online);
+  // A new handle is the sticker shop's plus a tag. Try again with another tag on the rare clash.
+  for (let attempt = 0; ; attempt += 1) {
+    const slug = kept ?? `${STICKER_SLUG}-${tag(attempt < 3 ? 2 : 4)}`;
+    const demo = await buildStickerDemo({ ownerId: user.id, localId, onlineId, slug }, { tzOffsetMinutes: options.tzOffsetMinutes });
+    // Only the online stand has a store. A local stand from before stands had kinds might still hold one.
+    await store.deleteStorefront(localId);
+    try {
+      await store.saveStorefront(demo.storefront);
+    } catch (error) {
+      if (error instanceof SlugTakenError && !kept && attempt < 6) continue;
+      throw error;
     }
+    await Promise.all([store.saveStand(demo.local), store.saveStand(demo.online)]);
+    await Promise.all([store.clearSales(localId), store.clearSales(onlineId)]);
+    await store.saveSales(demo.sales);
+    return demo;
   }
-  await store.saveUser(user);
-  return user;
 }

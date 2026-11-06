@@ -23,14 +23,15 @@ export function summarize(stand: Stand): StandSummary {
 }
 
 /** Everything the stand switcher needs, from a page's current stand. */
-export function switcherProps(current: { stand: Stand; stands: Stand[]; user: { name: string; email?: string; paypalId?: string }; remembered: boolean }) {
+export function switcherProps(current: { stand: Stand; stands: Stand[]; user: { id: string; name: string; email?: string; demo?: true }; remembered: boolean }) {
   return {
     current: summarize(current.stand),
     stands: current.stands.map(summarize),
     userName: current.user.name,
     userEmail: current.user.email ?? null,
-    /** Whether the seller logged in with PayPal, rather than being the shared demo seller. */
-    ownAccount: Boolean(current.user.paypalId),
+    userId: current.user.id,
+    /** A demo account made on the sign-in page, rather than a PayPal login. */
+    demoAccount: Boolean(current.user.demo),
     remembered: current.remembered,
   };
 }

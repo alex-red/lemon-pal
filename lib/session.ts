@@ -1,28 +1,33 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ensureDemoUser } from "./demo";
-import { DEMO_USER_ID, SESSION_COOKIE, SESSION_MAX_AGE, sessionUserId, STAND_COOKIE } from "./session-token";
+import { LEGACY_DEMO_USER_ID, SESSION_COOKIE, SESSION_MAX_AGE, sessionUserId, STAND_COOKIE } from "./session-token";
 import { kindOf } from "./stands";
 import { store } from "./store";
 import type { Sale, Stand, StandKind, User } from "./types";
 
+/** How stale a demo account's lastSeenAt may get before a request writes it again. */
+const SEEN_EVERY_MS = 60 * 60 * 1000;
+
 /**
- * The signed-in seller. A seller who logged in with PayPal is themselves. Anyone else got past proxy.ts with the
- * passcode, so they're the demo user, even on the first request before that cookie is set.
+ * The signed-in seller: someone who logged in with PayPal, or a demo account. proxy.ts only lets a signed-in browser
+ * through, so a missing or unknown session here means the account is gone: send them to sign in.
  */
 export async function currentUser(): Promise<User> {
   const userId = await sessionUserId((await cookies()).get(SESSION_COOKIE)?.value);
-  if (userId && userId !== DEMO_USER_ID) {
-    const user = await store.getUser(userId);
-    // A session for a seller who no longer exists never falls back to the demo seller: that would skip the passcode.
-    if (!user) redirect("/stand/unlock?error=signed-out");
-    return user;
+  if (!userId || userId === LEGACY_DEMO_USER_ID) redirect("/stand/unlock");
+  const user = await store.getUser(userId);
+  if (!user) redirect("/stand/unlock?error=signed-out");
+  // A demo account is deleted after a month unused, so note that it's in use.
+  if (user.demo && Date.now() - Date.parse(user.lastSeenAt ?? user.createdAt) > SEEN_EVERY_MS) {
+    const seen = { ...user, lastSeenAt: new Date().toISOString() };
+    await store.saveUser(seen);
+    return seen;
   }
-  return ensureDemoUser();
+  return user;
 }
 
-/** The seller's stands, oldest first. Every user has at least one. */
+/** The seller's stands, oldest first. */
 export async function userStands(user: User): Promise<Stand[]> {
   return store.listStands(user.id);
 }

@@ -17,7 +17,8 @@ The same values sit in `.env.local` as `PAYPAL_SANDBOX_USER_EMAIL` and `PAYPAL_S
 
 ## Demo data
 
-- **Sticker shop:** on `/stand/recap`, open **Reset demo** and choose **Load sticker shop**, or use **Load sticker shop demo** in the store editor. It fills a catalog, an open store at `/peel-and-stick` and about 360 made-up sales. Demo sales are marked `demo: true`, so refunding one or marking it shipped never calls PayPal.
+- **Demo accounts:** on `/stand/unlock`, **Create new demo account** makes an account of your own with the sticker shop: a stand at events, an open store at `/peel-and-stick-<tag>` and about 360 made-up sales. The browser remembers it under **On this browser**, so you can sign out and come back. Unused demo accounts are deleted after 30 days.
+- **Sticker shop again:** in a demo account, open **Reset demo** on `/stand/recap` and choose **Load sticker shop**, or use **Load sticker shop demo** in the store editor. Demo sales are marked `demo: true`, so refunding one or marking it shipped never calls PayPal.
 - **Start over:** **Reset demo** brings back the lemonade stand and deletes every sale.
 
 ## Checklist
@@ -43,7 +44,7 @@ The same values sit in `.env.local` as `PAYPAL_SANDBOX_USER_EMAIL` and `PAYPAL_S
 ### Seller passcode
 1. Set `SELLER_PASSCODE` in `.env.local` and restart the dev server.
 2. Open `/stand/register` in a private window. It sends you to `/stand/unlock`.
-3. A wrong passcode is refused. The right one lets you in.
+3. A wrong passcode is refused. The right one makes a demo account and lets you in. **Create new demo account** doesn't ask again in that browser.
 4. In that private window before unlocking, `/<handle>?preview=1` shows no preview bar, and `/<handle>/checkout` sends you back to the store.
 
 ### Log in with PayPal
@@ -51,10 +52,10 @@ Needs `PAYPAL_LOGIN=on` and the app's Return URL set in the Developer Dashboard 
 1. Open `http://127.0.0.1:3000/stand/unlock` and press **Log in with PayPal**.
 2. Sign in with the Sandbox buyer. The consent screen asks only for name, email, verification status and payer ID.
 3. After **Agree and Connect** you land on setup for a new, empty stand named after the account.
-4. Open the stand switcher: it lists only that stand, and the Account row shows the account's name and email. The demo stands aren't reachable (`/api/stand/recap?stand=demo` gives 404).
+4. Open the stand switcher: it lists only that stand, and the Account row shows the account's name and email. A demo account's stands aren't reachable from it (another seller's `?stand=` gives 404).
 5. Sign out and log in again. You get the same seller and stand, not a new one.
 6. In the switcher, **Rename or delete** renames the stand. Make a second stand, then delete it: you land on the first one. Deleting your only stand is refused.
-7. In **Account**, **Delete my account** asks first, then deletes the seller and every stand, and the unlock page says so. The demo seller has no delete button, and its stands can't be deleted.
+7. In **Account**, **Delete my account** asks first, then deletes the seller and every stand, and the unlock page says so. A demo account deletes the same way, and the sign-in page stops offering it.
 
 ### Screen sizes
 Check each screen you changed at 320px wide, on a tablet and on a 1920px desktop, in both orientations.

@@ -37,6 +37,8 @@ export interface Store {
   deleteStand(standId: string): Promise<void>;
   /** Deletes a user and every stand they own, with those stands' sales and storefronts. */
   deleteUser(userId: string): Promise<void>;
+  /** Deletes demo accounts last used before `before` (ISO time), and the old shared demo seller. Returns how many. */
+  purgeDemoUsers(before: string): Promise<number>;
 }
 
 /**
@@ -225,6 +227,17 @@ class SqliteStore implements Store {
     });
   }
 
+  async purgeDemoUsers(before: string) {
+    const rows = this.db
+      .prepare(
+        `SELECT id FROM users WHERE id = 'demo' OR (json_extract(doc, '$.demo') = 1
+           AND coalesce(json_extract(doc, '$.lastSeenAt'), json_extract(doc, '$.createdAt')) < ?)`,
+      )
+      .all(before) as { id: string }[];
+    for (const row of rows) await this.deleteUser(row.id);
+    return rows.length;
+  }
+
   private removeStand(standId: string) {
     this.db.prepare("DELETE FROM sales WHERE stand_id = ?").run(standId);
     this.db.prepare("DELETE FROM storefronts WHERE stand_id = ?").run(standId);
@@ -241,7 +254,7 @@ export function databasePath() {
 // One connection per process, kept across dev hot reloads.
 // Bump SCHEMA when the tables or Store methods change, so a running dev server opens a fresh connection
 // instead of keeping one from before the change.
-const SCHEMA = 5;
+const SCHEMA = 6;
 const globalForStore = globalThis as unknown as { lemonpalSqliteStore?: { schema: number; store: Store } };
 
 function instance(): Store {
@@ -270,4 +283,5 @@ export const store: Store = {
   deleteStorefront: (standId) => instance().deleteStorefront(standId),
   deleteStand: (standId) => instance().deleteStand(standId),
   deleteUser: (userId) => instance().deleteUser(userId),
+  purgeDemoUsers: (before) => instance().purgeDemoUsers(before),
 };

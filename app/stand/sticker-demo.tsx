@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import { Button, Sheet, SparklesIcon } from "@/components/kit";
+import { standApi } from "@/lib/stands";
 
-/** Fills the stand with the sticker shop demo. Resolves to an error message, or null once it's loaded. */
-export async function loadStickerDemo(): Promise<string | null> {
+/**
+ * Fills a demo account with the sticker shop, starting from the stand on screen. Resolves to an error message, or
+ * null once it's loaded.
+ */
+export async function loadStickerDemo(standId: string): Promise<string | null> {
   try {
-    const res = await fetch("/api/stand/demo", {
+    const res = await fetch(standApi("/api/stand/demo", standId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // The server lays out market hours in the seller's own time zone.
@@ -21,11 +25,11 @@ export async function loadStickerDemo(): Promise<string | null> {
 }
 
 export const STICKER_DEMO_TEXT =
-  "This fills both demo stands with Peel & Stick Club: 13 stickers with deals, market sales at the stand, an open online store with shipping, and a month of made-up orders. " +
-  "It replaces both stands’ items, the store settings and every sale. Demo sales never touch PayPal.";
+  "This fills your demo account with Peel & Stick Club: 13 stickers with deals, market sales at your stand at events, an open online store with shipping, and a month of made-up orders. " +
+  "It replaces those two stands’ items, the store settings and every sale. Demo sales never touch PayPal.";
 
 /** A button that asks first, then loads the sticker shop demo and reloads the page to show it. */
-export function StickerDemoButton({ className }: { className?: string }) {
+export function StickerDemoButton({ standId, className }: { standId: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +37,7 @@ export function StickerDemoButton({ className }: { className?: string }) {
   async function load() {
     setBusy(true);
     setError(null);
-    const problem = await loadStickerDemo();
+    const problem = await loadStickerDemo(standId);
     if (problem) {
       setError(problem);
       setBusy(false);

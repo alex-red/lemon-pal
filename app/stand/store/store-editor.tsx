@@ -50,6 +50,8 @@ type EditorItem = {
 
 type Props = {
   standId: string;
+  /** A demo account, which can load the sticker shop demo. */
+  stickerDemo: boolean;
   /** The stand switcher, shown above the title. */
   switcher: ReactNode;
   origin: string;
@@ -120,7 +122,7 @@ async function bannerFrom(file: Blob): Promise<string> {
   }
 }
 
-export function StoreEditor({ standId, switcher, origin, currency, published, initial, saved, items: initialItems }: Props) {
+export function StoreEditor({ standId, stickerDemo, switcher, origin, currency, published, initial, saved, items: initialItems }: Props) {
   const [form, setForm] = useState<Form>(() => ({
     slug: initial.slug,
     title: initial.title,
@@ -329,7 +331,7 @@ export function StoreEditor({ standId, switcher, origin, currency, published, in
             Share store
           </Button>
           {!storeUrl ? <p className="-mt-2 text-center text-footnote text-ink-2">Change anything to save your store and get its link.</p> : null}
-          <StickerDemoButton className="self-center" />
+          {stickerDemo ? <StickerDemoButton standId={standId} className="self-center" /> : null}
         </aside>
 
         <div className="flex flex-col gap-8 lg:order-1">
