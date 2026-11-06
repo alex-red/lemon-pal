@@ -84,7 +84,7 @@ const principles = [
   {
     title: "Defer to the setting",
     law: "Accessibility settings",
-    body: "Reduce Motion stills the springs, Reduce Transparency turns glass solid, Increase Contrast darkens hairlines, and dark mode suits a night market.",
+    body: "Reduce Motion turns morphs and slides into crossfades, Reduce Transparency turns glass solid, Increase Contrast darkens hairlines, and dark mode suits a night market.",
   },
 ];
 
@@ -104,6 +104,73 @@ const labels = [
 ];
 
 const fills = ["--fill", "--fill-2", "--fill-3", "--hairline"];
+
+// Every motion pattern in the app. Keep in step with the Motion section of AGENTS.md.
+const motionPatterns: Array<{ name: string; piece: string; body: string; where: string; reduced: string }> = [
+  {
+    name: "Press",
+    piece: ".pressable",
+    body: "Anything tappable dips under the finger and springs back.",
+    where: "Every button, tile and link",
+    reduced: "Doesn’t shrink",
+  },
+  {
+    name: "Thinking",
+    piece: "AIGlow · ShimmerText",
+    body: "A lemon and leaf light travels around what the AI is reading, and the status words shimmer. A light band passes over a sign photo.",
+    where: "Setup while reading; the recap assistant's input while Claude answers",
+    reduced: "Breathes in place; the recap input’s glow holds still",
+  },
+  {
+    name: "Results",
+    piece: "useReveal · MoreBelow",
+    body: "The page glides to a result once, unless you scrolled away. Rows settle in as you reach them, a pill counts the rest, and rows to check get a berry ring.",
+    where: "Setup's item review",
+    reduced: "Rows appear; the page jumps instead of gliding",
+  },
+  {
+    name: "Morph",
+    piece: "<ViewTransition share=\"morph\">",
+    body: "An object that survives a screen change changes shape instead of being swapped: Charge grows into the code card and the total flies up to the big price.",
+    where: "Register: charge, cancel, paid",
+    reduced: "Crossfade",
+  },
+  {
+    name: "Rolling total",
+    piece: "Money rolling",
+    body: "Each digit rolls to its new value like an odometer. New digits roll up from 0.",
+    where: "The register's total bar",
+    reduced: "Snaps to the value",
+  },
+  {
+    name: "Sheet",
+    piece: "Sheet",
+    body: "On iPad and desktop it grows out of the button that opened it and shrinks back. On phones it rises from the bottom edge, and dragging its top down dismisses it.",
+    where: "Camera, reset demo, kit register",
+    reduced: "Appears and leaves in place",
+  },
+  {
+    name: "Scroll edge",
+    piece: "ScrollEdge · useScrollCompact",
+    body: "Content softens as it scrolls under the top of the screen or a floating bar. The bar minimizes while you scroll down and comes back on any scroll up or pause.",
+    where: "Setup, Register, this page",
+    reduced: "The edge still appears; the bar stays full size",
+  },
+  {
+    name: "Page slide",
+    piece: "PageTransition",
+    body: "Going deeper slides the next page in from the trailing edge; going back slides it in from the leading edge. 60px is enough to say which way you went.",
+    where: "Home, Setup, Register, Recap",
+    reduced: "Crossfade",
+  },
+  {
+    name: "Celebrate",
+    piece: "PaidMoment",
+    body: "Pal pops up with a ripple and a wiggle, the check lands, and the register dings.",
+    where: "Paid screens",
+    reduced: "Appears without movement",
+  },
+];
 
 const typeRamp: Array<{ name: string; className: string; sample: string; spec: string }> = [
   { name: "Price", className: "font-price text-hero font-bold", sample: "$17.50", spec: "SF Pro Rounded 80, tabular" },
@@ -459,9 +526,30 @@ export default function KitPage() {
           id="motion"
           eyebrow="08 · Motion"
           title="Springs, and a glow for thinking"
-          lede="Every move uses a named spring, so the app feels like one hand made it. When Lemon Pal is reading a sign or a list, the edge it's working on glows and the status words shimmer. When results run past the screen, rows settle in as you reach them and a pill says how many are left. Content softens as it scrolls under the top of the screen (ScrollEdge), floating bars minimize while you scroll down, sheets grow out of their button, and pages slide forward and back (PageTransition)."
+          lede="Inspired by iOS 26: things change shape instead of swapping, every move uses a named spring, and AI work glows rather than spins. Each pattern below says where it's used and what Reduce Motion turns it into."
         >
-          <MotionDemo />
+          <Card className="overflow-hidden">
+            <ul className="divide-y divide-hairline">
+              {motionPatterns.map((m) => (
+                <li key={m.name} className="grid gap-x-6 gap-y-2 p-5 sm:p-6 lg:grid-cols-[11rem_minmax(0,1fr)_14rem]">
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-headline">{m.name}</h3>
+                    <code className="font-mono text-footnote break-words text-peel">{m.piece}</code>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-body">{m.body}</p>
+                    <p className="text-footnote text-ink-2">Used in: {m.where}</p>
+                  </div>
+                  <p className="text-footnote text-ink-2">
+                    <span className="font-semibold text-ink">Reduce Motion:</span> {m.reduced}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <div className="mt-6">
+            <MotionDemo />
+          </div>
           <div className="mt-6">
             <RevealDemo />
           </div>

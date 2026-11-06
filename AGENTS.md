@@ -24,7 +24,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `lib/store.ts` uses Node's built-in `node:sqlite` with one connection per process, at `DATABASE_PATH` (default `.data/lemonpal.sqlite`). It assumes a single instance, so don't deploy to serverless or scale out. Keep all persistence behind the `Store` interface, and use `updateSale` for any status change.
 - AG Studio is large. Import it only through `app/stand/recap/recap-loader.tsx`, which loads it on the client only.
 - The AG Studio assistant runs its loop in the browser and sends each turn to `/api/studio/llm` (`lib/studio-llm.ts`). Claude's assistant turns, thinking blocks included, are cached there by item id and replayed unchanged. Keep that cache when changing the adapter, or tool loops will fail.
-- Studio's theme lives in `app/stand/recap/studio-theme.ts`. Pass every color through its `c()` helper. Studio reads some colors back with `getComputedStyle` (widget titles, charts) and drops `oklch()`, so a bare `var(--ink)` renders black. Only set a param when the kit needs a different value than Studio derives from its parent. Card spacing CSS goes in the `studio-layout.ts` theme part, one Studio class per rule, and needs rechecking after any `ag-studio` upgrade.
+- Studio's theme lives in `app/stand/recap/studio-theme.ts`. Pass every color through its `c()` helper. Studio reads some colors back with `getComputedStyle` (widget titles, charts) and drops `oklch()`, so a bare `var(--ink)` renders black. Only set a param when the kit needs a different value than Studio derives from its parent. Card spacing CSS goes in the `studio-layout.ts` theme part, one Studio class per rule, and needs rechecking after any `ag-studio` upgrade. So does the assistant glow in `globals.css`, which targets `.ag-studio-ai-assistant-input`.
 
 ## Payment rules
 
@@ -46,7 +46,18 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Text on lemon is always dark (`oklch(0.23 0.03 85)`), not `text-ink`, because `ink` turns light in dark mode.
 - `cn` joins classes but doesn't resolve conflicts. Add a variant or prop instead of overriding a component's color or radius through `className`.
 - Write only the standard `backdrop-filter`. Next's CSS minifier keeps just one copy when both are present and drops the standard one, so blur silently disappears in Chrome.
-- Reduce Motion, Reduce Transparency and Increase Contrast are handled globally in `globals.css`. New animation should use the `--ease-spring` / `--animate-*` tokens so those overrides still apply.
+- Reduce Motion, Reduce Transparency and Increase Contrast are handled globally in `globals.css`. New animation should use the `--ease-*` / `--animate-*` tokens so those overrides still apply.
+
+### Motion
+
+`/kit#motion` shows every piece below.
+
+- Pick a named spring, never an ad-hoc curve: `--ease-smooth` (no bounce) for layout and long moves, `--ease-snappy` for small swaps, `--ease-spring` for touch release and sheets, `--ease-bounce` only for celebrations, `--ease-glide` for fades and color.
+- While AI works, glow the thing being worked on (`AIGlow`) and say what's happening (`ShimmerText`). Spinners belong only inside buttons. Results that arrive in bulk reveal with `useReveal`, and a `MoreBelow` pill counts the rows not yet seen.
+- Screen changes that keep an object (Charge into the code card, a total into the big price) use React's `<ViewTransition>`. Only updates inside `startTransition` animate. Give a named pair `share="morph"` and `default="none"`: with `default="none"` and no `share`, the pair silently stops morphing. A morphed element must hug its content (`self-start` in a flex column), or its snapshot stretches.
+- Wrap each page's content in `PageTransition` in `page.tsx`, not a layout. Tag in-app links and `router.push` with `transitionTypes={["nav-forward"]}` going deeper, or `["nav-back"]` going back out. `ListRow` links already tag forward.
+- The global Reduce Motion rule doesn't reach `::view-transition-*` pseudo-elements. A new view-transition class needs its own crossfade-only rule in the `prefers-reduced-motion` block. Feedback that means "working" should breathe in place under Reduce Motion, not stop.
+- A hidden browser pane pauses animation frames, so `requestAnimationFrame`, scroll-driven animations and view transitions appear broken there. Check motion in a visible browser.
 
 ## Boundaries
 
