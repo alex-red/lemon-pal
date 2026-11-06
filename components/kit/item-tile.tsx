@@ -33,13 +33,17 @@ export function ItemTile({
   const price = formatMoney(priceCents, currency);
 
   return (
-    <div className={cn("relative aspect-[5/4] min-h-32", className)}>
+    // A spacer holds the 5:4 shape and the button shares its grid cell, so the tile grows taller than 5:4
+    // when a long name needs it on a narrow phone, instead of clipping the name.
+    // The spacer sits at the top of the cell: stretched to a taller row, its ratio would widen the tile instead.
+    <div className={cn("relative grid min-h-32 min-w-0", className)}>
+      <span aria-hidden className="pointer-events-none aspect-[5/4] self-start [grid-area:1/1]" />
       <button
         type="button"
         onClick={onAdd}
         aria-label={`${name}, ${price}${active ? `, ${count} in sale` : ""}. Add one.`}
         className={cn(
-          "pressable focus-ring flex size-full flex-col justify-between overflow-hidden rounded-tile p-5 text-left",
+          "pressable focus-ring flex min-w-0 flex-col justify-between gap-3 overflow-hidden rounded-tile p-5 text-left [grid-area:1/1] max-[24rem]:p-4",
           "ring-[0.5px]",
           active
             ? "bg-lemon text-[oklch(0.23_0.03_85)] shadow-float ring-lemon-deep"
@@ -57,7 +61,7 @@ export function ItemTile({
           </span>
         )}
         <span className="flex flex-col gap-1">
-          <span className="text-title3 font-semibold text-balance">{name}</span>
+          <span className="text-title3 font-semibold text-balance [overflow-wrap:anywhere]">{name}</span>
           <Money cents={priceCents} currency={currency} size="title" className={active ? "[&>span]:text-current" : undefined} />
         </span>
       </button>

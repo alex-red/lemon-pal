@@ -55,11 +55,12 @@ export function TodaySalesWidget({ widgetApi, dataMapping }: AgWidgetParams<Toda
 
   // No padding of its own: the card inset comes from studio-layout.ts, as for every widget.
   return (
-    <div className="flex h-full flex-col justify-center gap-3 font-sans text-ink">
+    // A size container, so the total steps down to fit a narrow card instead of being cut off.
+    <div className="@container flex h-full flex-col justify-center gap-3 font-sans text-ink">
       <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
         <LemonIcon className="text-[1.1rem]" /> Today&rsquo;s sales
       </p>
-      <p className="font-price text-hero font-semibold">{widgetApi.formatFieldValue(gross, total)}</p>
+      <p className="font-price text-title1 font-semibold whitespace-nowrap @[11rem]:text-large-title @[17rem]:text-hero">{widgetApi.formatFieldValue(gross, total)}</p>
       <p className="text-body text-ink-2 tabular-nums">
         {today.length} {today.length === 1 ? "sale" : "sales"} · {unitCount} {unitCount === 1 ? "item" : "items"} sold
       </p>

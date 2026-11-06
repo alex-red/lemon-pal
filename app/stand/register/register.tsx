@@ -7,6 +7,7 @@ import {
   Button,
   CameraIcon,
   ChartIcon,
+  cn,
   ItemTile,
   LemonIcon,
   LemonQR,
@@ -113,40 +114,56 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
   }
 
   if (sale) {
+    const open = sale.status === "open";
     return (
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-7 px-5 py-10 text-center">
+      <main
+        className={cn(
+          // justify-center-safe: when the content is taller than the screen, it starts at the top instead of
+          // being pushed above it, out of reach.
+          "mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center-safe gap-7 px-5 py-10 text-center tight:gap-4 tight:py-6",
+          // A phone on its side: the code on the left at full height, everything else beside it.
+          open && "short:grid short:max-w-4xl short:grid-cols-[auto_minmax(0,1fr)] short:gap-x-10 short:gap-y-5 short:py-5",
+        )}
+      >
         {sale.status === "paid" ? (
           <PaidMoment cents={sale.totalCents} currency={sale.currency} className="animate-rise" />
         ) : (
           <>
-            <SaleStatusPill status={sale.status} />
-            <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
-            {sale.status === "open" ? (
-              <div className="animate-rise rounded-[34px] bg-lemon p-4 shadow-float">
+            <div className="flex flex-col items-center gap-7 tight:gap-3 short:col-start-2 short:row-start-1 short:gap-4 short:self-end">
+              <SaleStatusPill status={sale.status} />
+              <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
+            </div>
+            {open ? (
+              <div className="animate-rise rounded-[34px] bg-lemon p-4 shadow-float short:col-start-1 short:row-span-2 short:row-start-1">
                 <LemonQR
                   value={`${payOrigin ?? window.location.origin}/pay/${sale.id}`}
                   label="Scan to pay with PayPal"
                   art={LEMON_ART_QR}
-                  className="size-[min(22rem,75vw)]"
+                  // As big as fits without scrolling: the rest of the screen takes about 27rem of height, or
+                  // 4.5rem beside the code on a phone on its side. Never smaller than a phone can scan from a step away.
+                  className="size-[min(22rem,75vw,max(11rem,calc(100dvh_-_27rem)))] tight:size-[min(75vw,max(11rem,calc(100dvh_-_22rem)))] short:size-[min(22rem,calc(100dvh_-_4.5rem))]"
                 />
               </div>
             ) : null}
-            <p className="max-w-xs text-body text-ink-2">
-              {sale.status === "open"
-                ? "Point your phone camera at the code. You\u2019ll pay with PayPal."
-                : "This sale was canceled. Start a new one for the next customer."}
-            </p>
+            <div className="flex flex-col items-center gap-7 tight:gap-4 short:col-start-2 short:row-start-2 short:gap-5 short:self-start">
+              <p className="max-w-xs text-body text-ink-2">
+                {open
+                  ? "Point your phone camera at the code. You\u2019ll pay with PayPal."
+                  : "This sale was canceled. Start a new one for the next customer."}
+              </p>
+              {open ? (
+                <Button variant="destructive" size="lg" icon={<XmarkIcon />} onClick={cancel}>
+                  Cancel sale
+                </Button>
+              ) : null}
+            </div>
           </>
         )}
-        {sale.status === "open" ? (
-          <Button variant="destructive" size="lg" icon={<XmarkIcon />} onClick={cancel}>
-            Cancel sale
-          </Button>
-        ) : (
-          <Button variant="filled" size="xl" className="min-w-64" onClick={reset}>
+        {!open ? (
+          <Button variant="filled" size="xl" className="min-w-64 max-w-full" onClick={reset}>
             Next customer
           </Button>
-        )}
+        ) : null}
       </main>
     );
   }
@@ -204,12 +221,21 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
             onClick={() => setCart({})}
           />
           <div className="flex min-w-0 flex-1 flex-col leading-tight" aria-live="polite">
-            <span className="text-footnote text-ink-2">
+            <span className="truncate text-footnote text-ink-2">
               {count === 0 ? "Tap an item to start" : `${count} ${count === 1 ? "item" : "items"}`}
             </span>
             <Money cents={total} currency={currency} size="title" />
           </div>
-          <Button variant="filled" size="xl" icon={<QrCodeIcon />} disabled={total === 0} loading={charging} onClick={startSale}>
+          <Button
+            variant="filled"
+            size="xl"
+            // Narrow phones: no icon and less padding, so the total beside it keeps its room.
+            icon={<QrCodeIcon className="max-[24rem]:hidden" />}
+            className="max-[24rem]:px-5"
+            disabled={total === 0}
+            loading={charging}
+            onClick={startSale}
+          >
             Charge
           </Button>
         </div>

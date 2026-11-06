@@ -39,6 +39,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Glass (`Glass`, `Toolbar`, `Sheet`, `.glass*`) is for chrome that floats over content. Content goes on `Card` or `GroupedList`. Don't nest glass in glass.
 - Each screen gets one `filled` button: the action the person came to do. Everything else uses `tinted`, `ghost` or `plain`. Inside a toolbar, use `ghost`.
 - Tap targets are at least 44px tall. Register tiles stay the largest target on the seller's screen.
+- Check every screen from 320px phones to 1920px desktops, both orientations. For height, use the `short` (landscape under 34rem tall) and `tight` (portrait under 40rem tall) variants from `globals.css`, and `justify-center-safe` instead of `justify-center` so tall content never goes above the top.
 - Show status with color, an icon and a word together (`SaleStatusPill`, `Pill`). Never use color alone.
 - Show prices with `Money`, which formats from cents and labels the amount for screen readers. Don't hand-format amounts in markup.
 - Fonts follow Apple's HIG: `font-display` (Fraunces) for titles only, `font-sans` (SF Pro, falling back to Hanken Grotesk), `font-price` for changing numbers, and `font-mono` (SF Mono). Never put prices or totals in Fraunces: it has no fixed-width digits, so they jitter. Size text with the rem-based `text-*` styles, never px, so it follows Dynamic Type on iPhone and iPad.

@@ -3,6 +3,8 @@
 import {
   AgStudioAiModule,
   createAiHarness,
+  type AgPanelConfig,
+  type AgResponsiveLayoutBreakpoint,
   type AgAiHarnessSetup,
   type AgAiPromptStarter,
   type AgStudioApi,
@@ -15,7 +17,7 @@ import {
   type AgWidgetFormParams,
 } from "ag-studio";
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { RecapData } from "@/lib/recap";
 import { claudeAdapter } from "./claude-adapter";
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
@@ -125,6 +127,14 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
   };
 }
 
+// Every panel starts collapsed, so the dashboard gets the width.
+const collapsedPanels = {
+  ai: { collapsed: true },
+  filters: { collapsed: true },
+  edit: { collapsed: true },
+  data: { collapsed: true },
+};
+
 const initialState: AgReportState<RecapRegistry> = {
   pages: [
     {
@@ -184,11 +194,52 @@ const initialState: AgReportState<RecapRegistry> = {
   ],
   selectedPageId: "recap",
   // Start with the dashboard at full width on a tablet. The assistant and data panels open with one tap.
-  panels: { ai: { collapsed: true }, filters: { collapsed: true }, edit: { collapsed: true }, data: { collapsed: true } },
+  panels: collapsedPanels,
 };
+
+/*
+ * Sizes. Studio's side panels each take a rail, and its assistant and its responsive layouts need different
+ * modes (edit and view). So phones, upright or on their side, get view mode with no panels and the widgets
+ * stacked one per row; Studio has no assistant in view mode. Everything wider gets edit mode and the assistant.
+ */
+const PHONE = "(max-width: 39.99rem), (orientation: landscape) and (max-height: 34rem)";
+
+
+function useMedia(query: string) {
+  return useSyncExternalStore(
+    (onChange) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", onChange);
+      return () => list.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
+// Every widget full width, in the order the dashboard lists them, at its authored height.
+const stacked: AgResponsiveLayoutBreakpoint[] = [
+  {
+    layout: (candidates, { columns }) => {
+      let y = 0;
+      return candidates.map(({ layout }) => {
+        const next = { xTrack: 0, yTrack: y, xSpan: columns, ySpan: layout.ySpan };
+        y += layout.ySpan;
+        return next;
+      });
+    },
+  },
+];
+
+const phonePanels: AgPanelConfig = { view: { left: [], right: [] } };
 
 export function RecapStudio({ licenseKey, currency }: { licenseKey: string | null; currency: string }) {
   const [initial, setInitial] = useState<RecapData | null>(null);
+  const phone = useMedia(PHONE);
+  // What the first load held, and every sale added since. A remount starts again from the first load,
+  // so it re-adds the rest (see onStudioReady).
+  const firstSaleIds = useRef<Set<string>>(new Set());
+  const latest = useRef<RecapData | null>(null);
   const engine = useRef<AgDataEngine | null>(null);
 
   // Load paid sales once, then poll and add only sales Studio hasn't seen, so widgets update in place.
@@ -208,6 +259,8 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
         if (!loaded) {
           loaded = true;
           recap.sales.forEach((s) => known.add(s.id));
+          firstSaleIds.current = new Set(known);
+          latest.current = recap;
           setInitial(recap);
           return;
         }
@@ -223,6 +276,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
           { tableId: "lines", add: lineRows(delta) },
         ]);
         freshIds.forEach((id) => known.add(id));
+        latest.current = recap;
       } catch (error) {
         console.error("Recap update failed", error);
       } finally {
@@ -243,12 +297,25 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
 
   function onStudioReady(event: AgStudioReadyEvent) {
     engine.current = event.api.getDataEngine() ?? null;
+    // After a remount Studio holds only the first load. Add the sales that arrived since.
+    const since = latest.current?.sales.filter((s) => !firstSaleIds.current.has(s.id)) ?? [];
+    if (since.length && latest.current && engine.current?.applyTransaction) {
+      const ids = new Set(since.map((s) => s.id));
+      const delta = { sales: since, lines: latest.current.lines.filter((l) => ids.has(l.saleId)) };
+      void engine.current.applyTransaction([
+        { tableId: "sales", add: saleRows(delta) },
+        { tableId: "lines", add: lineRows(delta) },
+      ]);
+    }
   }
 
   return (
     <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
       <div style={{ height: "100%", width: "100%" }}>
         <AgStudio<RecapRegistry>
+          // Studio opens every panel when it switches into edit mode, so a mode change remounts it instead,
+          // starting again from initialState with the panels collapsed. An open assistant chat is lost.
+          key={phone ? "view" : "edit"}
           // Without an explicit size, Studio's own wrapper falls back to 600px tall.
           style={{ height: "100%", width: "100%" }}
           data={data}
@@ -257,8 +324,10 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
           theme={lemonTheme}
           localeText={localeText}
           ai={ai}
-          // The assistant adds and changes widgets, which needs edit mode.
-          mode="edit"
+          // The assistant adds and changes widgets, which needs edit mode. Phones get a read-only report.
+          mode={phone ? "view" : "edit"}
+          panels={phone ? phonePanels : undefined}
+          responsiveLayoutBreakpoints={stacked}
           onStudioReady={onStudioReady}
         />
       </div>

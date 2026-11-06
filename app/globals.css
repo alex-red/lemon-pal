@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Landscape screens too short to stack a layout, such as a phone on its side. */
+@custom-variant short (@media (orientation: landscape) and (max-height: 34rem));
+/* Portrait screens with little height to spare, such as the smallest iPhones. */
+@custom-variant tight (@media (orientation: portrait) and (max-height: 40rem));
+
 /*
  * Citrus Glass — the Lemon Pal design kit.
  *

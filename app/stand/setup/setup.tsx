@@ -364,7 +364,8 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
                         onClick={() => setRows((current) => current?.filter((r) => r.key !== row.key) ?? null)}
                       />
                     </div>
-                    <div className="grid grid-cols-[4.25rem_1fr_7.5rem] items-start gap-3 sm:grid-cols-[4.5rem_1fr_8.5rem]">
+                    {/* Narrow phones: the price drops below the name, so the name keeps a usable width. */}
+                    <div className="grid grid-cols-[4.25rem_minmax(0,1fr)] items-start gap-3 min-[25rem]:grid-cols-[4.25rem_minmax(0,1fr)_7.5rem] sm:grid-cols-[4.5rem_minmax(0,1fr)_8.5rem]">
                       <TextField
                         label="Icon"
                         aria-label={`Icon for ${row.name || `item ${i + 1}`}, one emoji`}
@@ -384,6 +385,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
                       />
                       <TextField
                         label="Price"
+                        className="col-start-2 min-[25rem]:col-start-auto"
                         prefix={symbol}
                         inputMode="decimal"
                         placeholder="0.00"
