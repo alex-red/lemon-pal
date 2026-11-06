@@ -18,7 +18,7 @@ import {
   type AgWidgetFormParams,
 } from "ag-studio";
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { RecapData } from "@/lib/recap";
 import { isThinking, subscribeThinking } from "./claude-adapter";
 import { Button, CheckIcon, ClockIcon, ExclamationIcon, Pill, SparklesIcon, Spinner } from "@/components/kit";
@@ -27,6 +27,7 @@ import { useSetFirstSale } from "./first-sale";
 import { boothAnalyst } from "./booth-analyst";
 import { receiptRef, receiptTime } from "./recap-metrics";
 import { ProductLeadersWidget, RecapCurrency, SalesPulseWidget, type ProductLeadersDef, type RecapRegistry, type SalesPulseDef } from "./recap-widgets";
+import { ReceiptSheet, RecapActions, RecentSalesWidget, type RecentSalesDef } from "./recent-sales";
 
 const category: AgDataMappingDefinition<string> = { type: "field", supportedRoles: ["category"], requires: { cardinality: "many" }, required: true };
 const numeric: AgDataMappingDefinition<string> = { type: "field", supportedRoles: ["numeric"], requires: { cardinality: "one" }, required: true };
@@ -41,6 +42,7 @@ const widgets = createWidgets<RecapRegistry>({
         paidAt: { type: "field", supportedRoles: ["temporal"], requires: { cardinality: "many" }, required: true },
         total: numeric,
         units: numeric,
+        status: category,
       },
       form: (params: AgWidgetFormParams<SalesPulseDef>) =>
         params.createDefaults({
@@ -49,12 +51,13 @@ const widgets = createWidgets<RecapRegistry>({
             { key: "paidAt", label: "Paid at" },
             { key: "total", label: "Captured total" },
             { key: "units", label: "Units" },
+            { key: "status", label: "Status" },
           ],
         }),
       comp: SalesPulseWidget,
       defaultSize: { width: 460, height: 255 },
       minSize: { width: 200, height: 225 },
-      ai: { description: "Captured PayPal sales, payment count, units and latest receipt. Ignores item selections." },
+      ai: { description: "Net captured PayPal sales after refunds, payment count, units, refund count and latest receipt. Ignores item selections." },
     },
     {
       id: "productLeaders",
@@ -72,6 +75,29 @@ const widgets = createWidgets<RecapRegistry>({
       defaultSize: { width: 420, height: 255 },
       minSize: { width: 200, height: 225 },
       ai: { description: "Compare the top items by units and sales. Select an item to filter the linked receipts." },
+    },
+    {
+      id: "recentSales",
+      label: "Recent sales",
+      dataMapping: {
+        sale: category,
+        paidAt: { type: "field", supportedRoles: ["temporal"], requires: { cardinality: "many" }, required: true },
+        captured: numeric,
+        status: category,
+      },
+      form: (params: AgWidgetFormParams<RecentSalesDef>) =>
+        params.createDefaults({
+          dataMappingItems: [
+            { key: "sale", label: "Sale ID" },
+            { key: "paidAt", label: "Paid at" },
+            { key: "captured", label: "Captured total" },
+            { key: "status", label: "Status" },
+          ],
+        }),
+      comp: RecentSalesWidget,
+      defaultSize: { width: 420, height: 320 },
+      minSize: { width: 240, height: 200 },
+      ai: { description: "The latest receipts with their Paid or Refunded status. The seller taps one to see its items and refund it in full." },
     },
   ],
 });
@@ -94,22 +120,32 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
     { id: "id", name: "Sale ID", format: "textFormat" },
     { id: "receipt", name: "Receipt", format: "textFormat" },
     { id: "paidAt", name: "Paid at", format: "dateTimeFormat", formatOptions: { format: receiptTime } },
+    { id: "status", name: "Status", format: "textFormat" },
     { id: "units", name: "Units", format: "integerFormat" },
-    { id: "total", name: "Receipt total", format: "currencyFormat", formatOptions: money },
+    { id: "total", name: "Net total", format: "currencyFormat", formatOptions: money },
+    { id: "captured", name: "Captured", format: "currencyFormat", formatOptions: money },
+    { id: "refunded", name: "Refunded", format: "currencyFormat", formatOptions: money },
+    { id: "channel", name: "Channel", format: "textFormat" },
   ];
   const lineFields: AgFieldDefinition[] = [
     { id: "id", name: "Line", format: "textFormat" },
     { id: "saleId", name: "Sale", format: "textFormat" },
     { id: "item", name: "Item", format: "textFormat" },
+    { id: "status", name: "Status", format: "textFormat" },
     // Short, so "Units (sum)" fits the narrow grid column without truncating.
     { id: "quantity", name: "Units", format: "integerFormat" },
     { id: "unitPrice", name: "Unit price", format: "currencyFormat", formatOptions: money },
     { id: "lineTotal", name: "Item sales", format: "currencyFormat", formatOptions: money },
     { id: "discount", name: "Deal savings", format: "currencyFormat", formatOptions: money },
+    { id: "refundedUnits", name: "Units refunded", format: "integerFormat" },
+    { id: "refunded", name: "Item refunds", format: "currencyFormat", formatOptions: money },
     { id: "paidAt", name: "Paid at", format: "dateTimeFormat", formatOptions: { format: receiptTime } },
   ];
   return {
-    description: "Captured PayPal payments at a pop-up stand. Sales has one row per receipt. Items sold has one row per receipt line. Item sales and receipt totals are after deals.",
+    description:
+      "Captured PayPal payments at a pop-up stand. Sales has one row per receipt. Items sold has one row per receipt line. " +
+      "Item sales and receipt totals are after deals. A refunded receipt keeps its row with Status Refunded: its net total, units and item sales are 0, " +
+      "and what went back is in Sales → Refunded and Items sold → Units refunded and Item refunds. Sales → Captured is what PayPal took before any refund.",
     sources: [
       {
         id: "sales",
@@ -159,6 +195,7 @@ const initialState: AgReportState<RecapRegistry> = {
             paidAt: [{ id: "sales.paidAt" }],
             total: [{ id: "sales.total", aggregation: "sum" }],
             units: [{ id: "sales.units", aggregation: "sum" }],
+            status: [{ id: "sales.status" }],
           },
         },
         leaders: {
@@ -167,6 +204,15 @@ const initialState: AgReportState<RecapRegistry> = {
             item: [{ id: "lines.item" }],
             units: [{ id: "lines.quantity", aggregation: "sum" }],
             sales: [{ id: "lines.lineTotal", aggregation: "sum" }],
+          },
+        },
+        recent: {
+          type: "recentSales",
+          dataMapping: {
+            sale: [{ id: "sales.id" }],
+            paidAt: [{ id: "sales.paidAt" }],
+            captured: [{ id: "sales.captured", aggregation: "sum" }],
+            status: [{ id: "sales.status" }],
           },
         },
         unitsChart: {
@@ -182,10 +228,10 @@ const initialState: AgReportState<RecapRegistry> = {
         sales: {
           type: "grid",
           dataMapping: {
-            cols: [{ id: "sales.receipt" }, { id: "sales.paidAt" }, { id: "sales.total" }],
+            cols: [{ id: "sales.receipt" }, { id: "sales.paidAt" }, { id: "sales.status" }, { id: "sales.total" }],
           },
           sort: [{ field: { id: "sales.paidAt" }, direction: "desc" }],
-          format: { title: { enabled: true, text: "Paid receipts" }, crossFilter: "filter" },
+          format: { title: { enabled: true, text: "Receipts" }, crossFilter: "filter" },
         },
         itemFilter: {
           type: "button-filter",
@@ -207,10 +253,11 @@ const initialState: AgReportState<RecapRegistry> = {
       widgetLayout: {
         pulse: { xTrack: 0, yTrack: 0, xSpan: 13, ySpan: 19 },
         leaders: { xTrack: 13, yTrack: 0, xSpan: 11, ySpan: 19 },
-        unitsChart: { xTrack: 0, yTrack: 19, xSpan: 12, ySpan: 20 },
-        sales: { xTrack: 12, yTrack: 19, xSpan: 12, ySpan: 20 },
-        itemFilter: { xTrack: 0, yTrack: 39, xSpan: 24, ySpan: 12 },
-        byItem: { xTrack: 0, yTrack: 51, xSpan: 24, ySpan: 20 },
+        recent: { xTrack: 0, yTrack: 19, xSpan: 12, ySpan: 22 },
+        unitsChart: { xTrack: 12, yTrack: 19, xSpan: 12, ySpan: 22 },
+        itemFilter: { xTrack: 0, yTrack: 41, xSpan: 24, ySpan: 12 },
+        sales: { xTrack: 0, yTrack: 53, xSpan: 12, ySpan: 20 },
+        byItem: { xTrack: 12, yTrack: 53, xSpan: 12, ySpan: 20 },
       },
     },
   ],
@@ -255,18 +302,30 @@ const stacked: AgResponsiveLayoutBreakpoint[] = [
 
 const phonePanels: AgPanelConfig = { view: { left: [], right: [] } };
 
+// New sales are added, reset ones removed, and a sale whose status changed (a refund) is updated in place,
+// so its row stays put and every total drops without the dashboard reloading.
 function changes(previous: RecapData, next: RecapData): AgDataTransaction[] {
-  const previousSales = new Set(previous.sales.map((sale) => sale.id));
+  const before = new Map(previous.sales.map((sale) => [sale.id, sale.status]));
   const nextSales = new Set(next.sales.map((sale) => sale.id));
-  const fresh = next.sales.filter((sale) => !previousSales.has(sale.id));
+  const fresh = next.sales.filter((sale) => !before.has(sale.id));
+  const changed = next.sales.filter((sale) => before.has(sale.id) && before.get(sale.id) !== sale.status);
   const removed = previous.sales.filter((sale) => !nextSales.has(sale.id));
-  if (!fresh.length && !removed.length) return [];
+  if (!fresh.length && !changed.length && !removed.length) return [];
 
-  const freshIds = new Set(fresh.map((sale) => sale.id));
-  const additions = { sales: fresh, lines: next.lines.filter((line) => freshIds.has(line.saleId)) };
+  const linesOf = (sales: RecapData["sales"]) => {
+    const ids = new Set(sales.map((sale) => sale.id));
+    return { sales, lines: next.lines.filter((line) => ids.has(line.saleId)) };
+  };
+  const additions = linesOf(fresh);
+  const updates = linesOf(changed);
   return [
-    { tableId: "sales", add: saleRows(additions), remove: removed.map((sale) => sale.id) },
-    { tableId: "lines", add: lineRows(additions), remove: previous.lines.filter((line) => !nextSales.has(line.saleId)).map((line) => line.id) },
+    { tableId: "sales", add: saleRows(additions), update: saleRows(updates), remove: removed.map((sale) => sale.id) },
+    {
+      tableId: "lines",
+      add: lineRows(additions),
+      update: lineRows(updates),
+      remove: previous.lines.filter((line) => !nextSales.has(line.saleId)).map((line) => line.id),
+    },
   ];
 }
 
@@ -277,6 +336,12 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
   const phone = useMedia(PHONE);
   const thinking = useSyncExternalStore(subscribeThinking, isThinking, () => false);
   const applied = useRef<RecapData | null>(null);
+  const [recap, setRecap] = useState<RecapData | null>(null);
+  // The id stays set while the sheet animates closed, so its content doesn't vanish mid-close.
+  // `n` counts openings, so reopening a receipt starts its refund steps afresh.
+  const [receipt, setReceipt] = useState<{ id: string; open: boolean; n: number } | null>(null);
+  const pollNow = useRef<() => void>(() => {});
+  const actions = useMemo(() => ({ openReceipt: (id: string) => setReceipt((r) => ({ id, open: true, n: (r?.n ?? 0) + 1 })) }), []);
   const setFirstSale = useSetFirstSale();
   const ai: AgAiHarnessSetup = useCallback(
     (params) => boothAnalyst(params, () => applied.current, currency),
@@ -300,16 +365,20 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
         const saleIds = new Set(sales.map((sale) => sale.id));
         const recap = { sales, lines: response.lines.filter((line) => saleIds.has(line.saleId)) };
 
+        let changed = false;
         if (!engine) {
           // Share the engine across phone and desktop layouts so a rotation keeps the live ledger.
           engine = createDataEngine(toDataSources(recap, currency));
           setData(engine);
+          changed = true;
         } else if (applied.current && engine.applyTransaction) {
           const transactions = changes(applied.current, recap);
           if (transactions.length) await engine.applyTransaction(transactions);
+          changed = transactions.length > 0;
         }
         if (controller.signal.aborted) return;
         applied.current = recap;
+        if (changed) setRecap(recap);
         setFirstSale?.(response.firstSaleSeconds ?? null);
         setOnline(true);
       } catch (error) {
@@ -323,6 +392,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
     }
 
     void poll();
+    pollNow.current = () => void poll();
     const timer = setInterval(poll, POLL_MS);
     return () => {
       controller.abort();
@@ -343,6 +413,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
 
   return (
     <RecapCurrency value={currency}>
+      <RecapActions value={actions}>
       <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
         <section aria-label="Sales dashboard" className="flex h-full min-h-0 flex-col">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-hairline px-4 py-2 sm:px-5">
@@ -388,6 +459,18 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
           </div>
         </section>
       </AgStudioProvider>
+      {receipt && (
+        <ReceiptSheet
+          key={`${receipt.id}:${receipt.n}`}
+          saleId={receipt.open ? receipt.id : null}
+          shownId={receipt.id}
+          recap={recap}
+          currency={currency}
+          onClose={() => setReceipt((r) => (r ? { ...r, open: false } : r))}
+          onRefunded={() => pollNow.current()}
+        />
+      )}
+      </RecapActions>
     </RecapCurrency>
   );
 }

@@ -40,6 +40,7 @@ export function publicSale(sale: Sale) {
     totalCents,
     status,
     paidAt,
+    refundedAt: sale.refund?.refundedAt ?? null,
     channel: sale.channel ?? "register",
     shippingCents: sale.shippingCents ?? 0,
     method: fulfillment?.method ?? null,

@@ -209,3 +209,32 @@ export async function addTracking(
     },
   });
 }
+
+type Refund = { id: string; status: string; amount?: Amount };
+
+export type RefundResult = { ok: true; refundId: string } | { ok: false; reason: string };
+
+/**
+ * Refunds the whole capture. Sending no amount refunds all of it, so the server never trusts a client figure.
+ * The request id is tied to the sale, so a retried or double-tapped refund returns the first refund instead of a second.
+ * https://developer.paypal.com/docs/api/payments/v2/#captures_refund
+ */
+export async function refundCapture(sale: Sale): Promise<RefundResult> {
+  if (!sale.paypalCaptureId) return { ok: false, reason: "no capture to refund" };
+  const refund = await paypalFetch<Refund>(`/v2/payments/captures/${encodeURIComponent(sale.paypalCaptureId)}/refund`, {
+    method: "POST",
+    requestId: `refund-${sale.id}`,
+    body: { note_to_payer: "Refunded by the seller through Lemon Pal." },
+  });
+  return verifyRefund(sale, refund);
+}
+
+export function verifyRefund(sale: Sale, refund: Refund): RefundResult {
+  // PENDING means PayPal accepted it and will finish moving the money, for example from an eCheck.
+  if (refund.status !== "COMPLETED" && refund.status !== "PENDING") return { ok: false, reason: `refund status ${refund.status}` };
+  if (refund.amount) {
+    if (refund.amount.currency_code !== sale.currency) return { ok: false, reason: "currency mismatch" };
+    if (fromPayPalValue(refund.amount.value) !== sale.totalCents) return { ok: false, reason: "amount mismatch" };
+  }
+  return { ok: true, refundId: refund.id };
+}

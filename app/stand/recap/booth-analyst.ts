@@ -26,9 +26,11 @@ export function boothAnalyst(
       const totals = [...items.values()];
       const summary = {
         currency,
-        scope: "All captured stand payments, after any deals",
-        paymentCount: recap.sales.length,
+        scope: "All captured stand payments, after any deals. Totals and item leaders are net of refunds",
+        paymentCount: recap.sales.filter((sale) => sale.status === "Paid").length,
         totalCents: recap.sales.reduce((sum, sale) => sum + Math.round(sale.total * 100), 0),
+        refundCount: recap.sales.filter((sale) => sale.status === "Refunded").length,
+        refundedCents: recap.sales.reduce((sum, sale) => sum + Math.round(sale.refunded * 100), 0),
         ...itemLeaders(totals),
       };
       return ctx.success(JSON.stringify(summary));
@@ -47,6 +49,7 @@ export function boothAnalyst(
             lead.instructions?.(ctx, params),
             "You are Lemon Pal's Booth Analyst. Use summarize_booth_sales for exact stand-wide numbers and rankings. Its scope ignores dashboard filters. Use Studio's data agent for questions about a filter, an item, or a time range.",
             "For item sales use the sum of lines.lineTotal, after deals. For units use the sum of lines.quantity. Keep captured basket totals (sales.total) at receipt grain. Preserve ties and do not infer profit or stock from sales.",
+            "Refunds are full. A refunded receipt keeps its row with status Refunded and counts 0 toward net totals, units and item sales. For refund questions use sales.refunded, lines.refundedUnits and lines.refunded, or refundCount and refundedCents from the summary. You can't issue refunds: the seller taps a receipt in Recent sales to refund it.",
             "When the seller asks to add a chart, make the requested canvas change using Studio's tools or delegate to its widget specialist. Preserve existing widgets unless the seller asks to replace them.",
           ].join("\n"),
           tools: (ctx, params) => [summarize, ...(lead.tools?.(ctx, params) ?? [])],
@@ -59,6 +62,7 @@ export function boothAnalyst(
       promptStarters: [
         { label: "Compare my leaders", prompt: "Use the stand summary to compare my top item by units and my top item by sales." },
         { label: "Chart sales by item", prompt: "Add a column chart titled Sales by item. Use Items sold → Item for the categories and sum of Items sold → Item sales for the values. Keep my existing units chart. Tell me which item led by sales." },
+        { label: "What did refunds cost?", prompt: "Use the stand summary to tell me how many sales I refunded and how much went back, then which items were refunded using Items sold → Units refunded." },
         { label: "Chart deals", prompt: "Add a chart of deal savings by item using sum of Items sold → Deal savings." },
       ],
     };

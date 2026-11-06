@@ -8,8 +8,9 @@ export function receiptRef(id: string): string {
 
 export function itemLeaders(totals: ItemTotal[]) {
   const leaders = (metric: "units" | "cents") => {
-    const max = totals.reduce((value, item) => Math.max(value, item[metric]), -Infinity);
-    return totals.filter((item) => item[metric] === max).sort((a, b) => a.item.localeCompare(b.item));
+    // An item whose every sale was refunded has nothing to lead with.
+    const max = totals.reduce((value, item) => Math.max(value, item[metric]), 0);
+    return totals.filter((item) => max > 0 && item[metric] === max).sort((a, b) => a.item.localeCompare(b.item));
   };
 
   return { byUnits: leaders("units"), bySales: leaders("cents") };

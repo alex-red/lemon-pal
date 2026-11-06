@@ -482,6 +482,7 @@ export default function KitPage() {
                 <SaleStatusPill status="open" />
                 <SaleStatusPill status="paid" />
                 <SaleStatusPill status="canceled" />
+                <SaleStatusPill status="refunded" />
                 <ConfidencePill confidence="high" />
                 <ConfidencePill confidence="low" />
                 <FirstSalePill seconds={52} />

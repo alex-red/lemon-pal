@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { SaleStatus } from "@/lib/types";
 import { cn } from "./cn";
-import { CheckIcon, ClockIcon, ExclamationIcon, SparklesIcon, StopwatchIcon, XmarkIcon } from "./icons";
+import { ArrowUturnIcon, CheckIcon, ClockIcon, ExclamationIcon, SparklesIcon, StopwatchIcon, XmarkIcon } from "./icons";
 
 type Tone = "neutral" | "lemon" | "leaf" | "pool" | "berry";
 
@@ -51,12 +51,13 @@ const saleStatus: Record<SaleStatus, { tone: Tone; icon: ReactNode; label: strin
   open: { tone: "pool", icon: <ClockIcon />, label: "Waiting to pay" },
   paid: { tone: "leaf", icon: <CheckIcon strokeWidth={2.25} />, label: "Paid" },
   canceled: { tone: "neutral", icon: <XmarkIcon />, label: "Canceled" },
+  refunded: { tone: "berry", icon: <ArrowUturnIcon />, label: "Refunded" },
 };
 
-export function SaleStatusPill({ status, className }: { status: SaleStatus; className?: string }) {
+export function SaleStatusPill({ status, size, className }: { status: SaleStatus; size?: keyof typeof sizes; className?: string }) {
   const s = saleStatus[status];
   return (
-    <Pill tone={s.tone} icon={s.icon} className={className}>
+    <Pill tone={s.tone} size={size} icon={s.icon} className={className}>
       {s.label}
     </Pill>
   );

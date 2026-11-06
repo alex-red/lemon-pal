@@ -26,7 +26,7 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
           <LemonIcon className="text-[oklch(0.23_0.03_85)]" />
         </span>
         <div className="flex flex-col gap-0.5">
-          <p className="text-footnote font-semibold text-ink-2">You’re paying</p>
+          <p className="text-footnote font-semibold text-ink-2">{sale.status === "refunded" ? "Refunded by" : "You’re paying"}</p>
           <h1 className="font-display text-large-title font-semibold text-balance">{storefront?.title || stand?.name || "Lemon Pal"}</h1>
         </div>
         <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
@@ -83,6 +83,17 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
           }
           className="pt-4"
         />
+      ) : sale.status === "refunded" ? (
+        <div className="flex flex-col items-center gap-3 pt-2 text-center">
+          <SaleStatusPill status="refunded" size="lg" />
+          <p className="text-body">
+            <span className="font-semibold">The seller refunded this sale.</span>{" "}
+            <span className="text-ink-2">
+              PayPal is sending <Money cents={sale.totalCents} currency={sale.currency} /> back to you, and will email you when it arrives.
+            </span>
+          </p>
+          {storeUrl ? <StoreLink href={storeUrl} /> : null}
+        </div>
       ) : sale.status === "canceled" ? (
         <div className="flex flex-col items-center gap-3 pt-2 text-center">
           <SaleStatusPill status="canceled" />

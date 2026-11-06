@@ -11,12 +11,13 @@ import { AgIncompleteDataMappingOverlay } from "ag-studio-react";
 import { createContext, use, type ReactNode } from "react";
 import { Button, CheckIcon, ChevronRightIcon, LemonIcon, Money, SaleStatusPill, TagIcon, WalletIcon } from "@/components/kit";
 import { itemLeaders, receiptRef, receiptTime } from "./recap-metrics";
+import type { RecentSalesDef } from "./recent-sales";
 
 export const RecapCurrency = createContext("USD");
 
 export interface SalesPulseDef {
   type: "salesPulse";
-  dataMapping: Record<"sale" | "paidAt" | "total" | "units", AgWidgetFieldReference[]>;
+  dataMapping: Record<"sale" | "paidAt" | "total" | "units" | "status", AgWidgetFieldReference[]>;
 }
 
 export interface ProductLeadersDef {
@@ -29,6 +30,7 @@ export interface RecapRegistry extends AgBaseRegistry {
     | AgDefaultWidgetDefinition
     | AgBaseWidgetDefinition<"salesPulse", SalesPulseDef>
     | AgBaseWidgetDefinition<"productLeaders", ProductLeadersDef>
+    | AgBaseWidgetDefinition<"recentSales", RecentSalesDef>
   )[];
 }
 
@@ -38,17 +40,21 @@ export function SalesPulseWidget({ widgetApi, dataMapping }: AgWidgetParams<Sale
   const paidAt = dataMapping.paidAt?.at(0);
   const total = dataMapping.total?.at(0);
   const units = dataMapping.units?.at(0);
-  if (!sale || !paidAt || !total || !units) return <AgIncompleteDataMappingOverlay />;
+  const status = dataMapping.status?.at(0);
+  if (!sale || !paidAt || !total || !units || !status) return <AgIncompleteDataMappingOverlay />;
 
   // Keep this stand-wide. Product selection should never turn a basket total into item revenue.
   const { results } = use(widgetApi.getData(
-    { fields: [sale, paidAt, total, units], sort: [{ field: paidAt, direction: "desc" }] },
+    { fields: [sale, paidAt, status, total, units], sort: [{ field: paidAt, direction: "desc" }] },
     { queryId: "sales-pulse", filter: false, crossFilter: "none" },
   ));
-  const count = results.rows.length;
-  const cents = results.rows.reduce((sum, row) => sum + Math.round(Number(row[total.key]) * 100), 0);
-  const unitCount = results.rows.reduce((sum, row) => sum + Number(row[units.key]), 0);
-  const last = results.rows[0];
+  // Refunded receipts count nothing toward the total. They're listed in Recent sales, and noted here.
+  const kept = results.rows.filter((row) => row[status.key] !== "Refunded");
+  const refunds = results.rows.length - kept.length;
+  const count = kept.length;
+  const cents = kept.reduce((sum, row) => sum + Math.round(Number(row[total.key]) * 100), 0);
+  const unitCount = kept.reduce((sum, row) => sum + Number(row[units.key]), 0);
+  const last = kept[0];
 
   return (
     <div className="@container flex h-full min-w-0 flex-col justify-center-safe gap-3 rounded-field bg-lemon-soft p-4 @[27rem]:px-6">
@@ -60,6 +66,12 @@ export function SalesPulseWidget({ widgetApi, dataMapping }: AgWidgetParams<Sale
         <p className="mt-2 text-subhead text-ink-2">
           <strong className="font-price text-ink">{count}</strong> {count === 1 ? "payment" : "payments"} ·{" "}
           <strong className="font-price text-ink">{unitCount}</strong> {unitCount === 1 ? "item" : "items"} sold
+          {refunds > 0 && (
+            <>
+              {" · "}
+              <strong className="font-price text-berry">{refunds}</strong> refunded
+            </>
+          )}
         </p>
       </div>
       <div className="mt-1 border-t border-hairline pt-3">

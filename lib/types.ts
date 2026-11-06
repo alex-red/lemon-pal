@@ -66,7 +66,8 @@ export type SaleLine = {
   discountCents?: Cents;
 };
 
-export type SaleStatus = "open" | "paid" | "canceled";
+/** A sale moves open → paid, or open → canceled. Only a paid sale can become refunded. */
+export type SaleStatus = "open" | "paid" | "canceled" | "refunded";
 
 /** Where a sale was made: rung up at the stand, or bought from the online store. */
 export type SaleChannel = "register" | "online";
@@ -122,6 +123,8 @@ export type Sale = {
   fulfillment?: Fulfillment;
   /** The payer's name from PayPal, for online orders, so the seller knows whose order it is. */
   buyerName?: string;
+  /** Set when the seller refunded the whole capture and PayPal accepted it. */
+  refund?: { paypalRefundId: string; refundedAt: string };
 };
 
 export type StorefrontAccent = "lemon" | "leaf" | "berry";
