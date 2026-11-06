@@ -3,6 +3,7 @@ import { isValidDeal, MAX_DEAL_QUANTITY } from "@/lib/deals";
 import { isSampleId, resetStand, sampleStand } from "@/lib/demo";
 import { requestStand, standNotFound } from "@/lib/session";
 import { cleanEmoji } from "@/lib/emoji";
+import { kindOf } from "@/lib/stands";
 import { store } from "@/lib/store";
 
 const PublishSchema = z.object({
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
   }
   const current = await requestStand(request);
   if (!current) return standNotFound();
+  if (kindOf(current) === "donation") return Response.json({ error: "A donation stand has no items." }, { status: 409 });
   const stand = {
     ...current,
     name: parsed.data.name || current.name,
@@ -93,6 +95,7 @@ export async function DELETE(request: Request) {
     if (params.get("sales") !== "clear") return Response.json({ error: "Choose a sample." }, { status: 400 });
     return Response.json(await resetStand(current));
   }
+  if (kindOf(current) === "donation") return Response.json({ error: "A donation stand has no items." }, { status: 409 });
   const stand = sampleStand(sample, current);
   await store.saveStand(stand);
   if (params.get("sales") === "clear") await store.clearSales(stand.id);

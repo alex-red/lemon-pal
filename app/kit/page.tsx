@@ -30,7 +30,7 @@ import {
   WalletIcon,
   XmarkIcon,
 } from "@/components/kit";
-import { ChoiceListDemo, ControlsDemo, MotionDemo, QrDemo, RegisterDemo, RevealDemo } from "./demos";
+import { ChoiceListDemo, ControlsDemo, DonationDemo, MotionDemo, QrDemo, RegisterDemo, RevealDemo } from "./demos";
 
 export const metadata: Metadata = {
   title: "Citrus Glass · Lemon Pal design kit",
@@ -548,6 +548,17 @@ export default function KitPage() {
               </p>
             </div>
             <QrDemo />
+          </Card>
+          <Card className="mt-6 flex flex-col gap-6 p-6 sm:p-8">
+            <div className="flex flex-col gap-1">
+              <h3 className="font-display text-title2 font-semibold">Donations</h3>
+              <p className="text-subhead text-ink-2">
+                DonationPoster puts a donation stand&rsquo;s photo, title and message around one code that never changes. The
+                display screen, the printout and the editor&rsquo;s preview all use it. GoalBar says the amounts in words beside
+                the bar. AmountChips is a radio group of one-tap amounts, with Other when donors may type their own.
+              </p>
+            </div>
+            <DonationDemo />
           </Card>
         </Section>
 

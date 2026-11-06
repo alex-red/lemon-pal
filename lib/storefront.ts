@@ -1,5 +1,6 @@
 import "server-only";
 import { lineTotalCents } from "./deals";
+import { defaultDonation } from "./donations";
 import { toHandle } from "./handles";
 import { CartError, priceCart, type CartEntry } from "./sales";
 import { shippingCents, type FulfillmentMethod } from "./shipping";
@@ -24,6 +25,11 @@ export function draftStorefront(stand: Stand): Storefront {
     shipping: { enabled: false, flatRateCents: 500, freeOverCents: null, countries: [homeCountry(stand.currency)] },
     updatedAt: new Date().toISOString(),
   };
+}
+
+/** A first draft of a donation stand's page. Closed, so nothing goes live until the seller opens it. */
+export function draftDonationPage(stand: Stand): Storefront {
+  return { ...draftStorefront(stand), pickup: false, donation: defaultDonation() };
 }
 
 export const sellsOnline = (item: CatalogItem) => item.online !== false;

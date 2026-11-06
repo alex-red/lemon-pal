@@ -81,7 +81,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sa
         paypalCaptureId: result.captureId,
         paidAt: new Date().toISOString(),
         ...(fulfillment ? { fulfillment } : {}),
-        ...(s.channel === "online" && result.payerName ? { buyerName: result.payerName } : {}),
+        // The seller sees whose order or gift it is. Never sent to a public route.
+        ...((s.channel === "online" || s.channel === "donation") && result.payerName ? { buyerName: result.payerName } : {}),
       };
     });
     return Response.json(publicSale(paid!));

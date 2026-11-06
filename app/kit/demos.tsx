@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import {
+  AmountChips,
+  DonationPoster,
   AIGlow,
   Button,
   GroupedList,
@@ -464,5 +466,23 @@ export function ChoiceListDemo() {
       <ListRow icon={<QrCodeIcon />} iconTone="ink" title="Saturday Market" subtitle="Register at events" current={picked === "market"} onClick={() => setPicked("market")} />
       <ListRow icon={<LinkIcon />} iconTone="pool" title="Lemon Pal Shop" subtitle="Online store and orders" current={picked === "shop"} onClick={() => setPicked("shop")} />
     </GroupedList>
+  );
+}
+
+/** A donation poster with live amount chips, as the donor page and display screen use them. */
+export function DonationDemo() {
+  const [amount, setAmount] = useState<number | "other" | null>(1000);
+  return (
+    <div className="flex flex-col gap-6">
+      <DonationPoster
+        title="Elm Street Shelter"
+        intro="Every gift buys food and blankets for the animals this winter."
+        accent="berry"
+        caption="Scan to donate with PayPal"
+        goal={{ raisedCents: 32_500, goalCents: 50_000, currency: "USD" }}
+        code={<LemonQR value="https://example.com/elm-street" label="Sample donation code" className="size-40" />}
+      />
+      <AmountChips label="Sample amounts" amounts={[500, 1000, 2000]} other currency="USD" value={amount} onChange={setAmount} />
+    </div>
   );
 }

@@ -31,11 +31,12 @@ import {
   XmarkIcon,
 } from "@/components/kit";
 import { handleProblem, HANDLE_MAX } from "@/lib/handles";
-import type { Cents } from "@/lib/money";
+import { centsText, currencyMark, parseCents, type Cents } from "@/lib/money";
 import { countryName, parseCountries } from "@/lib/shipping";
 import type { PublicStorefront } from "@/lib/storefront";
 import { standApi } from "@/lib/stands";
 import type { StorefrontAccent } from "@/lib/types";
+import { bannerFrom } from "../banner-photo";
 import { StickerDemoButton } from "../sticker-demo";
 
 type EditorItem = {
@@ -81,46 +82,6 @@ type Form = {
 type SaveState = { kind: "idle" | "saving" | "saved" } | { kind: "error"; message: string; field?: string };
 
 const INTRO_MAX = 280;
-const BANNER_WIDTH = 1500;
-
-function centsText(cents: Cents | null): string {
-  return cents === null ? "" : (cents / 100).toFixed(2).replace(/\.00$/, "");
-}
-
-/** "5", "5.50" or "$5" in cents. Blank is null; anything else unreadable is NaN. */
-function parseCents(text: string): Cents | null {
-  const clean = text.replace(/[^\d.]/g, "");
-  if (!text.trim()) return null;
-  if (!/^\d+(\.\d{0,2})?$/.test(clean)) return NaN;
-  return Math.round(Number(clean) * 100);
-}
-
-/** Crops a photo to 3:1 from its middle and shrinks it to a JPEG small enough to keep in the store record. */
-async function bannerFrom(file: Blob): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  try {
-    const ratio = 3;
-    const cropWidth = Math.min(bitmap.width, bitmap.height * ratio);
-    const cropHeight = cropWidth / ratio;
-    const sx = (bitmap.width - cropWidth) / 2;
-    const sy = (bitmap.height - cropHeight) / 2;
-    for (const [width, quality] of [
-      [BANNER_WIDTH, 0.8],
-      [1200, 0.7],
-      [900, 0.6],
-    ] as const) {
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.min(width, Math.round(cropWidth));
-      canvas.height = Math.round(canvas.width / ratio);
-      canvas.getContext("2d")!.drawImage(bitmap, sx, sy, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
-      const url = canvas.toDataURL("image/jpeg", quality);
-      if (url.length < 380_000) return url;
-    }
-    throw new Error("too big");
-  } finally {
-    bitmap.close();
-  }
-}
 
 export function StoreEditor({ standId, stickerDemo, switcher, origin, currency, published, initial, saved, items: initialItems }: Props) {
   const [form, setForm] = useState<Form>(() => ({
@@ -560,10 +521,6 @@ const toolbarLink =
   "pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full px-5 text-callout font-semibold text-ink hover:bg-fill-2 [&_svg]:text-[1.15em] max-[24rem]:px-4 max-[24rem]:[&_svg]:hidden";
 const sheetLink =
   "pressable focus-ring inline-flex h-11 items-center rounded-full px-5 text-callout font-semibold text-peel hover:bg-fill";
-
-function currencyMark(currency: string) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency }).formatToParts(0).find((part) => part.type === "currency")?.value ?? "$";
-}
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="font-display text-title2 font-semibold">{children}</h2>;

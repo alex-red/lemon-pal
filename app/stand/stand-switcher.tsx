@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   GroupedList,
   ChevronRightIcon,
+  HeartIcon,
   LinkIcon,
   ListRow,
   PencilIcon,
@@ -23,8 +24,10 @@ import { standApi, type StandSummary } from "@/lib/stands";
 import { forgetDemoAccount } from "./demo-accounts";
 import type { StandKind } from "@/lib/types";
 
-const kindIcon = { local: <QrCodeIcon />, online: <LinkIcon /> } as const;
-const kindTone = { local: "ink", online: "pool" } as const;
+const kindIcon = { local: <QrCodeIcon />, online: <LinkIcon />, donation: <HeartIcon /> } as const;
+const kindTone = { local: "ink", online: "pool", donation: "berry" } as const;
+const kindLabel = { local: "stand at events", online: "online store", donation: "donation stand" } as const;
+const kindSubtitle = { local: "Register at events", online: "Online store and orders", donation: "One code, pay what you want" } as const;
 
 /** What the sheet shows: the list of stands, or one of the screens it leads to. */
 type View = "list" | "new" | "stand" | "account";
@@ -118,7 +121,8 @@ export function StandSwitcher({
 
   const local = stands.filter((s) => s.kind === "local");
   const online = stands.filter((s) => s.kind === "online");
-  const label = `${current.name}, ${current.kind === "online" ? "online store" : "stand at events"}. Switch stand`;
+  const donation = stands.filter((s) => s.kind === "donation");
+  const label = `${current.name}, ${kindLabel[current.kind]}. Switch stand`;
 
   return (
     <>
@@ -192,6 +196,13 @@ export function StandSwitcher({
                 ))}
               </GroupedList>
             )}
+            {donation.length > 0 && (
+              <GroupedList header="Donations">
+                {donation.map((stand) => (
+                  <StandRow key={stand.id} stand={stand} current={stand.id === current.id} busy={busy === stand.id} onPick={switchTo} />
+                ))}
+              </GroupedList>
+            )}
             {error && (
               <p role="alert" className="px-1 text-footnote font-semibold text-berry">
                 {error}
@@ -241,7 +252,7 @@ function StandRow({
       icon={kindIcon[stand.kind]}
       iconTone={kindTone[stand.kind]}
       title={stand.name}
-      subtitle={busy ? "Switching…" : stand.kind === "online" ? "Online store and orders" : "Register at events"}
+      subtitle={busy ? "Switching…" : kindSubtitle[stand.kind]}
       current={current}
       onClick={() => onPick(stand)}
     />
@@ -279,18 +290,21 @@ function NewStand({ onCancel, onCreated }: { onCancel: () => void; onCreated: (n
         options={[
           { value: "local", label: "At events" },
           { value: "online", label: "Online" },
+          { value: "donation", label: "Donations" },
         ]}
       />
       <p className="-mt-2 px-1 text-footnote text-ink-2">
         {kind === "local"
           ? "A register for markets and fairs. Buyers scan a code and pay on their phone."
-          : "A store page at your own link, for pickup and shipped orders."}
+          : kind === "online"
+            ? "A store page at your own link, for pickup and shipped orders."
+            : "One code people scan to give what they like, with your photo, title and message."}
       </p>
       <TextField
         label="Stand name"
         value={name}
         onChange={(event) => setName(event.target.value)}
-        placeholder={kind === "local" ? "Saturday Market" : "My Shop"}
+        placeholder={{ local: "Saturday Market", online: "My Shop", donation: "Shelter Fundraiser" }[kind]}
         maxLength={40}
         autoFocus
         error={error ?? undefined}
@@ -300,7 +314,7 @@ function NewStand({ onCancel, onCreated }: { onCancel: () => void; onCreated: (n
           Back
         </Button>
         <Button variant="filled" type="submit" loading={busy}>
-          Create and add items
+          {kind === "donation" ? "Create and set up page" : "Create and add items"}
         </Button>
       </div>
     </form>
@@ -356,7 +370,13 @@ function StandSettings({
     window.location.assign(json.home);
   }
 
-  const kindWord = stand.kind === "online" ? "store" : "stand";
+  const kindWord = { local: "stand", online: "store", donation: "donation stand" }[stand.kind];
+  // What goes with the stand, in the warning and the confirmation.
+  const contents = {
+    local: { short: "Deletes its items and sales history.", long: " Its items and sales history go with it." },
+    online: { short: "Deletes its items, store page and sales history.", long: " Its items, store page and orders go with it." },
+    donation: { short: "Deletes its page, notes and gift history.", long: " Its page, notes and gift history go with it." },
+  }[stand.kind];
   const cantDelete = onlyStand ? "This is your only stand. Make another before deleting this one." : null;
 
   return (
@@ -387,13 +407,13 @@ function StandSettings({
             <Button variant="destructive" icon={<TrashIcon />} onClick={() => setDeleting("confirm")}>
               Delete this {kindWord}
             </Button>
-            <p className="px-1 text-center text-footnote text-ink-2">Deletes its items{stand.kind === "online" ? ", store page" : ""} and sales history.</p>
+            <p className="px-1 text-center text-footnote text-ink-2">{contents.short}</p>
           </>
         ) : (
           <div className="flex animate-rise flex-col gap-3 rounded-field bg-berry-soft p-4" role="alertdialog" aria-labelledby="delete-stand">
             <p id="delete-stand" className="text-callout">
-              <strong className="font-semibold">Delete &ldquo;{stand.name}&rdquo;?</strong> Its items
-              {stand.kind === "online" ? ", store page and orders" : " and sales history"} go with it. Payments buyers already
+              <strong className="font-semibold">Delete &ldquo;{stand.name}&rdquo;?</strong>
+              {contents.long} Payments buyers already
               made stay in your PayPal account. You can&rsquo;t undo this.
             </p>
             {deleteError && (

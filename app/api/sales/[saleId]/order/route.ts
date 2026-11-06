@@ -17,8 +17,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sal
   if (!sale.paypalOrderId) {
     const origin = env.publicAppUrl() ?? new URL(request.url).origin;
     const stand = await store.getStand(sale.standId);
-    // An online order shows the buyer the store's own title in PayPal.
-    const storefront = sale.channel === "online" ? await store.getStorefront(sale.standId) : null;
+    // An online order or a gift shows the buyer the page's own title in PayPal.
+    const storefront = sale.channel === "online" || sale.channel === "donation" ? await store.getStorefront(sale.standId) : null;
     const order = await createOrder(sale, `${origin}/pay/${sale.id}`, storefront?.title || stand?.name || "Lemon Pal");
     sale.paypalOrderId = order.id;
     await store.saveSale(sale);

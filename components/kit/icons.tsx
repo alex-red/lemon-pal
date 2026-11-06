@@ -222,6 +222,26 @@ export const LinkIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const HeartIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.1a4.3 4.3 0 0 1 7.5 2.7C19.5 15.4 12 20 12 20Z" />
+  </Icon>
+);
+
+export const PrinterIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7 9V4h10v5" />
+    <rect x="3.5" y="9" width="17" height="8" rx="2" />
+    <path d="M7 14h10v6H7z" />
+  </Icon>
+);
+
+export const QuoteIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 18.5V20l3.5-2.5H17a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7.5a3 3 0 0 0 1 2.2Z" />
+  </Icon>
+);
+
 /** The flat Lemon Pal mark for in-app use. */
 export const LemonIcon = (p: IconProps) => (
   <Icon {...p}>

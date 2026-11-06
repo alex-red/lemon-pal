@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { LinkIcon, PageTransition, QrCodeIcon, Toolbar } from "@/components/kit";
+import { HeartIcon, LinkIcon, PageTransition, QrCodeIcon, Toolbar } from "@/components/kit";
 import { env } from "@/lib/env";
 import { currentStand } from "@/lib/session";
 import { kindOf, standHome, switcherProps } from "@/lib/stands";
@@ -37,6 +37,10 @@ export default async function RecapPage() {
                 {kind === "online" ? (
                   <>
                     <LinkIcon /> Store
+                  </>
+                ) : kind === "donation" ? (
+                  <>
+                    <HeartIcon /> Display
                   </>
                 ) : (
                   <>

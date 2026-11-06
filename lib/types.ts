@@ -51,8 +51,11 @@ export type SignDraft = {
   items: DraftItem[];
 };
 
-/** Local stands sell in person through the register. Online stands sell through a storefront. */
-export type StandKind = "local" | "online";
+/**
+ * Local stands sell in person through the register. Online stands sell through a storefront. Donation stands take
+ * pay-what-you-want gifts from one QR code that never changes, with a public page at /<handle>.
+ */
+export type StandKind = "local" | "online" | "donation";
 
 /** A seller: someone who logged in with PayPal, or a demo account made past the seller passcode. */
 export type User = {
@@ -103,8 +106,8 @@ export type SaleLine = {
 /** A sale moves open → paid, or open → canceled. Only a paid sale can become refunded. */
 export type SaleStatus = "open" | "paid" | "canceled" | "refunded";
 
-/** Where a sale was made: rung up at the stand, or bought from the online store. */
-export type SaleChannel = "register" | "online";
+/** Where a sale was made: rung up at the stand, bought from the online store, or given on a donation page. */
+export type SaleChannel = "register" | "online" | "donation";
 
 /** A postal address as PayPal returns it, in our own field names. */
 export type PostalAddress = {
@@ -166,6 +169,10 @@ export type Sale = {
   pendingCapture?: { captureId: string; reason: string; since: string };
   /** A sale the sticker shop demo made up. It never went through PayPal, so refunds and tracking stay local. */
   demo?: boolean;
+  /** A donor's note, already cleaned by cleanNote. Seller-only: never on a public route. */
+  note?: string;
+  /** The seller hid the note, so the display screen doesn't show it. */
+  noteHidden?: boolean;
 };
 
 export type StorefrontAccent = "lemon" | "leaf" | "berry";
@@ -181,7 +188,28 @@ export type ShippingSettings = {
   countries: string[];
 };
 
-/** The public online store for a stand, at /<slug>. */
+/** How a donation stand takes gifts. The server checks every amount against these. */
+export type DonationSettings = {
+  /** Amounts offered as one-tap choices, smallest first. 1 to 4 of them. */
+  presetsCents: Cents[];
+  /** Whether a donor can type another amount. */
+  allowCustom: boolean;
+  /** The least and most one gift can be. Presets sit inside this range. */
+  minCents: Cents;
+  maxCents: Cents;
+  /** The verb on the button and the QR caption, such as "Donate" or "Tip". */
+  buttonLabel: string;
+  /** Shown to the donor once their gift is paid. */
+  thanks: string;
+  /** A fundraising target, shown as a progress bar. null for none. */
+  goalCents: Cents | null;
+  /** Whether donors can leave a short note. */
+  notes: boolean;
+  /** Whether the display screen shows recent notes. */
+  showNotes: boolean;
+};
+
+/** The public online store for a stand, at /<slug>. A donation stand's page uses the same record. */
 export type Storefront = {
   standId: string;
   /** The vanity handle: lowercase letters, digits and single hyphens. */
@@ -197,5 +225,7 @@ export type Storefront = {
   /** Where and when to collect, such as "Saturdays at the farmers' market". */
   pickupNote: string;
   shipping: ShippingSettings;
+  /** Donation stands only. */
+  donation?: DonationSettings;
   updatedAt: string;
 };

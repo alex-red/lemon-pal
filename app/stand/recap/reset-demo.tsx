@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ArrowUturnIcon, Button, Sheet, SparklesIcon } from "@/components/kit";
 import { standApi } from "@/lib/stands";
 import type { StandKind } from "@/lib/types";
-import { loadStickerDemo, STICKER_DEMO_TEXT } from "../sticker-demo";
+import { FUNDRAISER_DEMO_TEXT, loadStickerDemo, STICKER_DEMO_TEXT } from "../sticker-demo";
 
 /**
  * Lets a seller start this stand over: its sample catalog comes back and its test sales are deleted.
@@ -41,8 +41,10 @@ export function ResetDemo({ standId, kind, stickerDemo }: { standId: string; kin
       </Button>
       <Sheet open={open} onClose={() => !busy && setOpen(false)} title="Reset this stand?">
         <p className="text-body text-ink-2">
-          This brings back the sample {kind === "online" ? "shop" : "lemonade stand"} and deletes every sale on this
-          stand. Your other stands aren&rsquo;t touched, and payments already made in the PayPal Sandbox aren&rsquo;t
+          {kind === "donation"
+            ? "This deletes every gift and note on this stand, and keeps its page."
+            : `This brings back the sample ${kind === "online" ? "shop" : "lemonade stand"} and deletes every sale on this stand.`}{" "}
+          Your other stands aren&rsquo;t touched, and payments already made in the PayPal Sandbox aren&rsquo;t
           affected.
         </p>
         <div className="mt-6 flex flex-wrap justify-end gap-3">
@@ -55,8 +57,8 @@ export function ResetDemo({ standId, kind, stickerDemo }: { standId: string; kin
         </div>
         {stickerDemo ? (
           <div className="mt-6 border-t border-hairline pt-5">
-            <h3 className="text-headline">Or fill it with a sticker shop</h3>
-            <p className="mt-1 text-subhead text-ink-2">{STICKER_DEMO_TEXT}</p>
+            <h3 className="text-headline">{kind === "donation" ? "Or fill it with a fundraiser" : "Or fill it with a sticker shop"}</h3>
+            <p className="mt-1 text-subhead text-ink-2">{kind === "donation" ? FUNDRAISER_DEMO_TEXT : STICKER_DEMO_TEXT}</p>
             {error ? (
               <p role="alert" className="mt-3 text-subhead text-berry">
                 {error}
@@ -64,7 +66,7 @@ export function ResetDemo({ standId, kind, stickerDemo }: { standId: string; kin
             ) : null}
             <div className="mt-4 flex justify-end">
               <Button variant="tinted" icon={<SparklesIcon />} loading={busy === "stickers"} disabled={busy === "reset"} onClick={stickers}>
-                Load sticker shop
+                {kind === "donation" ? "Load fundraiser" : "Load sticker shop"}
               </Button>
             </div>
           </div>

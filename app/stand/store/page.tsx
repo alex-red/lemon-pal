@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { PageTransition } from "@/components/kit";
 import { env } from "@/lib/env";
-import { currentStand } from "@/lib/session";
-import { standHome, switcherProps } from "@/lib/stands";
+import { currentStand, homeOfCurrentStand } from "@/lib/session";
+import { switcherProps } from "@/lib/stands";
 import { store } from "@/lib/store";
 import { draftStorefront, withoutBanner } from "@/lib/storefront";
 import { StandSwitcher } from "../stand-switcher";
@@ -14,9 +14,9 @@ export const metadata = { title: "Online store · Lemon Pal" };
 
 export default async function StoreSettingsPage() {
   await connection();
-  // The store belongs to an online stand. A seller with only local stands goes back to the register.
+  // The store belongs to an online stand. A seller without one goes to the home of the stand they're on.
   const current = await currentStand("online");
-  if (!current) redirect(standHome("local"));
+  if (!current) redirect(await homeOfCurrentStand());
   const { stand } = current;
   const saved = await store.getStorefront(stand.id);
   const requestHeaders = await headers();

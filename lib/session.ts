@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LEGACY_DEMO_USER_ID, SESSION_COOKIE, SESSION_MAX_AGE, sessionUserId, STAND_COOKIE } from "./session-token";
-import { kindOf } from "./stands";
+import { kindOf, standHome } from "./stands";
 import { store } from "./store";
 import type { Sale, Stand, StandKind, User } from "./types";
 
@@ -45,6 +45,15 @@ export async function currentStand(kind?: StandKind): Promise<{ stand: Stand; st
   const stand = stands.find((s) => s.id === chosen && fits(s)) ?? stands.find(fits) ?? null;
   // remembered is false when the page had to pick another stand than the last one switched to.
   return stand ? { stand, stands, user, remembered: stand.id === chosen } : null;
+}
+
+/**
+ * Where to send a seller whose page needs a kind of stand they don't have: the home of the stand they're on.
+ * Every seller keeps at least one stand, so this never loops back to the page that sent them.
+ */
+export async function homeOfCurrentStand(): Promise<string> {
+  const current = await currentStand();
+  return current ? standHome(kindOf(current.stand)) : "/stand/setup";
 }
 
 /**

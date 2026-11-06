@@ -2,6 +2,7 @@
 export { AIGlow, ShimmerText } from "./ai-glow";
 export { Button, type ButtonSize, type ButtonVariant } from "./button";
 export { cn } from "./cn";
+export { AmountChips, DonationPoster, GoalBar } from "./donation";
 export { SegmentedControl, Stepper, Switch } from "./controls";
 export { TextArea, TextField } from "./field";
 export * from "./icons";

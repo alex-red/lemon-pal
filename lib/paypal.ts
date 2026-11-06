@@ -155,6 +155,8 @@ export async function createOrder(sale: Sale, checkoutUrl: string, brandName: st
             name: line.name.slice(0, 127),
             quantity: String(line.quantity),
             unit_amount: { currency_code: sale.currency, value: toPayPalValue(line.unitPriceCents) },
+            // A gift, not goods, so PayPal shows it as one and never asks about delivery.
+            ...(sale.channel === "donation" ? { category: "DONATION" } : {}),
           })),
         },
       ],

@@ -1,5 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
+import { buildFundraiserDemo, FUNDRAISER_SLUG } from "./demo-fundraiser";
 import { buildStickerDemo, STICKER_SLUG } from "./demo-stickers";
 import { env } from "./env";
 import { kindOf } from "./stands";
@@ -64,7 +65,7 @@ export function isSampleId(id: string | null): id is SampleId {
 export const sampleChoices = Object.entries(SAMPLES).map(([id, { name, emoji }]) => ({ id: id as SampleId, name, emoji }));
 
 /** The sample each kind of stand goes back to on Reset demo. */
-const KIND_SAMPLE: Record<StandKind, SampleId> = { local: "lemonade", online: "merch" };
+const KIND_SAMPLE: Record<Exclude<StandKind, "donation">, SampleId> = { local: "lemonade", online: "merch" };
 
 /** A stand loaded with a sample catalog, for the setup screen's samples and Reset demo. Keeps the stand's id, owner and kind. */
 export function sampleStand(sample: SampleId, base: Pick<Stand, "id" | "ownerId" | "kind">): Stand {
@@ -81,13 +82,20 @@ export function sampleStand(sample: SampleId, base: Pick<Stand, "id" | "ownerId"
 }
 
 /** The sample a stand of this kind resets to. */
-export function kindSample(kind: StandKind): SampleId {
+export function kindSample(kind: Exclude<StandKind, "donation">): SampleId {
   return KIND_SAMPLE[kind];
 }
 
-/** Puts a stand back to its sample and deletes its sales. An online stand keeps its store and handle. */
+/**
+ * Puts a stand back to its sample and deletes its sales. An online stand keeps its store and handle. A donation
+ * stand has no sample, so it keeps its page and only loses its gifts.
+ */
 export async function resetStand(stand: Stand): Promise<Stand> {
   const kind = kindOf(stand);
+  if (kind === "donation") {
+    await store.clearSales(stand.id);
+    return stand;
+  }
   const fresh = sampleStand(kindSample(kind), { id: stand.id, ownerId: stand.ownerId, kind });
   await store.saveStand(fresh);
   await store.clearSales(stand.id);
@@ -98,8 +106,9 @@ export async function resetStand(stand: Stand): Promise<Stand> {
 const tag = (bytes: number) => randomBytes(bytes).toString("hex");
 
 /**
- * Makes a new demo account for one person, loaded with the sticker shop: a stand at events and an online store,
- * each with a month of made-up sales. Unused demo accounts are cleared out first.
+ * Makes a new demo account for one person, loaded with the sticker shop (a stand at events and an online store, each
+ * with a month of made-up sales) and the fundraiser (a donation stand with three weeks of gifts). Unused demo
+ * accounts are cleared out first.
  */
 export async function createDemoAccount(options: { tzOffsetMinutes?: number } = {}): Promise<User> {
   await store.purgeDemoUsers(new Date(Date.now() - DEMO_ACCOUNT_DAYS * 86_400_000).toISOString());
@@ -108,7 +117,35 @@ export async function createDemoAccount(options: { tzOffsetMinutes?: number } = 
   const user: User = { id, name: `Demo Seller ${id.slice(5, 9).toUpperCase()}`, createdAt: now, demo: true, lastSeenAt: now };
   await store.saveUser(user);
   await loadStickerShop(user, options);
+  await loadFundraiser(user, options);
   return user;
+}
+
+/**
+ * Fills a demo account's donation stand (`prefer` if that's one, else its first, else a new one) with the Maple
+ * Hollow fundraiser: its page, settings and three weeks of gifts. Replaces that stand's page and every gift on it.
+ * The page keeps its handle.
+ */
+export async function loadFundraiser(user: User, options: { tzOffsetMinutes?: number; prefer?: Stand } = {}) {
+  const stands = await store.listStands(user.id);
+  const standId =
+    (options.prefer && kindOf(options.prefer) === "donation" ? options.prefer : stands.find((s) => kindOf(s) === "donation"))?.id ??
+    crypto.randomUUID();
+  const kept = (await store.getStorefront(standId))?.slug;
+  for (let attempt = 0; ; attempt += 1) {
+    const slug = kept ?? `${FUNDRAISER_SLUG}-${tag(attempt < 3 ? 2 : 4)}`;
+    const demo = await buildFundraiserDemo({ ownerId: user.id, standId, slug }, { tzOffsetMinutes: options.tzOffsetMinutes });
+    try {
+      await store.saveStorefront(demo.storefront);
+    } catch (error) {
+      if (error instanceof SlugTakenError && !kept && attempt < 6) continue;
+      throw error;
+    }
+    await store.saveStand(demo.stand);
+    await store.clearSales(standId);
+    await store.saveSales(demo.sales);
+    return demo;
+  }
 }
 
 /**

@@ -19,8 +19,8 @@ export type RecapSaleRow = {
   units: number;
   currency: string;
   hasPayPalReceipt: boolean;
-  /** "Stand" for the register, "Online" for the store. */
-  channel: "Stand" | "Online";
+  /** "Stand" for the register, "Online" for the store, "Donation" for a donation page. */
+  channel: RecapChannel;
   /** Shipping charged on an online order. 0 otherwise. */
   shipping: number;
   /** How the buyer got it. */
@@ -31,7 +31,12 @@ export type RecapSaleRow = {
   /** 1 for a shipped order, so a chart can count them by place. 0 otherwise. */
   shippedOrders: number;
 };
-export type RecapFulfillment = "At the stand" | "Pickup" | "Shipped";
+export type RecapFulfillment = "At the stand" | "Pickup" | "Shipped" | "Gift";
+export type RecapChannel = "Stand" | "Online" | "Donation";
+
+function channelOf(sale: Sale): RecapChannel {
+  return sale.channel === "online" ? "Online" : sale.channel === "donation" ? "Donation" : "Stand";
+}
 export type RecapLineRow = {
   id: string;
   saleId: string;
@@ -52,7 +57,7 @@ export type RecapLineRow = {
   /** The item's category and finish when sold. "Other" and "Not set" for items without them. */
   category: string;
   finish: string;
-  channel: "Stand" | "Online";
+  channel: RecapChannel;
 };
 export type RecapData = {
   sales: RecapSaleRow[];
@@ -80,7 +85,7 @@ export function toRecap(sales: Sale[]): RecapData {
       units: refunded ? 0 : units,
       currency: s.currency,
       hasPayPalReceipt: !s.demo && Boolean(s.paypalOrderId && s.paypalCaptureId),
-      channel: s.channel === "online" ? "Online" : "Stand",
+      channel: channelOf(s),
       shipping: (s.shippingCents ?? 0) / 100,
       fulfillment: fulfillmentOf(s),
       ...shipTo(s),
@@ -102,13 +107,14 @@ export function toRecap(sales: Sale[]): RecapData {
         paidAt: s.paidAt,
         category: l.category ?? "Other",
         finish: l.finish ?? "Not set",
-        channel: s.channel === "online" ? ("Online" as const) : ("Stand" as const),
+        channel: channelOf(s),
       }));
     }),
   };
 }
 
 function fulfillmentOf(sale: Sale): RecapFulfillment {
+  if (sale.channel === "donation") return "Gift";
   if (sale.channel !== "online") return "At the stand";
   return sale.fulfillment?.method === "ship" ? "Shipped" : "Pickup";
 }

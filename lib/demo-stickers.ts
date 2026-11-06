@@ -70,14 +70,14 @@ const PLACES = (rand: Rand): Place[] => [
   { city: "Edinburgh", region: "Scotland", country: "GB", postal: () => `EH${digits(rand, 1)} ${digits(rand, 1)}${letters(rand, 2)}`, weight: 2 },
 ];
 
-const FIRST = ["Maya", "Jonah", "Priya", "Theo", "Ines", "Kai", "Noor", "Sam", "Lucia", "Omar", "Hazel", "Felix", "Aiko", "Rafa", "June", "Milo", "Zara", "Eli", "Tess", "Dev", "Ada", "Nico", "Rosa", "Finn"];
-const LAST = ["Alder", "Brightwater", "Calloway", "Dunmore", "Ellery", "Fairbank", "Glenhart", "Hollis", "Ivers", "Juniper", "Kestrel", "Larkin", "Merriweather", "Northcote", "Oakhurst", "Pemberly", "Quill", "Rowan", "Sorrel", "Thistlewood"];
+export const FIRST = ["Maya", "Jonah", "Priya", "Theo", "Ines", "Kai", "Noor", "Sam", "Lucia", "Omar", "Hazel", "Felix", "Aiko", "Rafa", "June", "Milo", "Zara", "Eli", "Tess", "Dev", "Ada", "Nico", "Rosa", "Finn"];
+export const LAST = ["Alder", "Brightwater", "Calloway", "Dunmore", "Ellery", "Fairbank", "Glenhart", "Hollis", "Ivers", "Juniper", "Kestrel", "Larkin", "Merriweather", "Northcote", "Oakhurst", "Pemberly", "Quill", "Rowan", "Sorrel", "Thistlewood"];
 const STREETS = ["Maple Hollow Ln", "Brightleaf Ave", "Quarry Rd", "Little Fern St", "Otter Creek Way", "Pinecone Ct", "Lantern Row", "Marigold Dr", "Kettle St", "Willowmere Rd"];
 
-type Rand = () => number;
+export type Rand = () => number;
 
 /** A small seeded generator, so the demo comes out the same every time. */
-function mulberry32(seed: number): Rand {
+export function mulberry32(seed: number): Rand {
   let a = seed;
   return () => {
     a |= 0;
@@ -88,7 +88,7 @@ function mulberry32(seed: number): Rand {
   };
 }
 
-function pick<T extends { weight: number }>(rand: Rand, options: T[]): T {
+export function pick<T extends { weight: number }>(rand: Rand, options: T[]): T {
   let roll = rand() * options.reduce((sum, o) => sum + o.weight, 0);
   for (const option of options) {
     roll -= option.weight;
@@ -97,8 +97,8 @@ function pick<T extends { weight: number }>(rand: Rand, options: T[]): T {
   return options[options.length - 1];
 }
 
-const oneOf = <T,>(rand: Rand, list: readonly T[]) => list[Math.floor(rand() * list.length)];
-const between = (rand: Rand, min: number, max: number) => min + Math.floor(rand() * (max - min + 1));
+export const oneOf = <T,>(rand: Rand, list: readonly T[]) => list[Math.floor(rand() * list.length)];
+export const between = (rand: Rand, min: number, max: number) => min + Math.floor(rand() * (max - min + 1));
 
 /** One to three different stickers. Buyers often take just enough for a deal. */
 function cart(rand: Rand, items: DemoItem[]): CartEntry[] {
@@ -129,7 +129,7 @@ function tracking(rand: Rand, carrier: ShippingCarrier): string {
  * A Date `minutes` after midnight on the day `daysAgo` before now, in the seller's own time zone.
  * The browser sends its offset, because the server (UTC on Render) can't know it.
  */
-function localTime(now: Date, daysAgo: number, minutes: number, tzOffsetMinutes: number): Date {
+export function localTime(now: Date, daysAgo: number, minutes: number, tzOffsetMinutes: number): Date {
   // Shift into the seller's wall clock, set the time there, then shift back.
   const wall = new Date(now.getTime() - tzOffsetMinutes * 60_000);
   wall.setUTCDate(wall.getUTCDate() - daysAgo);

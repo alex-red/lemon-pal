@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { PageTransition } from "@/components/kit";
 import { sampleChoices } from "@/lib/demo";
@@ -12,6 +13,8 @@ export default async function SetupPage() {
   // Every seller has a stand: the demo user starts with two. Setup edits whichever one they're on.
   const current = (await currentStand())!;
   const { stand } = current;
+  // A donation stand has no items. Its page is set up in its own editor.
+  if (kindOf(stand) === "donation") redirect("/stand/jar/edit");
   return (
     <PageTransition>
       <Setup

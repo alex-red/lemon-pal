@@ -132,7 +132,7 @@ export function ReceiptSheet({
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-subhead text-ink-2">
-              {sale.channel === "Online" ? "Online order" : "At the stand"} · {receiptTime.format(new Date(sale.paidAt))}
+              {sale.channel === "Online" ? "Online order" : sale.channel === "Donation" ? "Gift" : "At the stand"} · {receiptTime.format(new Date(sale.paidAt))}
             </p>
             <span key={sale.status} className="animate-rise">
               <SaleStatusPill status={refunded ? "refunded" : "paid"} />

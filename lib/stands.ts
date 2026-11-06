@@ -5,9 +5,9 @@ export function kindOf(stand: Pick<Stand, "kind">): StandKind {
   return stand.kind ?? "local";
 }
 
-/** Where a stand's seller lands: the register for a local stand, the store editor for an online one. */
+/** Where a stand's seller lands: the register, the store editor, or the donation display. */
 export function standHome(kind: StandKind): string {
-  return kind === "online" ? "/stand/store" : "/stand/register";
+  return { local: "/stand/register", online: "/stand/store", donation: "/stand/jar" }[kind];
 }
 
 /** Adds the stand to a seller API path, so a request always acts on the stand on screen. */
