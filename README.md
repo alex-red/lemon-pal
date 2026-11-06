@@ -85,4 +85,4 @@ Issues and pull requests are welcome. Please don't include real credentials, cus
 
 ## License
 
-[MIT](LICENSE)
+Copyright (c) 2026 Alex Red. Licensed under the [Apache License, Version 2.0](LICENSE).

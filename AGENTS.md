@@ -69,7 +69,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Boundaries
 
-- This is a public open-source repo (MIT). Never commit secrets, real customer data, or photos of people. Add new environment variables to `.env.example` with blank values.
+- This is a public open-source repo (Apache-2.0). Never commit secrets, real customer data, or photos of people. Add new environment variables to `.env.example` with blank values.
 - The official PayPal starter (`paypaldev/hackathon-paypal-ag-grid-boilerplate`) has no license. Read it for reference only and don't copy its code.
 - `docs/hackathon/` holds private planning notes and is gitignored. Don't link to it from tracked files.
 - Ask before adding a dependency. Pin exact versions.
