@@ -219,12 +219,35 @@
     0.997 69.8%, 1.003 76.9%, 1
   );
   --ease-glide: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /*
+   * SwiftUI's named springs, sampled as linear(). Use them for 650ms (smooth) or 600ms (snappy).
+   * smooth: no bounce, for layout, growing heights and things that move a long way.
+   * snappy: a hint of bounce, for small swaps such as pills, toggles and icons.
+   */
+  --ease-smooth: linear(
+    0, 0.005 1.2%, 0.03 3.1%, 0.083 5.4%, 0.159 8.1%, 0.252 11.1%, 0.353 14.4%, 0.457 17.8%, 0.554 21.5%, 0.643 25.3%,
+    0.72 29.4%, 0.785 33.5%, 0.838 37.9%, 0.88 42.4%, 0.913 47%, 0.937 51.8%, 0.955 56.7%, 0.969 61.7%, 0.979 66.8%,
+    0.985 72.1%, 0.99 77.5%, 0.993 82.9%, 0.996 88.5%, 0.997 94.2%, 1
+  );
+  --ease-snappy: linear(
+    0, 0.005 1.2%, 0.028 3.1%, 0.079 5.4%, 0.154 8.1%, 0.25 11.1%, 0.357 14.4%, 0.469 17.8%, 0.578 21.5%, 0.677 25.3%,
+    0.763 29.4%, 0.833 33.5%, 0.89 37.9%, 0.932 42.4%, 0.962 47%, 0.982 51.8%, 0.994 56.7%, 1.002 61.7%, 1.006 72.1%,
+    1.005 82.9%, 1.003 94.2%, 1
+  );
 
   --animate-pop: pop 700ms var(--ease-bounce) both;
   --animate-rise: rise 600ms var(--ease-spring) both;
   --animate-ripple: ripple 1.4s var(--ease-glide) both;
   --animate-activity: activity 0.9s steps(8) infinite;
   --animate-wiggle: wiggle 900ms var(--ease-spring) 2 both;
+  /* AI at work. Reduce Motion swaps the sweeps for a gentle breathe (see the bottom of this file). */
+  --animate-glow-sweep: glow-sweep 2.6s linear infinite;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-scan: scan 2.4s var(--ease-smooth) infinite;
+  --animate-breathe: breathe 2.4s ease-in-out infinite;
+  /* Results. Rows settle in without blur (cheap on phones); attention rings a row that needs checking. */
+  --animate-reveal: reveal 650ms var(--ease-smooth) both;
+  --animate-attention: attention 1.1s var(--ease-glide) 2;
 
   @keyframes pop {
     from {
@@ -275,6 +298,157 @@
       transform: rotate(360deg);
     }
   }
+  @keyframes glow-sweep {
+    to {
+      --glow-angle: 360deg;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: 0 0;
+    }
+  }
+  @keyframes scan {
+    from {
+      transform: translateY(-100%);
+    }
+    to {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(18px) scale(0.98);
+    }
+  }
+  @keyframes attention {
+    from {
+      outline: 2px solid var(--berry);
+      outline-offset: 0;
+    }
+    to {
+      outline: 2px solid transparent;
+      outline-offset: 10px;
+    }
+  }
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+/* The glow's travelling angle. Registered so the conic gradient can animate smoothly. */
+@property --glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/*
+ * The AI glow: a lemon, leaf and peel light that travels around the edge of whatever is being worked on,
+ * with a soft halo behind it. Put it on an aria-hidden layer with a matching radius; AIGlow does this.
+ */
+@utility ai-glow {
+  --glow-colors: var(--lemon), var(--leaf), var(--lemon-deep), var(--peel), var(--lemon);
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 650ms var(--ease-smooth);
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    border-radius: inherit;
+    background: conic-gradient(from var(--glow-angle), var(--glow-colors));
+    animation: var(--animate-glow-sweep);
+    animation-play-state: paused;
+  }
+  /* The rim: a 2.5px ring cut out of the gradient. */
+  &::before {
+    inset: -2.5px;
+    padding: 2.5px;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+  }
+  /* The halo. AIGlow puts the whole layer behind the content, so only its spill shows. */
+  &::after {
+    inset: -3px;
+    filter: blur(14px);
+    opacity: 0.55;
+  }
+  &[data-active] {
+    opacity: 1;
+  }
+  &[data-active]::before,
+  &[data-active]::after {
+    animation-play-state: running;
+  }
+}
+
+/* Text that shimmers while it waits, like iOS "Thinking…". It stays real text for screen readers. */
+@utility shimmer-text {
+  color: transparent;
+  background: linear-gradient(
+      100deg,
+      var(--ink-2) 0% 38%,
+      var(--ink) 46%,
+      var(--peel) 50%,
+      var(--ink) 54%,
+      var(--ink-2) 62% 100%
+    )
+    0 0 / 250% 100%;
+  background-clip: text;
+  animation: var(--animate-shimmer);
+  @media (forced-colors: active) {
+    color: CanvasText;
+    background: none;
+  }
+}
+
+/*
+ * Results that arrive in bulk. useReveal marks the list and each child as it scrolls into view,
+ * so rows settle in order as the person reaches them instead of all at once off-screen.
+ */
+[data-reveal-list] > :not([data-revealed]) {
+  opacity: 0;
+}
+[data-reveal-list] > [data-revealed] {
+  animation: var(--animate-reveal);
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+/* One berry ring around something that needs checking, after it has revealed. Pair it with a pill that says why. */
+@utility attention {
+  animation: var(--animate-attention);
+  animation-delay: calc(var(--reveal-delay, 0ms) + 550ms);
+  [data-reveal-list] > :not([data-revealed]) & {
+    animation: none;
+  }
+}
+
+/* A light band that passes over a photo while it's read. Put it inside an overflow-hidden frame. */
+@utility scan-band {
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    oklch(0.97 0.12 100 / 0) 30%,
+    oklch(0.97 0.12 100 / 0.55) 50%,
+    oklch(0.97 0.12 100 / 0) 70%,
+    transparent 100%
+  );
+  mix-blend-mode: plus-lighter;
+  animation: var(--animate-scan);
 }
 
 /* Liquid glass. A tinted, saturated blur with a specular top edge and a hairline rim. */
@@ -465,5 +639,18 @@
   }
   .pressable:active:not(:disabled) {
     transform: none;
+  }
+  /*
+   * AI feedback still has to say "working", so it breathes in place instead of travelling.
+   * These outrank the blanket rule above because they're more specific.
+   */
+  .ai-glow[data-active]::before,
+  .ai-glow[data-active]::after,
+  .shimmer-text {
+    animation: var(--animate-breathe) !important;
+  }
+  .scan-band {
+    animation: none !important;
+    opacity: 0;
   }
 }

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  AIGlow,
   Button,
   CameraIcon,
   ChartIcon,
@@ -23,8 +24,12 @@ import {
   TextArea,
   TextField,
   Toolbar,
+  useReveal,
   ArrowUturnIcon,
   LemonIcon,
+  MoreBelow,
+  ShimmerText,
+  SparklesIcon,
 } from "@/components/kit";
 import { playDing, unlockDing } from "@/lib/ding";
 
@@ -326,4 +331,114 @@ function ScanPill({ result }: { result: ScanResult | undefined }) {
   if (result === "reads") return <Pill tone="leaf" icon={<CheckIcon />}>Scans at 3 sizes</Pill>;
   if (result === "fails") return <Pill tone="berry" icon={<ExclamationIcon />}>Didn’t scan</Pill>;
   return <Pill tone="neutral">This browser can’t check</Pill>;
+}
+
+const curves = [
+  { token: "--ease-spring", ms: 600, use: "Touch release, sheets" },
+  { token: "--ease-bounce", ms: 700, use: "Celebrations only" },
+  { token: "--ease-smooth", ms: 650, use: "Layout, height, long moves" },
+  { token: "--ease-snappy", ms: 600, use: "Pills, toggles, icon swaps" },
+  { token: "--ease-glide", ms: 400, use: "Fades and color" },
+];
+
+export function MotionDemo() {
+  const [moved, setMoved] = useState(false);
+  const [thinking, setThinking] = useState(true);
+
+  return (
+    <div className="grid gap-6 md:grid-cols-2">
+      <div className="flex flex-col gap-5 rounded-card bg-surface p-6 shadow-card ring-[0.5px] ring-hairline">
+        <div className="flex items-center justify-between gap-4">
+          <Label>Springs</Label>
+          <Button variant="tinted" onClick={() => setMoved((m) => !m)}>
+            Play
+          </Button>
+        </div>
+        <ul className="flex flex-col gap-4">
+          {curves.map((curve) => (
+            <li key={curve.token} className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <code className="font-mono text-footnote">{curve.token}</code>
+                <span className="text-footnote text-ink-2">{curve.use}</span>
+              </div>
+              <div className="h-8 rounded-full bg-fill p-1 [container-type:inline-size]">
+                <span
+                  aria-hidden
+                  className="block size-6 rounded-full bg-lemon shadow-card"
+                  style={{
+                    transform: moved ? "translateX(calc(100cqw - 1.5rem))" : "none",
+                    transition: `transform ${curve.ms}ms var(${curve.token})`,
+                  }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="flex flex-col gap-5 rounded-card bg-surface p-6 shadow-card ring-[0.5px] ring-hairline">
+        <div className="flex items-center justify-between gap-4">
+          <Label>AI glow</Label>
+          <Switch label="Thinking" checked={thinking} onChange={setThinking} />
+        </div>
+        <AIGlow active={thinking} className="m-1">
+          <div className="flex flex-col gap-3 rounded-card bg-canvas-raised p-5 ring-[0.5px] ring-hairline">
+            <p aria-live="polite" className="flex items-center gap-2 text-headline">
+              <SparklesIcon aria-hidden className={thinking ? "animate-breathe text-[1.2rem] text-peel" : "text-[1.2rem] text-leaf"} />
+              {thinking ? <ShimmerText>Reading your sign…</ShimmerText> : "Found 6 items"}
+            </p>
+            <p className="text-subhead text-ink-2">
+              The glow travels around whatever is being read and fades when the answer arrives. Pair it with words that
+              say what&rsquo;s happening. With Reduce Motion it breathes in place instead.
+            </p>
+          </div>
+        </AIGlow>
+      </div>
+    </div>
+  );
+}
+
+const revealRows = [
+  ...sampleItems,
+  { id: "muffin", name: "Blueberry muffin", priceCents: 275, emoji: "🫐" },
+  { id: "popcorn", name: "Popcorn", priceCents: 150, emoji: "🍿" },
+  { id: "water", name: "Water", priceCents: 100, emoji: "💧" },
+  { id: "melon", name: "Watermelon slice", priceCents: 125, emoji: "🍉" },
+  { id: "pretzel", name: "Pretzel", priceCents: 200, emoji: "🥨" },
+  { id: "cupcake", name: "Cupcake", priceCents: 250, emoji: "🧁" },
+];
+
+export function RevealDemo() {
+  const [shown, setShown] = useState(false);
+  const { ref, waiting, showNext } = useReveal<HTMLUListElement>();
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="tinted" icon={<SparklesIcon />} onClick={() => setShown((s) => !s)}>
+          {shown ? "Clear results" : "Show 12 results"}
+        </Button>
+        <span className="text-subhead text-ink-2">Rows settle in as you reach them. The berry ring marks one to check.</span>
+      </div>
+      {shown ? (
+        <ul ref={ref} className="grid gap-3 sm:grid-cols-2">
+          {revealRows.map((item, i) => (
+            <li key={item.id}>
+              <div
+                className={`${i === 4 ? "attention " : ""}flex items-center gap-3 rounded-card bg-surface p-4 shadow-card ring-[0.5px] ring-hairline`}
+              >
+                <span aria-hidden className="text-title3">
+                  {item.emoji}
+                </span>
+                <span className="flex-1 text-body">{item.name}</span>
+                {i === 4 ? <ConfidencePill confidence="low" /> : null}
+                <Money cents={item.priceCents} currency="USD" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <MoreBelow count={waiting} one="result" many="results" onClick={showNext} />
+    </div>
+  );
 }

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  AIGlow,
   Button,
   CameraIcon,
   Card,
@@ -11,13 +12,16 @@ import {
   ExclamationIcon,
   LemonIcon,
   ListIcon,
+  MoreBelow,
   PhotoIcon,
   Pill,
   PlusIcon,
+  scrollToReveal,
+  ShimmerText,
   SparklesIcon,
-  Spinner,
   TextArea,
   TextField,
+  useReveal,
   XmarkIcon,
 } from "@/components/kit";
 import { cleanEmoji } from "@/lib/emoji";
@@ -98,6 +102,21 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
   const libraryInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const symbol = currencySymbol(currency);
+  const reading = busy === "reading";
+  const { ref: revealList, waiting: unseenRows, showNext: showNextRow } = useReveal<HTMLUListElement>();
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
+  // Where the page was scrolled when a read started, so the result can be brought into view once it lands.
+  const scrolledAtRead = useRef<number | null>(null);
+
+  // When a read lands below the fold, glide to it, unless the person scrolled somewhere else while waiting.
+  useEffect(() => {
+    const from = scrolledAtRead.current;
+    const heading = reviewHeading.current;
+    scrolledAtRead.current = null;
+    if (from === null || !heading || Math.abs(window.scrollY - from) > 24) return;
+    heading.focus({ preventScroll: true });
+    if (heading.getBoundingClientRect().top > window.innerHeight * 0.6) scrollToReveal(heading);
+  }, [rows]);
 
   /** The in-page camera where the browser allows it, otherwise the device's own camera app or file picker. */
   function openCamera() {
@@ -110,6 +129,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
     setError(null);
     setRows(null);
     setBusy("reading");
+    const scrolledFrom = window.scrollY;
     try {
       const res = await fetch("/api/stand/sign", { method: "POST", body });
       const json = await res.json();
@@ -125,6 +145,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
       if (draft.standName) setName(draft.standName);
       setSource(kind);
       setRows(draft.items.map(toRow));
+      scrolledAtRead.current = scrolledFrom;
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -222,93 +243,100 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
         </Link>
       </header>
 
-      <Card className="overflow-hidden">
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={openCamera}
-          className="pressable flex w-full flex-col items-center gap-3 p-8 text-center outline-none focus-visible:shadow-[inset_0_0_0_3px_var(--focus)] disabled:pointer-events-none"
-        >
-          {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local object URL preview
-            <img src={preview} alt="Your price sign" className="max-h-60 rounded-[14px] object-contain shadow-card" />
-          ) : (
-            <span className="grid size-16 place-items-center rounded-[20px] bg-lemon text-[2rem] text-[oklch(0.23_0.03_85)] shadow-card">
-              <CameraIcon />
-            </span>
-          )}
-          <span className="text-title3 font-semibold">{preview ? "Retake photo" : "Photograph your sign"}</span>
-          <span className="text-subhead text-ink-2">Lemon Pal reads your items and prices for you to check.</span>
-        </button>
-        <div className="flex flex-wrap justify-center gap-2 border-t border-hairline p-4">
-          <Button variant="tinted" icon={<PhotoIcon />} disabled={busy !== null} onClick={() => libraryInput.current?.click()}>
-            Choose a photo
-          </Button>
-          <Button
-            variant="tinted"
-            icon={<ListIcon />}
-            aria-expanded={pasting}
-            aria-controls="paste-list"
+      <AIGlow active={reading && !pasting}>
+        <Card className="overflow-hidden">
+          <button
+            type="button"
             disabled={busy !== null}
-            onClick={() => setPasting((open) => !open)}
+            onClick={openCamera}
+            className="pressable flex w-full flex-col items-center gap-3 p-8 text-center outline-none focus-visible:shadow-[inset_0_0_0_3px_var(--focus)] disabled:pointer-events-none"
           >
-            Paste a list
-          </Button>
-          <Button variant="tinted" icon={<PlusIcon />} disabled={busy !== null} onClick={startBlank}>
-            Start blank
-          </Button>
-        </div>
-        {/* The library picker has no capture hint, so phones offer saved photos. The other opens the camera app. */}
-        <input
-          ref={libraryInput}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden
-          onChange={(e) => {
-            void onPhoto(e.target.files?.[0]);
-            e.target.value = ""; // lets the same photo be picked again
-          }}
-        />
-        <input
-          ref={cameraInput}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden
-          onChange={(e) => {
-            void onPhoto(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-      </Card>
+            {preview ? (
+              <span className="relative overflow-hidden rounded-[14px] shadow-card">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
+                <img src={preview} alt="Your price sign" className="block max-h-60 object-contain" />
+                {reading ? <span aria-hidden className="scan-band absolute inset-0" /> : null}
+              </span>
+            ) : (
+              <span className="grid size-16 place-items-center rounded-[20px] bg-lemon text-[2rem] text-[oklch(0.23_0.03_85)] shadow-card">
+                <CameraIcon />
+              </span>
+            )}
+            <span className="text-title3 font-semibold">{preview ? "Retake photo" : "Photograph your sign"}</span>
+            <span className="text-subhead text-ink-2">Lemon Pal reads your items and prices for you to check.</span>
+          </button>
+          <div className="flex flex-wrap justify-center gap-2 border-t border-hairline p-4">
+            <Button variant="tinted" icon={<PhotoIcon />} disabled={busy !== null} onClick={() => libraryInput.current?.click()}>
+              Choose a photo
+            </Button>
+            <Button
+              variant="tinted"
+              icon={<ListIcon />}
+              aria-expanded={pasting}
+              aria-controls="paste-list"
+              disabled={busy !== null}
+              onClick={() => setPasting((open) => !open)}
+            >
+              Paste a list
+            </Button>
+            <Button variant="tinted" icon={<PlusIcon />} disabled={busy !== null} onClick={startBlank}>
+              Start blank
+            </Button>
+          </div>
+          {/* The library picker has no capture hint, so phones offer saved photos. The other opens the camera app. */}
+          <input
+            ref={libraryInput}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => {
+              void onPhoto(e.target.files?.[0]);
+              e.target.value = ""; // lets the same photo be picked again
+            }}
+          />
+          <input
+            ref={cameraInput}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => {
+              void onPhoto(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </Card>
+      </AIGlow>
 
       {pasting ? (
-        <Card id="paste-list" className="flex flex-col gap-4 p-5">
-          <TextArea
-            label="Your price list"
-            rows={6}
-            autoFocus
-            maxLength={4000}
-            value={list}
-            placeholder={"Lemonade $2\nPink lemonade $2.50\nCookie $1"}
-            hint="Paste a menu or type one item per line. Lemon Pal reads it like a sign."
-            onChange={(e) => setList(e.target.value)}
-          />
-          <Button
-            variant={rows ? "tinted" : "filled"}
-            size="lg"
-            icon={<SparklesIcon />}
-            disabled={!list.trim() || busy !== null}
-            loading={busy === "reading"}
-            onClick={readList}
-          >
-            Read my list
-          </Button>
-        </Card>
+        <AIGlow active={reading}>
+          <Card id="paste-list" className="flex flex-col gap-4 p-5">
+            <TextArea
+              label="Your price list"
+              rows={6}
+              autoFocus
+              maxLength={4000}
+              value={list}
+              placeholder={"Lemonade $2\nPink lemonade $2.50\nCookie $1"}
+              hint="Paste a menu or type one item per line. Lemon Pal reads it like a sign."
+              onChange={(e) => setList(e.target.value)}
+            />
+            <Button
+              variant={rows ? "tinted" : "filled"}
+              size="lg"
+              icon={<SparklesIcon />}
+              disabled={!list.trim() || busy !== null}
+              loading={reading}
+              onClick={readList}
+            >
+              Read my list
+            </Button>
+          </Card>
+        </AIGlow>
       ) : null}
 
       {camera ? (
@@ -323,9 +351,10 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
       ) : null}
 
       <div aria-live="polite" className="flex flex-col items-center gap-2 text-center empty:hidden">
-        {busy === "reading" ? (
+        {reading ? (
           <p className="flex items-center gap-2 text-headline">
-            <Spinner className="text-[1.2rem]" /> {pasting ? "Reading your list…" : "Reading your sign…"}
+            <SparklesIcon aria-hidden className="animate-breathe text-[1.2rem] text-peel" />
+            <ShimmerText>{pasting ? "Reading your list…" : "Reading your sign…"}</ShimmerText>
           </p>
         ) : null}
         {error ? (
@@ -341,7 +370,12 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
       {rows ? (
         <section aria-labelledby="review-heading" className="flex flex-col gap-4">
           <div className="flex flex-col gap-1 px-1">
-            <h2 id="review-heading" className="font-display text-title2 font-semibold">
+            <h2
+              id="review-heading"
+              ref={reviewHeading}
+              tabIndex={-1}
+              className="scroll-mt-6 font-display text-title2 font-semibold outline-none"
+            >
               {source === "blank" ? "Add your items" : "Check your items"}
             </h2>
             <p className="text-subhead text-ink-2">
@@ -362,14 +396,14 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
             onChange={(e) => setName(e.target.value)}
           />
 
-          <ul className="flex flex-col gap-3">
+          <ul ref={revealList} className="flex flex-col gap-3">
             {rows.map((row, i) => {
               const priceText = row.price.trim();
               const priceError = priceText && parsePrice(priceText) === null ? "Enter an amount like 2.50" : undefined;
               const priceHint = !priceText && row.unreadPrice ? "Couldn’t read this price. Enter it here." : undefined;
               return (
                 <li key={row.key}>
-                  <Card className="flex flex-col gap-3 p-4">
+                  <Card className={row.confidence === "low" ? "attention flex flex-col gap-3 p-4" : "flex flex-col gap-3 p-4"}>
                     <div className="flex items-center justify-between gap-3">
                       {row.confidence ? <ConfidencePill confidence={row.confidence} /> : <span />}
                       <Button
@@ -436,6 +470,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
           >
             Publish stand
           </Button>
+          <MoreBelow count={unseenRows} one="item" many="items" onClick={showNextRow} />
           {invalid ? (
             <p className="-mt-2 text-center text-footnote text-ink-2">
               {name.trim() ? "Every item needs a name and a price." : "Give your stand a name, and every item a name and a price."}

@@ -26,7 +26,7 @@ import {
   WalletIcon,
   XmarkIcon,
 } from "@/components/kit";
-import { ControlsDemo, QrDemo, RegisterDemo } from "./demos";
+import { ControlsDemo, MotionDemo, QrDemo, RegisterDemo, RevealDemo } from "./demos";
 
 export const metadata: Metadata = {
   title: "Citrus Glass · Lemon Pal design kit",
@@ -42,6 +42,7 @@ const sections = [
   { id: "controls", label: "Controls" },
   { id: "commerce", label: "Commerce" },
   { id: "register", label: "Register pattern" },
+  { id: "motion", label: "Motion" },
 ];
 
 const palAppearances = [
@@ -450,6 +451,18 @@ export default function KitPage() {
           lede="Tap tiles, tap Charge, show the code. The total bar floats in glass over the tiles so it never scrolls away. Try the minus, the sheet, and Escape to dismiss."
         >
           <RegisterDemo />
+        </Section>
+
+        <Section
+          id="motion"
+          eyebrow="08 · Motion"
+          title="Springs, and a glow for thinking"
+          lede="Every move uses a named spring, so the app feels like one hand made it. When Lemon Pal is reading a sign or a list, the edge it's working on glows and the status words shimmer. When results run past the screen, rows settle in as you reach them and a pill says how many are left."
+        >
+          <MotionDemo />
+          <div className="mt-6">
+            <RevealDemo />
+          </div>
         </Section>
       </main>
     </div>
