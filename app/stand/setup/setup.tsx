@@ -9,8 +9,10 @@ import {
   CameraIcon,
   Card,
   CheckIcon,
+  cn,
   ConfidencePill,
   ExclamationIcon,
+  GridIcon,
   ListIcon,
   Money,
   MoreBelow,
@@ -19,6 +21,7 @@ import {
   Pill,
   PlusIcon,
   ScrollEdge,
+  SegmentedControl,
   scrollToReveal,
   ShimmerText,
   SparklesIcon,
@@ -29,7 +32,7 @@ import {
   useReveal,
   XmarkIcon,
 } from "@/components/kit";
-import { isValidDeal, MAX_DEAL_QUANTITY, type Deal } from "@/lib/deals";
+import { dealLabel, isValidDeal, MAX_DEAL_QUANTITY, type Deal } from "@/lib/deals";
 import { cleanEmoji } from "@/lib/emoji";
 import { standApi, standHome } from "@/lib/stands";
 import type { CatalogItem, DraftItem, Region, SignDraft, StandKind } from "@/lib/types";
@@ -314,6 +317,30 @@ export function Setup({
   const [camera, setCamera] = useState(false);
   const [pasting, setPasting] = useState(false);
   const [list, setList] = useState("");
+  // Full cards to edit everything, or a compact grid for scanning prices and sold-out switches. Tiles open into a
+  // full card to edit the rest. The choice is remembered on this device.
+  const [layout, setLayout] = useState<"list" | "grid">("list");
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set());
+  useEffect(() => {
+    try {
+      // Read after hydration, so the server and first client render agree.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- a stored preference only the browser knows
+      if (localStorage.getItem(LAYOUT_KEY) === "grid") setLayout("grid");
+    } catch {}
+  }, []);
+  function chooseLayout(next: "list" | "grid") {
+    setLayout(next);
+    setExpanded(new Set());
+    try {
+      localStorage.setItem(LAYOUT_KEY, next);
+    } catch {}
+  }
+  const toggleExpanded = (key: number) =>
+    setExpanded((open) => {
+      const next = new Set(open);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
   const libraryInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const symbol = currencySymbol(currency);
@@ -646,14 +673,25 @@ export function Setup({
       {rows ? (
         <section aria-labelledby="review-heading" className="flex flex-col gap-4">
           <div className="flex flex-col gap-1 px-1">
-            <h2
-              id="review-heading"
-              ref={reviewHeading}
-              tabIndex={-1}
-              className="scroll-mt-6 font-display text-title2 font-semibold outline-none"
-            >
-              {updating ? "Your items" : source === "blank" ? "Add your items" : "Check your items"}
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <h2
+                id="review-heading"
+                ref={reviewHeading}
+                tabIndex={-1}
+                className="scroll-mt-6 font-display text-title2 font-semibold outline-none"
+              >
+                {updating ? "Your items" : source === "blank" ? "Add your items" : "Check your items"}
+              </h2>
+              <SegmentedControl
+                label="Show items as"
+                value={layout}
+                onChange={chooseLayout}
+                options={[
+                  { value: "list", label: <span className="flex items-center gap-1.5"><ListIcon aria-hidden /> List</span> },
+                  { value: "grid", label: <span className="flex items-center gap-1.5"><GridIcon aria-hidden /> Grid</span> },
+                ]}
+              />
+            </div>
             <p className="text-subhead text-ink-2">
               {updating
                 ? source === null
@@ -676,13 +714,34 @@ export function Setup({
             onChange={(e) => setName(e.target.value)}
           />
 
-          <ul ref={revealList} className="flex flex-col gap-3">
+          <ul
+            ref={revealList}
+            className={layout === "grid" ? "grid grid-cols-1 gap-3 min-[22rem]:grid-cols-2 sm:grid-cols-3" : "flex flex-col gap-3"}
+          >
             {rows.map((row, i) => {
               const priceText = row.price.trim();
               const priceError = priceText && parsePrice(priceText) === null ? "Enter an amount like 2.50" : undefined;
               const priceHint = !priceText && row.unreadPrice ? "Couldn’t read this price. Enter it here." : undefined;
+              const itemName = row.name || `item ${i + 1}`;
+              if (layout === "grid" && !expanded.has(row.key)) {
+                return (
+                  <li key={row.key} className="min-w-0">
+                    <CompactItem
+                      row={row}
+                      itemName={itemName}
+                      currency={currency}
+                      symbol={symbol}
+                      updating={updating}
+                      priceError={priceError}
+                      onPrice={(price) => update(row.key, { price })}
+                      onSoldOut={(soldOut) => update(row.key, { soldOut })}
+                      onEdit={() => toggleExpanded(row.key)}
+                    />
+                  </li>
+                );
+              }
               return (
-                <li key={row.key}>
+                <li key={row.key} className={layout === "grid" ? "col-span-full" : undefined}>
                   <Card className={row.confidence === "low" ? "attention flex flex-col gap-3 p-4" : "flex flex-col gap-3 p-4"}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -704,13 +763,20 @@ export function Setup({
                         ) : null}
                         <ChangePills row={row} currency={currency} updating={updating} />
                       </div>
-                      <Button
-                        variant="ghost"
-                        iconOnly
-                        aria-label={`Remove ${row.name || `item ${i + 1}`}`}
-                        icon={<XmarkIcon />}
-                        onClick={() => setRows((current) => current?.filter((r) => r.key !== row.key) ?? null)}
-                      />
+                      <div className="flex shrink-0 items-center gap-1">
+                        {layout === "grid" ? (
+                          <Button variant="plain" size="sm" onClick={() => toggleExpanded(row.key)}>
+                            Done
+                          </Button>
+                        ) : null}
+                        <Button
+                          variant="ghost"
+                          iconOnly
+                          aria-label={`Remove ${itemName}`}
+                          icon={<XmarkIcon />}
+                          onClick={() => setRows((current) => current?.filter((r) => r.key !== row.key) ?? null)}
+                        />
+                      </div>
                     </div>
                     {/* Narrow phones: the price drops below the name, so the name keeps a usable width. */}
                     <div className="grid grid-cols-[4.25rem_minmax(0,1fr)] items-start gap-3 min-[25rem]:grid-cols-[4.25rem_minmax(0,1fr)_7.5rem] sm:grid-cols-[4.5rem_minmax(0,1fr)_8.5rem]">
@@ -791,7 +857,12 @@ export function Setup({
             variant="tinted"
             icon={<PlusIcon />}
             className="self-start"
-            onClick={() => setRows((current) => [...(current ?? []), emptyRow()])}
+            onClick={() => {
+              const row = emptyRow();
+              setRows((current) => [...(current ?? []), row]);
+              // A new item needs a name, so in the grid it opens as a full card.
+              if (layout === "grid") setExpanded((open) => new Set(open).add(row.key));
+            }}
           >
             Add item
           </Button>
@@ -891,6 +962,91 @@ export function Setup({
         </>
       )}
     </main>
+  );
+}
+
+const LAYOUT_KEY = "lemonpal.setup-layout";
+
+/**
+ * One item as a small grid tile: its picture, name, what changed, the price, and the sold-out switch. Everything else
+ * (name, icon, deal, removing it) opens in the full card with Edit.
+ */
+function CompactItem({
+  row,
+  itemName,
+  currency,
+  symbol,
+  updating,
+  priceError,
+  onPrice,
+  onSoldOut,
+  onEdit,
+}: {
+  row: Row;
+  itemName: string;
+  currency: string;
+  symbol: string;
+  updating: boolean;
+  priceError: string | undefined;
+  onPrice: (price: string) => void;
+  onSoldOut: (soldOut: boolean) => void;
+  onEdit: () => void;
+}) {
+  const deal = parseDeal(row);
+  return (
+    <Card className={cn("flex h-full flex-col gap-2 p-3", row.confidence === "low" && "attention")}>
+      <div className="flex items-start justify-between gap-2">
+        {row.image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- data URL cropped in the browser
+          <img
+            src={row.image}
+            alt=""
+            className={cn("size-12 shrink-0 rounded-[12px] object-cover shadow-card", row.soldOut && "opacity-50 grayscale")}
+          />
+        ) : (
+          <span aria-hidden className={cn("grid size-12 place-items-center text-[2rem] leading-none", row.soldOut && "opacity-50 grayscale")}>
+            {row.emoji || <span className="font-display text-title2 font-semibold text-ink-3">{row.name.trim().charAt(0).toUpperCase()}</span>}
+          </span>
+        )}
+        <Button variant="ghost" iconOnly aria-label={`Edit ${itemName}`} icon={<PencilIcon />} onClick={onEdit} />
+      </div>
+      <p className="text-headline font-semibold text-balance [overflow-wrap:anywhere]">{row.name || "Unnamed item"}</p>
+      <div className="flex flex-wrap gap-1.5 empty:hidden">
+        {row.confidence === "low" ? <ConfidencePill confidence="low" /> : null}
+        <ChangePills row={row} currency={currency} updating={updating} />
+        {row.deal ? (
+          deal ? (
+            <Pill tone="lemon" icon={<TagIcon />}>
+              {dealLabel(deal, currency)}
+            </Pill>
+          ) : (
+            <Pill tone="berry" icon={<ExclamationIcon />}>
+              Fix the deal
+            </Pill>
+          )
+        ) : null}
+      </div>
+      <div className="mt-auto flex flex-col gap-2 pt-1">
+        <TextField
+          label="Price"
+          aria-label={`Price of ${itemName}`}
+          prefix={symbol}
+          inputMode="decimal"
+          placeholder="0.00"
+          value={row.price}
+          error={priceError ?? (!row.price.trim() ? "Enter a price" : undefined)}
+          onChange={(e) => onPrice(e.target.value)}
+        />
+        {updating || row.soldOut ? (
+          <div className="flex min-h-11 items-center justify-between gap-2">
+            <span aria-hidden className="text-subhead font-semibold whitespace-nowrap text-ink-2">
+              Sold out
+            </span>
+            <Switch label={`${itemName} is sold out`} checked={row.soldOut} onChange={onSoldOut} />
+          </div>
+        ) : null}
+      </div>
+    </Card>
   );
 }
 
