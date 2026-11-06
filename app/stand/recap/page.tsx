@@ -50,7 +50,13 @@ export default async function RecapPage() {
           {/* Studio fills its parent, so the parent needs a definite height, not just a minimum. */}
           <div className="h-[max(33rem,calc(100dvh-12rem))] overflow-hidden rounded-card bg-surface shadow-card ring-[0.5px] ring-hairline">
             {/* Keyed by stand, so switching stands starts Studio over on the other stand's sales. */}
-            <RecapLoader key={stand.id} licenseKey={env.agStudioLicenseKey()} currency={env.currency()} standId={stand.id} />
+            <RecapLoader
+              key={stand.id}
+              licenseKey={env.agStudioLicenseKey()}
+              currency={env.currency()}
+              standId={stand.id}
+              paypalReceiptCheck={env.paypalReceiptCheck()}
+            />
           </div>
         </main>
       </FirstSaleProvider>

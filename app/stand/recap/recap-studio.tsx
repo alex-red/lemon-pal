@@ -408,7 +408,17 @@ function changes(previous: RecapData, next: RecapData): AgDataTransaction[] {
   ];
 }
 
-export function RecapStudio({ licenseKey, currency, standId }: { licenseKey: string | null; currency: string; standId: string }) {
+export function RecapStudio({
+  licenseKey,
+  currency,
+  standId,
+  paypalReceiptCheck,
+}: {
+  licenseKey: string | null;
+  currency: string;
+  standId: string;
+  paypalReceiptCheck: boolean;
+}) {
   const [data, setData] = useState<AgDataEngine | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
   const [studioApi, setStudioApi] = useState<AgStudioApi | null>(null);
@@ -419,12 +429,14 @@ export function RecapStudio({ licenseKey, currency, standId }: { licenseKey: str
   // The id stays set while the sheet animates closed, so its content doesn't vanish mid-close.
   // `n` counts openings, so reopening a receipt starts its refund steps afresh.
   const [receipt, setReceipt] = useState<{ id: string; open: boolean; n: number } | null>(null);
+  const selectedPayPalReceipt = useRef<string | null>(null);
+  const [payPalReceiptId, setPayPalReceiptId] = useState<string | null>(null);
   const pollNow = useRef<() => void>(() => {});
   const actions = useMemo(() => ({ openReceipt: (id: string) => setReceipt((r) => ({ id, open: true, n: (r?.n ?? 0) + 1 })) }), []);
   const setFirstSale = useSetFirstSale();
   const ai: AgAiHarnessSetup = useCallback(
-    (params) => boothAnalyst(params, () => applied.current, currency),
-    [currency],
+    (params) => boothAnalyst(params, () => applied.current, currency, paypalReceiptCheck ? () => selectedPayPalReceipt.current : undefined),
+    [currency, paypalReceiptCheck],
   );
 
   useEffect(() => {
@@ -490,6 +502,13 @@ export function RecapStudio({ licenseKey, currency, standId }: { licenseKey: str
     studioApi.setState({ ...state, panels: { ...state.panels, ai: { ...state.panels?.ai, collapsed: false } } });
   }
 
+  function selectPayPalReceipt(id: string) {
+    selectedPayPalReceipt.current = id;
+    setPayPalReceiptId(id);
+    setReceipt((r) => r ? { ...r, open: false } : r);
+    openAnalyst();
+  }
+
   return (
     <RecapCurrency value={currency}>
       <RecapActions value={actions}>
@@ -507,6 +526,11 @@ export function RecapStudio({ licenseKey, currency, standId }: { licenseKey: str
                 )}
               </div>
               <span className="text-footnote text-ink-2">All captured PayPal payments · {currency}</span>
+              {!phone && recap?.sales.some((sale) => sale.id === payPalReceiptId) && payPalReceiptId && (
+                <span className="text-footnote text-ink-2" role="status">
+                  Receipt {receiptRef(payPalReceiptId)} selected. Ask “Check my selected receipt.”
+                </span>
+              )}
             </div>
             {!phone && (
               <Button variant="filled" icon={<SparklesIcon />} disabled={!studioApi} onClick={openAnalyst}>
@@ -525,6 +549,7 @@ export function RecapStudio({ licenseKey, currency, standId }: { licenseKey: str
                 theme={lemonTheme}
                 localeText={localeText}
                 ai={ai}
+                aiToolDisplay={paypalReceiptCheck ? { check_paypal_receipt: { label: () => ({ text: "Check receipt with PayPal Sandbox" }) } } : undefined}
                 mode={phone ? "view" : "edit"}
                 panels={phone ? phonePanels : undefined}
                 responsiveLayoutBreakpoints={stacked}
@@ -547,6 +572,7 @@ export function RecapStudio({ licenseKey, currency, standId }: { licenseKey: str
           currency={currency}
           onClose={() => setReceipt((r) => (r ? { ...r, open: false } : r))}
           onRefunded={() => pollNow.current()}
+          onCheckPayPal={paypalReceiptCheck && !phone && studioApi ? selectPayPalReceipt : undefined}
         />
       )}
       </RecapActions>

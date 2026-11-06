@@ -182,6 +182,13 @@ export const PinIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const EyeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+);
+
 export const LinkIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />

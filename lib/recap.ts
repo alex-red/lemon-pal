@@ -18,6 +18,7 @@ export type RecapSaleRow = {
   /** Units kept. 0 once refunded. */
   units: number;
   currency: string;
+  hasPayPalReceipt: boolean;
   /** "Stand" for the register, "Online" for the store. */
   channel: "Stand" | "Online";
   /** Shipping charged on an online order. 0 otherwise. */
@@ -78,6 +79,7 @@ export function toRecap(sales: Sale[]): RecapData {
       refunded: refunded ? s.totalCents / 100 : 0,
       units: refunded ? 0 : units,
       currency: s.currency,
+      hasPayPalReceipt: !s.demo && Boolean(s.paypalOrderId && s.paypalCaptureId),
       channel: s.channel === "online" ? "Online" : "Stand",
       shipping: (s.shippingCents ?? 0) / 100,
       fulfillment: fulfillmentOf(s),
