@@ -38,7 +38,7 @@ You need two screens: a tablet or laptop for the seller and a phone for the buye
 
 - [Next.js 16](https://nextjs.org/) and React 19, TypeScript, Tailwind CSS 4
 - [PayPal Checkout](https://developer.paypal.com/checkout/) and the Orders v2 REST API (Sandbox)
-- [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the stand recap. AG Studio is commercial software under its own licence; it runs with a watermark without a licence key. The recap's assistant uses AG Studio's Agent Framework, with Claude Sonnet 5.5 called through a server route.
+- [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the stand recap. AG Studio is commercial software under its own licence; it runs with a watermark without a licence key. The recap's assistant uses AG Studio's Agent Framework, with Claude Haiku 5.5 called through a server route. Prompt caching and context editing keep long chats fast and cheap.
 - [Claude Sonnet 5.5](https://platform.claude.com/docs) reads price-sign photos into a draft catalog, using structured outputs
 - [Bun](https://bun.sh/) as the package manager
 

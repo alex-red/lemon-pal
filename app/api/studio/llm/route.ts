@@ -1,9 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AgLlmRequest } from "ag-studio";
 import { clientKey, createRateLimiter } from "@/lib/rate-limit";
-import { runStudioTurn } from "@/lib/studio-llm";
+import { MAX_CONVERSATION_CHARS, runStudioTurn } from "@/lib/studio-llm";
 
-const MAX_BODY_BYTES = 2 * 1024 * 1024;
 // One question can take several turns (look at the schema, add a widget, configure it).
 const allow = createRateLimiter({ limit: 120, windowMs: 60 * 60 * 1000 });
 
@@ -13,7 +12,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "The assistant is busy. Try again in a while." }, { status: 429 });
   }
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) return Response.json({ error: "Conversation is too long." }, { status: 413 });
+  // Context editing keeps normal chats well under this. Past it, ask for a fresh chat rather than cutting history.
+  if (text.length > MAX_CONVERSATION_CHARS) {
+    return Response.json({ error: "This chat has grown too long. Start a new chat to keep going." }, { status: 413 });
+  }
 
   let body: AgLlmRequest;
   try {
