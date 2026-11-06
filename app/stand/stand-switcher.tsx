@@ -8,6 +8,7 @@ import {
   GroupedList,
   LinkIcon,
   ListRow,
+  PersonIcon,
   PlusIcon,
   QrCodeIcon,
   SegmentedControl,
@@ -30,12 +31,14 @@ export function StandSwitcher({
   current,
   stands,
   userName,
+  ownAccount,
   remembered = true,
   variant = "eyebrow",
 }: {
   current: StandSummary;
   stands: StandSummary[];
   userName: string;
+  ownAccount: boolean;
   /** false when the page opened another stand than the last one switched to, so this one becomes the last. */
   remembered?: boolean;
   variant?: "title" | "eyebrow";
@@ -89,6 +92,14 @@ export function StandSwitcher({
     // A page that works for either kind (the recap, setup) stays put. The register and store go to the new stand's home.
     const sharedPage = pathname === "/stand/recap" || pathname === "/stand/setup";
     await go(sharedPage ? pathname : json.home);
+  }
+
+  async function signOut() {
+    setBusy("signout");
+    const res = await fetch("/api/auth/signout", { method: "POST" }).catch(() => null);
+    const json = (await res?.json().catch(() => null)) as { next?: string } | null;
+    // A full load, so nothing from this seller's pages stays in the router's cache for whoever signs in next.
+    window.location.assign(json?.next ?? "/stand/unlock");
   }
 
   const local = stands.filter((s) => s.kind === "local");
@@ -147,8 +158,24 @@ export function StandSwitcher({
                 {error}
               </p>
             )}
-            <GroupedList footer={`Signed in as ${userName}. This demo signs everyone in as the same seller.`}>
+            <GroupedList>
               <ListRow icon={<PlusIcon />} iconTone="lemon" title="New stand" onClick={() => setCreating(true)} />
+            </GroupedList>
+            <GroupedList
+              header="Account"
+              footer={
+                ownAccount
+                  ? "Signed in with PayPal. Signing out here leaves your PayPal account signed in."
+                  : "Everyone using the demo shares this seller. Log in with PayPal for stands of your own."
+              }
+            >
+              <ListRow
+                icon={<PersonIcon />}
+                iconTone="ink"
+                title={userName}
+                subtitle={busy === "signout" ? "Signing out…" : ownAccount ? "Sign out" : "Leave the demo"}
+                onClick={signOut}
+              />
             </GroupedList>
           </div>
         )}

@@ -1,12 +1,19 @@
 import { cookies } from "next/headers";
 import { clientKey, createRateLimiter } from "@/lib/rate-limit";
-import { isSellerPasscode, SELLER_COOKIE, SELLER_COOKIE_MAX_AGE, sellerPasscode, sellerToken } from "@/lib/seller-auth";
+import { isSellerPasscode, SELLER_COOKIE, SELLER_COOKIE_MAX_AGE, sellerGateOpen, sellerPasscode, sellerToken } from "@/lib/seller-auth";
+import { cookieOptions, DEMO_USER_ID, SESSION_COOKIE, SESSION_MAX_AGE, sessionToken, STAND_COOKIE } from "@/lib/session-token";
 
 // A few tries a minute per address, so the passcode can't be guessed by brute force.
 const allow = createRateLimiter({ limit: 8, windowMs: 60_000 });
 
-// Signs the seller in for 30 days when the passcode matches.
+// Signs this browser in as the demo seller for 30 days when the passcode matches. In development without a
+// passcode, the demo seller is open, so this just switches to them.
 export async function POST(request: Request) {
+  if (sellerGateOpen()) {
+    (await cookies()).set(SESSION_COOKIE, await sessionToken(DEMO_USER_ID), cookieOptions(SESSION_MAX_AGE));
+    (await cookies()).delete(STAND_COOKIE);
+    return Response.json({ ok: true });
+  }
   if (!allow(clientKey(request))) {
     return Response.json({ error: "Too many tries. Wait a minute and try again." }, { status: 429 });
   }
@@ -26,5 +33,8 @@ export async function POST(request: Request) {
     path: "/",
     maxAge: SELLER_COOKIE_MAX_AGE,
   });
+  // The passcode is the way in to the demo seller, so it signs this browser in as them, even after a PayPal login.
+  (await cookies()).set(SESSION_COOKIE, await sessionToken(DEMO_USER_ID), cookieOptions(SESSION_MAX_AGE));
+  (await cookies()).delete(STAND_COOKIE);
   return Response.json({ ok: true });
 }

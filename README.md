@@ -36,10 +36,9 @@ You need two screens: a tablet or laptop for the seller and a phone for the buye
 
 ## What's next
 
-The demo runs every stand through one PayPal Sandbox seller account, so judges can try it without signing up. Next up:
+Sellers sign in with Log in with PayPal and get their own stands, or use the shared demo seller behind the passcode. Each seller can run several stands, at events or online, and switch between them. Payments for every stand still go to one PayPal Sandbox seller account. Next up:
 
-- **Connect your own PayPal.** Each seller links their account through [PayPal's seller onboarding](https://developer.paypal.com/platforms/seller-onboarding), and payments go straight to them.
-- **Many stands per person.** Keep a stand for the bake sale and another for the merch table, and switch between them.
+- **Get paid directly.** Each seller links their account through [PayPal's seller onboarding](https://developer.paypal.com/platforms/seller-onboarding), and payments go straight to them.
 - **Native seller apps** for iPhone, iPad and Android, with haptics on every sale. The buyer side stays a web page, so customers never need an app.
 
 ## Built with
@@ -61,6 +60,8 @@ bun run dev
 ```
 
 Open <http://localhost:3000>. The dev server listens on your local network too, so a phone on the same Wi-Fi can scan a sale's QR code: when the register runs on `localhost`, the code points at your machine's network address (the **Network** URL `next dev` prints) instead. Set `PUBLIC_APP_URL` to override it. If PayPal's buttons won't load on the phone over plain HTTP, use a tunnel or the hosted demo, which serve HTTPS.
+
+To let sellers sign in with their own PayPal accounts, open your app in the [Developer Dashboard](https://developer.paypal.com/dashboard/applications/sandbox), turn on **Log in with PayPal** under **Other features**, and set its Return URL to `<your app URL>/api/auth/paypal/callback`. Share the full name and email, and set the privacy policy and user agreement URLs (any URL works in the Sandbox). Then set `PAYPAL_LOGIN=on`. The Return URL must match the address you open the app at, so set `PUBLIC_APP_URL` to it.
 
 Other scripts: `bun run typecheck`, `bun run lint`, `bun run build`, `bun run start`.
 

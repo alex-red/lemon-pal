@@ -154,6 +154,13 @@ export const WalletIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const PersonIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="8.5" r="3.5" />
+    <path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" />
+  </Icon>
+);
+
 export const BagIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5.5 8h13l-1 11.1a1.5 1.5 0 0 1-1.5 1.4H8a1.5 1.5 0 0 1-1.5-1.4Z" />

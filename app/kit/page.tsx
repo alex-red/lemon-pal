@@ -30,7 +30,7 @@ import {
   WalletIcon,
   XmarkIcon,
 } from "@/components/kit";
-import { ControlsDemo, MotionDemo, QrDemo, RegisterDemo, RevealDemo } from "./demos";
+import { ChoiceListDemo, ControlsDemo, MotionDemo, QrDemo, RegisterDemo, RevealDemo } from "./demos";
 
 export const metadata: Metadata = {
   title: "Citrus Glass · Lemon Pal design kit",
@@ -501,6 +501,7 @@ export default function KitPage() {
               <ListRow icon={<WalletIcon />} iconTone="pool" title="Paid with PayPal" subtitle="Capture verified" trailing={<CheckIcon className="text-leaf" />} />
               <ListRow icon={<ChartIcon />} iconTone="ink" title="Open stand recap" href="/stand/recap" />
             </GroupedList>
+            <ChoiceListDemo />
           </div>
           <Card className="mt-6 grid place-items-center p-10">
             <PaidMoment cents={650} currency="USD" />

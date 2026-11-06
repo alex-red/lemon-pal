@@ -15,6 +15,10 @@ export const env = {
     process.env.PAYPAL_ENV === "live"
       ? "https://www.paypal.com/web-sdk/v6/core"
       : "https://www.sandbox.paypal.com/web-sdk/v6/core",
+  /** PayPal's website, where Log in with PayPal asks the seller to sign in. */
+  paypalWebBase: () => (process.env.PAYPAL_ENV === "live" ? "https://www.paypal.com" : "https://www.sandbox.paypal.com"),
+  /** Whether Log in with PayPal is turned on for this app in the PayPal Developer Dashboard. */
+  paypalLogin: () => process.env.PAYPAL_LOGIN === "on",
   currency: () => process.env.STAND_CURRENCY || "USD",
   anthropicApiKey: () => required("ANTHROPIC_API_KEY"),
   publicAppUrl: () => process.env.PUBLIC_APP_URL || null,

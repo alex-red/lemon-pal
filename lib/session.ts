@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { ensureDemoUser } from "./demo";
 import { DEMO_USER_ID, SESSION_COOKIE, SESSION_MAX_AGE, sessionUserId, STAND_COOKIE } from "./session-token";
 import { kindOf } from "./stands";
@@ -7,14 +8,16 @@ import { store } from "./store";
 import type { Sale, Stand, StandKind, User } from "./types";
 
 /**
- * The signed-in seller. proxy.ts signs everyone past the passcode in as the demo user, and a request that arrives
- * before that cookie is set is the demo user too, so this always has a user.
+ * The signed-in seller. A seller who logged in with PayPal is themselves. Anyone else got past proxy.ts with the
+ * passcode, so they're the demo user, even on the first request before that cookie is set.
  */
 export async function currentUser(): Promise<User> {
   const userId = await sessionUserId((await cookies()).get(SESSION_COOKIE)?.value);
   if (userId && userId !== DEMO_USER_ID) {
     const user = await store.getUser(userId);
-    if (user) return user;
+    // A session for a seller who no longer exists never falls back to the demo seller: that would skip the passcode.
+    if (!user) redirect("/stand/unlock?error=signed-out");
+    return user;
   }
   return ensureDemoUser();
 }

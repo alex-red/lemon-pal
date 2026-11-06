@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import {
   AIGlow,
   Button,
+  GroupedList,
+  LinkIcon,
+  ListRow,
   CameraIcon,
   ChartIcon,
   ConfidencePill,
@@ -448,5 +451,16 @@ export function RevealDemo() {
       ) : null}
       <MoreBelow count={waiting} one="result" many="results" onClick={showNext} />
     </div>
+  );
+}
+
+/** A choice made in place: ListRow with onClick is a button, and `current` checks the chosen row. The stand switcher uses it. */
+export function ChoiceListDemo() {
+  const [picked, setPicked] = useState("market");
+  return (
+    <GroupedList header="Pick a stand" footer="Rows with onClick are buttons. The chosen one carries a check and aria-current.">
+      <ListRow icon={<QrCodeIcon />} iconTone="ink" title="Saturday Market" subtitle="Register at events" current={picked === "market"} onClick={() => setPicked("market")} />
+      <ListRow icon={<LinkIcon />} iconTone="pool" title="Lemon Pal Shop" subtitle="Online store and orders" current={picked === "shop"} onClick={() => setPicked("shop")} />
+    </GroupedList>
   );
 }

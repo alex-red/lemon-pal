@@ -8,6 +8,13 @@ export const SESSION_COOKIE = "lemonpal_session";
 export const STAND_COOKIE = "lemonpal_stand";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 export const DEMO_USER_ID = "demo";
+/** Holds the state for a Log in with PayPal round trip, and where to go after it. Lives ten minutes. */
+export const PAYPAL_STATE_COOKIE = "lemonpal_paypal_state";
+
+/** The settings every Lemon Pal sign-in cookie shares. */
+export function cookieOptions(maxAge: number) {
+  return { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/", maxAge };
+}
 
 function sessionSecret(): string {
   // The passcode is a fine key until there's real sign-in: changing it signs everyone out, as it should.

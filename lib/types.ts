@@ -53,6 +53,9 @@ export type User = {
   id: string;
   name: string;
   createdAt: string;
+  /** The seller's stable PayPal id, for a seller who signed in with PayPal. The demo user has none. */
+  paypalId?: string;
+  email?: string;
 };
 
 export type Stand = {

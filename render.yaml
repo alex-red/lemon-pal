@@ -25,6 +25,9 @@ services:
         value: /var/data/lemonpal.sqlite
       - key: PAYPAL_ENV
         value: sandbox
+      # "on" once Log in with PayPal is enabled for the app, with this service's callback as its Return URL.
+      - key: PAYPAL_LOGIN
+        value: "off"
       - key: STAND_CURRENCY
         value: USD
       # Secrets: Render asks for these when the Blueprint is first applied. Never commit them.
