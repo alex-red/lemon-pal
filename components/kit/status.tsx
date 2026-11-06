@@ -1,9 +1,14 @@
 import type { ReactNode } from "react";
 import type { SaleStatus } from "@/lib/types";
 import { cn } from "./cn";
-import { CheckIcon, ClockIcon, ExclamationIcon, SparklesIcon, XmarkIcon } from "./icons";
+import { CheckIcon, ClockIcon, ExclamationIcon, SparklesIcon, StopwatchIcon, XmarkIcon } from "./icons";
 
 type Tone = "neutral" | "lemon" | "leaf" | "pool" | "berry";
+
+const sizes = {
+  md: "h-7 gap-1.5 px-3 text-footnote",
+  lg: "h-11 gap-2 px-5 text-headline",
+};
 
 const tones: Record<Tone, string> = {
   neutral: "bg-fill-2 text-ink-2",
@@ -16,11 +21,13 @@ const tones: Record<Tone, string> = {
 /** A small capsule label. Always pair the color with an icon or a word: color alone isn't a signal. */
 export function Pill({
   tone = "neutral",
+  size = "md",
   icon,
   children,
   className,
 }: {
   tone?: Tone;
+  size?: keyof typeof sizes;
   icon?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -28,7 +35,8 @@ export function Pill({
   return (
     <span
       className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-footnote font-semibold [&_svg]:text-[1.15em]",
+        "inline-flex shrink-0 items-center whitespace-nowrap rounded-full font-semibold [&_svg]:text-[1.15em]",
+        sizes[size],
         tones[tone],
         className,
       )}
@@ -63,6 +71,46 @@ export function ConfidencePill({ confidence, className }: { confidence: "high" |
   ) : (
     <Pill tone="lemon" icon={<ExclamationIcon />} className={className}>
       Check this
+    </Pill>
+  );
+}
+
+/** Formats whole seconds as a stopwatch reads: 0:52, 12:05, 1:02:05. */
+export function formatStopwatch(seconds: number) {
+  const s = Math.max(0, Math.round(seconds));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+}
+
+function spokenDuration(seconds: number) {
+  const s = Math.max(0, Math.round(seconds));
+  const parts = [
+    [Math.floor(s / 3600), "hour"],
+    [Math.floor((s % 3600) / 60), "minute"],
+    [s % 60, "second"],
+  ] as const;
+  const said = parts.filter(([n]) => n > 0).map(([n, unit]) => `${n} ${unit}${n === 1 ? "" : "s"}`);
+  return said.length ? said.join(" ") : "0 seconds";
+}
+
+/** How long the stand took from reading its sign to its first paid sale. */
+export function FirstSalePill({
+  seconds,
+  size = "md",
+  className,
+}: {
+  seconds: number;
+  size?: "md" | "lg";
+  className?: string;
+}) {
+  return (
+    <Pill tone="lemon" size={size} icon={<StopwatchIcon />} className={className}>
+      <span aria-hidden>
+        First sale in <span className="font-price tabular-nums">{formatStopwatch(seconds)}</span>
+      </span>
+      <span className="sr-only">First sale {spokenDuration(seconds)} after reading the sign</span>
     </Pill>
   );
 }

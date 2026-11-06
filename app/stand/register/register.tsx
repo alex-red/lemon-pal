@@ -126,7 +126,12 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
         )}
       >
         {sale.status === "paid" ? (
-          <PaidMoment cents={sale.totalCents} currency={sale.currency} className="animate-rise" />
+          <PaidMoment
+            cents={sale.totalCents}
+            currency={sale.currency}
+            firstSaleSeconds={sale.firstSaleSeconds}
+            className="animate-rise"
+          />
         ) : (
           <>
             <div className="flex flex-col items-center gap-7 tight:gap-3 short:col-start-2 short:row-start-1 short:gap-4 short:self-end">

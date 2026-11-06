@@ -64,6 +64,13 @@ export const ClockIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const StopwatchIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="13.5" r="7.5" />
+    <path d="M12 13.5V10M10 3h4M18.5 6.5l-1.5 1.5" />
+  </Icon>
+);
+
 export const ExclamationIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M10.3 4.3 2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />

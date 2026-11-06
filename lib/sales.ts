@@ -24,4 +24,7 @@ export function publicSale(sale: Sale) {
   const { id, currency, lines, totalCents, status, paidAt } = sale;
   return { id, currency, lines, totalCents, status, paidAt };
 }
-export type PublicSale = ReturnType<typeof publicSale>;
+export type PublicSale = ReturnType<typeof publicSale> & {
+  /** Set when this was the stand's first paid sale since setup: seconds from the sign read to payment. */
+  firstSaleSeconds?: number;
+};

@@ -30,6 +30,9 @@ export async function POST(request: Request) {
     ...current,
     name: parsed.data.name || current.name,
     publishedAt: new Date().toISOString(),
+    // The clock runs from the sign read that drafted this catalog. A blank form or an edit without one has none.
+    setupStartedAt: current.draftStartedAt ?? null,
+    draftStartedAt: null,
     items: parsed.data.items.map((item, i) => ({ id: `item-${i + 1}-${Date.now().toString(36)}`, ...item })),
   };
   await store.saveStand(stand);

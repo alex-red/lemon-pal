@@ -1,11 +1,15 @@
+import { getOrCreateDemoStand } from "@/lib/demo";
+import { startDraft } from "@/lib/first-sale";
 import { clientKey, createRateLimiter } from "@/lib/rate-limit";
 import { MAX_LIST_CHARS, readSign, SIGN_IMAGE_TYPES, SignReadError, type SignImageType } from "@/lib/sign-reader";
+import { store } from "@/lib/store";
 
 const MAX_BYTES = 5 * 1024 * 1024; // the API's per-image limit
 const allow = createRateLimiter({ limit: 20, windowMs: 60 * 60 * 1000 });
 
 // Reads a price-sign photo, or a pasted price list, into a draft catalog for the seller to review.
 export async function POST(request: Request) {
+  const arrivedAt = new Date();
   if (!allow(clientKey(request))) {
     return Response.json({ error: "Too many price lists read this hour. Try again later." }, { status: 429 });
   }
@@ -33,7 +37,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    return Response.json(await readSign(input));
+    const draft = await readSign(input);
+    // The time to first sale counts from here: the seller has a sign and is setting up.
+    const stand = await getOrCreateDemoStand();
+    const started = startDraft(stand, arrivedAt);
+    if (started !== stand) await store.saveStand(started);
+    return Response.json(draft);
   } catch (error) {
     if (error instanceof SignReadError) return Response.json({ error: error.message }, { status: 422 });
     console.error("Sign reading failed", error);

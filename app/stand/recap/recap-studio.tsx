@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import type { RecapData } from "@/lib/recap";
 import { claudeAdapter } from "./claude-adapter";
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
+import { useSetFirstSale } from "./first-sale";
 import { TodaySalesWidget, type RecapRegistry, type TodaySalesDef } from "./today-widget";
 
 // Opening suggestions in the assistant panel. They show until the first message is sent.
@@ -241,6 +242,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
   const firstSaleIds = useRef<Set<string>>(new Set());
   const latest = useRef<RecapData | null>(null);
   const engine = useRef<AgDataEngine | null>(null);
+  const setFirstSale = useSetFirstSale();
 
   // Load paid sales once, then poll and add only sales Studio hasn't seen, so widgets update in place.
   useEffect(() => {
@@ -256,6 +258,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
         const res = await fetch("/api/stand/recap", { cache: "no-store" });
         if (!res.ok || stopped) return;
         const recap = (await res.json()) as RecapData;
+        setFirstSale?.(recap.firstSaleSeconds ?? null);
         if (!loaded) {
           loaded = true;
           recap.sales.forEach((s) => known.add(s.id));
@@ -290,7 +293,7 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
       stopped = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [setFirstSale]);
 
   // Built once from the first load; later sales arrive as transactions, not a new data prop.
   const data = useMemo(() => (initial ? toDataSources(initial, currency) : undefined), [initial, currency]);

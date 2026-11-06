@@ -3,6 +3,7 @@ import { cn } from "./cn";
 import { CheckIcon } from "./icons";
 import { Money } from "./money";
 import { PalMascot } from "./pal-mascot";
+import { FirstSalePill } from "./status";
 
 /**
  * The moment a sale is confirmed: Pal pops up smiling with a green check, and the register plays its ding.
@@ -13,11 +14,14 @@ export function PaidMoment({
   cents,
   currency,
   caption = "Thank you!",
+  firstSaleSeconds,
   className,
 }: {
   cents: Cents;
   currency: string;
   caption?: string;
+  /** Shown on the stand's first paid sale: seconds from reading the sign to payment. */
+  firstSaleSeconds?: number | null;
   className?: string;
 }) {
   return (
@@ -35,6 +39,9 @@ export function PaidMoment({
       <p className="animate-rise font-display text-large-title font-semibold text-leaf [animation-delay:120ms]">Paid</p>
       <Money cents={cents} currency={currency} size="title" className="animate-rise [animation-delay:200ms]" />
       <p className="animate-rise text-body text-ink-2 [animation-delay:280ms]">{caption}</p>
+      {firstSaleSeconds != null ? (
+        <FirstSalePill seconds={firstSaleSeconds} size="lg" className="animate-pop [animation-delay:520ms]" />
+      ) : null}
     </div>
   );
 }

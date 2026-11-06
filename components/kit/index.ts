@@ -13,5 +13,5 @@ export { PalAppIcon } from "./pal-app-icon";
 export { PalMascot } from "./pal-mascot";
 export { Sheet } from "./sheet";
 export { Spinner } from "./spinner";
-export { ConfidencePill, CountBadge, Pill, SaleStatusPill } from "./status";
+export { ConfidencePill, CountBadge, FirstSalePill, formatStopwatch, Pill, SaleStatusPill } from "./status";
 export { Card, Glass, Toolbar } from "./surface";

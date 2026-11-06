@@ -214,7 +214,12 @@ export function RegisterDemo() {
       >
         {phase === "paid" ? (
           <div className="flex flex-col items-center gap-7 pt-2">
-            <PaidMoment cents={total} currency={currency} caption="The ding just played on the stand." />
+            <PaidMoment
+              cents={total}
+              currency={currency}
+              caption="The ding just played on the stand."
+              firstSaleSeconds={52}
+            />
             <Button variant="filled" size="lg" className="w-full" onClick={finish}>
               Next customer
             </Button>

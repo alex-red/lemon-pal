@@ -31,6 +31,10 @@ export type Stand = {
   currency: string;
   items: CatalogItem[];
   publishedAt: string | null;
+  /** When the seller first read a sign or list for the catalog being drafted. Cleared on publish. */
+  draftStartedAt?: string | null;
+  /** When setup began for the published catalog, from its draft. null for a blank form or a sample stand. */
+  setupStartedAt?: string | null;
 };
 
 /** Snapshot of an item at the time of sale, so later catalog edits never change a past sale. */

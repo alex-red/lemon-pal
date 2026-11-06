@@ -11,7 +11,12 @@ export type RecapLineRow = {
   lineTotal: number;
   paidAt: string;
 };
-export type RecapData = { sales: RecapSaleRow[]; lines: RecapLineRow[] };
+export type RecapData = {
+  sales: RecapSaleRow[];
+  lines: RecapLineRow[];
+  /** Seconds from the sign read to the first paid sale on the published catalog, once there is one. */
+  firstSaleSeconds?: number | null;
+};
 
 /** Only verified, captured sales count. Each sale appears once, keyed by its id. */
 export function toRecap(sales: Sale[]): RecapData {

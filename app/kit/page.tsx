@@ -7,6 +7,7 @@ import {
   ChartIcon,
   CheckIcon,
   ConfidencePill,
+  FirstSalePill,
   CountBadge,
   Glass,
   GroupedList,
@@ -410,6 +411,7 @@ export default function KitPage() {
                 <SaleStatusPill status="canceled" />
                 <ConfidencePill confidence="high" />
                 <ConfidencePill confidence="low" />
+                <FirstSalePill seconds={52} />
                 <Pill tone="lemon" icon={<SparklesIcon />}>
                   New
                 </Pill>
