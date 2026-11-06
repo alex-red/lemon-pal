@@ -35,3 +35,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - The official PayPal starter (`paypaldev/hackathon-paypal-ag-grid-boilerplate`) has no license. Read it for reference only and don't copy its code.
 - `docs/hackathon/` holds private planning notes and is gitignored. Don't link to it from tracked files.
 - Ask before adding a dependency. Pin exact versions.
+
+## Commits
+
+- Start the subject with a type prefix: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `style:`, `perf:`, `ci:`, `build:`, or `dev:` for local tooling and developer experience.
+- Keep the subject short, lowercase after the prefix, in the imperative, with no trailing period. Example: `feat: add paypal buttons to buyer checkout`.
+- Add a body only when the reason isn't obvious from the subject. Write a sentence or two of plain prose, not a list of every file changed.
