@@ -6,31 +6,40 @@ import {
   Button,
   ChevronDownIcon,
   GroupedList,
+  ChevronRightIcon,
   LinkIcon,
   ListRow,
+  PencilIcon,
   PersonIcon,
   PlusIcon,
   QrCodeIcon,
   SegmentedControl,
   Sheet,
   TextField,
+  TrashIcon,
   cn,
 } from "@/components/kit";
-import type { StandSummary } from "@/lib/stands";
+import { standApi, type StandSummary } from "@/lib/stands";
 import type { StandKind } from "@/lib/types";
 
 const kindIcon = { local: <QrCodeIcon />, online: <LinkIcon /> } as const;
 const kindTone = { local: "ink", online: "pool" } as const;
 
+/** What the sheet shows: the list of stands, or one of the screens it leads to. */
+type View = "list" | "new" | "stand" | "account";
+const viewTitle: Record<View, string> = { list: "Your stands", new: "New stand", stand: "Stand settings", account: "Account" };
+
 /**
  * Says which stand the seller is on and switches to another. It sits where a page names its stand: as the title on
  * the register, as the small line above the title everywhere else. Tapping it opens a sheet of the seller's stands,
- * split into stands at events and online stores, with a way to start a new one.
+ * split into stands at events and online stores, with a way to start a new one, rename or delete the stand on
+ * screen, and see or leave the account.
  */
 export function StandSwitcher({
   current,
   stands,
   userName,
+  userEmail,
   ownAccount,
   remembered = true,
   variant = "eyebrow",
@@ -38,6 +47,7 @@ export function StandSwitcher({
   current: StandSummary;
   stands: StandSummary[];
   userName: string;
+  userEmail: string | null;
   ownAccount: boolean;
   /** false when the page opened another stand than the last one switched to, so this one becomes the last. */
   remembered?: boolean;
@@ -46,7 +56,7 @@ export function StandSwitcher({
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [view, setView] = useState<View>("list");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +74,7 @@ export function StandSwitcher({
   function close() {
     if (busy) return;
     setOpen(false);
-    setCreating(false);
+    setView("list");
     setError(null);
   }
 
@@ -133,13 +143,35 @@ export function StandSwitcher({
         />
       </button>
 
-      <Sheet open={open} onClose={close} title={creating ? "New stand" : "Your stands"}>
-        {creating ? (
-          <NewStand onCancel={() => setCreating(false)} onCreated={(next) => {
+      <Sheet open={open} onClose={close} title={viewTitle[view]}>
+        {view === "new" ? (
+          <NewStand onCancel={() => setView("list")} onCreated={(next) => {
             setOpen(false);
-            setCreating(false);
+            setView("list");
             void go(next);
           }} />
+        ) : view === "stand" ? (
+          <StandSettings
+            stand={current}
+            demo={!ownAccount}
+            onlyStand={stands.length <= 1}
+            onBack={() => setView("list")}
+            onRenamed={() => {
+              setOpen(false);
+              setView("list");
+              startTransition(() => router.refresh());
+            }}
+          />
+        ) : view === "account" ? (
+          <Account
+            name={userName}
+            email={userEmail}
+            ownAccount={ownAccount}
+            standCount={stands.length}
+            signingOut={busy === "signout"}
+            onSignOut={signOut}
+            onBack={() => setView("list")}
+          />
         ) : (
           <div className="flex flex-col gap-5">
             {local.length > 0 && (
@@ -162,22 +194,24 @@ export function StandSwitcher({
               </p>
             )}
             <GroupedList>
-              <ListRow icon={<PlusIcon />} iconTone="lemon" title="New stand" onClick={() => setCreating(true)} />
+              <ListRow
+                icon={<PencilIcon />}
+                iconTone="ink"
+                title="Rename or delete"
+                subtitle={current.name}
+                trailing={<ChevronRightIcon className="text-ink-3" />}
+                onClick={() => setView("stand")}
+              />
+              <ListRow icon={<PlusIcon />} iconTone="lemon" title="New stand" onClick={() => setView("new")} />
             </GroupedList>
-            <GroupedList
-              header="Account"
-              footer={
-                ownAccount
-                  ? "Signed in with PayPal. Signing out here leaves your PayPal account signed in."
-                  : "Everyone using the demo shares this seller. Log in with PayPal for stands of your own."
-              }
-            >
+            <GroupedList header="Account">
               <ListRow
                 icon={<PersonIcon />}
                 iconTone="ink"
                 title={userName}
-                subtitle={busy === "signout" ? "Signing out…" : ownAccount ? "Sign out" : "Leave the demo"}
-                onClick={signOut}
+                subtitle={ownAccount ? (userEmail ?? "Signed in with PayPal") : "Shared demo seller"}
+                trailing={<ChevronRightIcon className="text-ink-3" />}
+                onClick={() => setView("account")}
               />
             </GroupedList>
           </div>
@@ -266,5 +300,216 @@ function NewStand({ onCancel, onCreated }: { onCancel: () => void; onCreated: (n
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Renames the stand on screen, or deletes it with everything it holds after a second, explicit tap. */
+function StandSettings({
+  stand,
+  demo,
+  onlyStand,
+  onBack,
+  onRenamed,
+}: {
+  stand: StandSummary;
+  demo: boolean;
+  onlyStand: boolean;
+  onBack: () => void;
+  onRenamed: () => void;
+}) {
+  const [name, setName] = useState(stand.name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<"idle" | "confirm" | "busy">("idle");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function rename(event: FormEvent) {
+    event.preventDefault();
+    const next = name.trim();
+    if (!next) return setError("Give your stand a name.");
+    if (next === stand.name) return onBack();
+    setSaving(true);
+    setError(null);
+    const res = await fetch(standApi("/api/stand/settings", stand.id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: next }),
+    }).catch(() => null);
+    const json = (await res?.json().catch(() => null)) as { error?: string } | null;
+    setSaving(false);
+    if (!res?.ok) return setError(json?.error ?? "Couldn’t rename the stand. Try again.");
+    onRenamed();
+  }
+
+  async function remove() {
+    setDeleting("busy");
+    setDeleteError(null);
+    const res = await fetch(standApi("/api/stand/settings", stand.id), { method: "DELETE" }).catch(() => null);
+    const json = (await res?.json().catch(() => null)) as { home?: string; error?: string } | null;
+    if (!res?.ok || !json?.home) {
+      setDeleting("confirm");
+      return setDeleteError(json?.error ?? "Couldn’t delete the stand. Try again.");
+    }
+    // A full load, so no page of the deleted stand stays in the router's cache.
+    window.location.assign(json.home);
+  }
+
+  const kindWord = stand.kind === "online" ? "store" : "stand";
+  const cantDelete = demo
+    ? "The demo’s stands stay put, since everyone using the demo shares them. Use Reset demo on the recap to start one over."
+    : onlyStand
+      ? "This is your only stand. Make another before deleting this one."
+      : null;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <form onSubmit={rename} className="flex flex-col gap-4">
+        <TextField
+          label="Stand name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          maxLength={40}
+          error={error ?? undefined}
+        />
+        <div className="flex flex-wrap-reverse justify-end gap-3">
+          <Button variant="plain" type="button" onClick={onBack} disabled={saving}>
+            Back
+          </Button>
+          <Button variant="filled" type="submit" loading={saving}>
+            Save name
+          </Button>
+        </div>
+      </form>
+
+      <div className="flex flex-col gap-2 border-t border-hairline pt-5">
+        {cantDelete ? (
+          <p className="px-1 text-footnote text-ink-2">{cantDelete}</p>
+        ) : deleting === "idle" ? (
+          <>
+            <Button variant="destructive" icon={<TrashIcon />} onClick={() => setDeleting("confirm")}>
+              Delete this {kindWord}
+            </Button>
+            <p className="px-1 text-center text-footnote text-ink-2">Deletes its items{stand.kind === "online" ? ", store page" : ""} and sales history.</p>
+          </>
+        ) : (
+          <div className="flex animate-rise flex-col gap-3 rounded-field bg-berry-soft p-4" role="alertdialog" aria-labelledby="delete-stand">
+            <p id="delete-stand" className="text-callout">
+              <strong className="font-semibold">Delete &ldquo;{stand.name}&rdquo;?</strong> Its items
+              {stand.kind === "online" ? ", store page and orders" : " and sales history"} go with it. Payments buyers already
+              made stay in your PayPal account. You can&rsquo;t undo this.
+            </p>
+            {deleteError && (
+              <p role="alert" className="text-footnote font-semibold text-berry">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex flex-wrap-reverse justify-end gap-2">
+              <Button variant="plain" disabled={deleting === "busy"} onClick={() => setDeleting("idle")}>
+                Keep it
+              </Button>
+              <Button variant="filled" icon={<TrashIcon />} loading={deleting === "busy"} onClick={remove}>
+                {deleting === "busy" ? "Deleting…" : "Yes, delete it"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Who's signed in, a way out, and for a PayPal seller, a way to delete their Lemon Pal account. */
+function Account({
+  name,
+  email,
+  ownAccount,
+  standCount,
+  signingOut,
+  onSignOut,
+  onBack,
+}: {
+  name: string;
+  email: string | null;
+  ownAccount: boolean;
+  standCount: number;
+  signingOut: boolean;
+  onSignOut: () => void;
+  onBack: () => void;
+}) {
+  const [deleting, setDeleting] = useState<"idle" | "confirm" | "busy">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove() {
+    setDeleting("busy");
+    setError(null);
+    const res = await fetch("/api/auth/account", { method: "DELETE" }).catch(() => null);
+    const json = (await res?.json().catch(() => null)) as { next?: string; error?: string } | null;
+    if (!res?.ok || !json?.next) {
+      setDeleting("confirm");
+      return setError(json?.error ?? "Couldn’t delete your account. Try again.");
+    }
+    window.location.assign(json.next);
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <GroupedList
+        footer={
+          ownAccount
+            ? "You signed in with PayPal. Signing out of Lemon Pal leaves your PayPal account signed in."
+            : "Everyone using the demo shares this seller. Log in with PayPal for stands of your own."
+        }
+      >
+        <ListRow
+          icon={<PersonIcon />}
+          iconTone="ink"
+          title={name}
+          subtitle={ownAccount ? (email ?? "PayPal account") : "Shared demo seller"}
+        />
+      </GroupedList>
+
+      <div className="flex flex-wrap-reverse justify-end gap-3">
+        <Button variant="plain" onClick={onBack} disabled={signingOut || deleting === "busy"}>
+          Back
+        </Button>
+        {/* While the delete confirmation is up, its button is the one filled action on screen. */}
+        <Button variant={deleting === "idle" ? "filled" : "tinted"} onClick={onSignOut} loading={signingOut} disabled={deleting === "busy"}>
+          {ownAccount ? "Sign out" : "Leave the demo"}
+        </Button>
+      </div>
+
+      {ownAccount && (
+        <div className="flex flex-col gap-2 border-t border-hairline pt-5">
+          {deleting === "idle" ? (
+            <Button variant="destructive" icon={<TrashIcon />} onClick={() => setDeleting("confirm")}>
+              Delete my account
+            </Button>
+          ) : (
+            <div className="flex animate-rise flex-col gap-3 rounded-field bg-berry-soft p-4" role="alertdialog" aria-labelledby="delete-account">
+              <p id="delete-account" className="text-callout">
+                <strong className="font-semibold">Delete your Lemon Pal account?</strong> Your{" "}
+                {standCount === 1 ? "stand, with its items, store and sales history, is" : `${standCount} stands, with their items, stores and sales history, are`}{" "}
+                deleted.
+                Payments buyers already made stay in your PayPal account, and PayPal itself isn&rsquo;t touched. You
+                can&rsquo;t undo this.
+              </p>
+              {error && (
+                <p role="alert" className="text-footnote font-semibold text-berry">
+                  {error}
+                </p>
+              )}
+              <div className="flex flex-wrap-reverse justify-end gap-2">
+                <Button variant="plain" disabled={deleting === "busy"} onClick={() => setDeleting("idle")}>
+                  Keep my account
+                </Button>
+                <Button variant="filled" icon={<TrashIcon />} loading={deleting === "busy"} onClick={remove}>
+                  {deleting === "busy" ? "Deleting…" : "Yes, delete it"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

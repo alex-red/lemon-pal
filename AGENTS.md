@@ -40,6 +40,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Sellers sign in with Log in with PayPal (`lib/paypal-login.ts`, `/api/auth/paypal`, behind `PAYPAL_LOGIN=on`) and get their own user (`lib/accounts.ts`). The shared demo user (`ensureDemoUser` in `lib/demo.ts`) is behind the passcode: `proxy.ts` lets a PayPal seller straight in, and signs anyone past the passcode in as the demo user. Never let a missing or unknown session fall back to the demo user without the passcode.
 - Seller routes take their stand from `lib/session.ts`, never from a constant. Pages call `currentStand(kind?)`. APIs call `requestStand(request)`, which reads the `?stand=` id the page sends (add it with `standApi`) and returns null for a stand the user doesn't own. Routes that take a sale id check it with `ownedSale`. `DEMO_STAND_ID` is for seeding only.
 - Only a local stand rings up sales, and only an online stand serves a store at `/<handle>`. Both checks are on the server, not just in the UI.
+- Delete with `store.deleteStand` or `store.deleteUser`, which take a stand's sales and storefront with it in one transaction. The shared demo user's stands and account can't be deleted, and a seller always keeps at least one stand.
 
 ## Online store and seller pages
 

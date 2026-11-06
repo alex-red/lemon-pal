@@ -11,6 +11,7 @@ const ERRORS: Record<string, string> = {
   "paypal-state": "That sign-in took too long or came from somewhere else. Start again.",
   paypal: "PayPal couldn’t sign you in just now. Try again.",
   "signed-out": "That account isn’t here any more. Sign in again.",
+  deleted: "Your Lemon Pal account and its stands are deleted. Log in with PayPal to start fresh.",
 };
 
 export default async function UnlockPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {

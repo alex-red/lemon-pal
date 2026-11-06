@@ -161,6 +161,22 @@ export const PersonIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const PencilIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M15.5 5.5l3 3L8.5 18.5 4.5 19.5l1-4z" />
+    <path d="M13.5 7.5l3 3" />
+  </Icon>
+);
+
+export const TrashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 6.5h15" />
+    <path d="M9.5 6.5v-2h5v2" />
+    <path d="M6.5 6.5l1 13h9l1-13" />
+    <path d="M10.5 10.5v5.5M13.5 10.5v5.5" />
+  </Icon>
+);
+
 export const BagIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5.5 8h13l-1 11.1a1.5 1.5 0 0 1-1.5 1.4H8a1.5 1.5 0 0 1-1.5-1.4Z" />

@@ -33,6 +33,10 @@ export interface Store {
   saveStorefront(storefront: Storefront): Promise<void>;
   /** Removes a stand's storefront, so its handle is free again. */
   deleteStorefront(standId: string): Promise<void>;
+  /** Deletes a stand with its sales and storefront, in one transaction. */
+  deleteStand(standId: string): Promise<void>;
+  /** Deletes a user and every stand they own, with those stands' sales and storefronts. */
+  deleteUser(userId: string): Promise<void>;
 }
 
 /**
@@ -135,9 +139,16 @@ class SqliteStore implements Store {
   }
 
   async saveSales(sales: Sale[]) {
+    this.transaction(() => {
+      for (const sale of sales) this.writeSale(sale);
+    });
+  }
+
+  /** Runs `work` in one write transaction, rolling back if it throws. */
+  private transaction(work: () => void) {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      for (const sale of sales) this.writeSale(sale);
+      work();
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -201,6 +212,24 @@ class SqliteStore implements Store {
   async deleteStorefront(standId: string) {
     this.db.prepare("DELETE FROM storefronts WHERE stand_id = ?").run(standId);
   }
+
+  async deleteStand(standId: string) {
+    this.transaction(() => this.removeStand(standId));
+  }
+
+  async deleteUser(userId: string) {
+    this.transaction(() => {
+      const rows = this.db.prepare("SELECT id FROM stands WHERE owner_id = ?").all(userId) as { id: string }[];
+      for (const row of rows) this.removeStand(row.id);
+      this.db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+    });
+  }
+
+  private removeStand(standId: string) {
+    this.db.prepare("DELETE FROM sales WHERE stand_id = ?").run(standId);
+    this.db.prepare("DELETE FROM storefronts WHERE stand_id = ?").run(standId);
+    this.db.prepare("DELETE FROM stands WHERE id = ?").run(standId);
+  }
 }
 
 export function databasePath() {
@@ -212,7 +241,7 @@ export function databasePath() {
 // One connection per process, kept across dev hot reloads.
 // Bump SCHEMA when the tables or Store methods change, so a running dev server opens a fresh connection
 // instead of keeping one from before the change.
-const SCHEMA = 4;
+const SCHEMA = 5;
 const globalForStore = globalThis as unknown as { lemonpalSqliteStore?: { schema: number; store: Store } };
 
 function instance(): Store {
@@ -239,4 +268,6 @@ export const store: Store = {
   getStorefrontBySlug: (slug) => instance().getStorefrontBySlug(slug),
   saveStorefront: (storefront) => instance().saveStorefront(storefront),
   deleteStorefront: (standId) => instance().deleteStorefront(standId),
+  deleteStand: (standId) => instance().deleteStand(standId),
+  deleteUser: (userId) => instance().deleteUser(userId),
 };

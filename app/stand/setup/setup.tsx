@@ -197,6 +197,13 @@ export function Setup({
   const home = standHome(kind);
   const router = useRouter();
   const [name, setName] = useState(standName);
+  // A rename from the stand switcher refreshes the page with a new standName. Follow it, or publishing would put
+  // the old name back.
+  const [savedName, setSavedName] = useState(standName);
+  if (standName !== savedName) {
+    setSavedName(standName);
+    setName(standName);
+  }
   const [preview, setPreview] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [busy, setBusy] = useState<"reading" | "publishing" | `sample:${string}` | null>(null);
