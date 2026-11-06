@@ -77,6 +77,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Boundaries
 
 - This is a public open-source repo (Apache-2.0). Never commit secrets, real customer data, or photos of people. Add new environment variables to `.env.example` with blank values.
+- Every photo in `public/demo/` is generated with Codex image generation, not taken or downloaded. Make new demo photos the same way.
 - The official PayPal starter (`paypaldev/hackathon-paypal-ag-grid-boilerplate`) has no license. Read it for reference only and don't copy its code.
 - `docs/hackathon/` holds private planning notes and is gitignored. Don't link to it from tracked files.
 - Ask before adding a dependency. Pin exact versions.
