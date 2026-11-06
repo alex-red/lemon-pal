@@ -12,7 +12,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Sta
 | Ring up a sale | `/stand/register` | Tap item tiles, then show a QR code for this sale. The server snapshots the cart and prices it from the confirmed catalog. |
 | Pay | `/pay/[saleId]` | The buyer's phone opens PayPal Checkout. The server creates and captures the order. |
 | Confirm | `/stand/register` | The seller tablet polls the sale status and shows **Paid** only after a completed capture for the expected amount and currency. |
-| Recap | `/stand/recap` | AG Studio report over completed sales and line items. |
+| Recap | `/stand/recap` | AG Studio report over completed sales and line items, with a custom **Today's sales** widget, an item filter, and an assistant that answers questions and adds charts. |
 
 All pricing, PayPal calls, and AI calls run on the server. Secrets never reach the browser.
 
@@ -20,7 +20,7 @@ All pricing, PayPal calls, and AI calls run on the server. Secrets never reach t
 
 - [Next.js 16](https://nextjs.org/) and React 19, TypeScript, Tailwind CSS 4
 - [PayPal Checkout](https://developer.paypal.com/checkout/) and the Orders v2 REST API (Sandbox)
-- [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the stand recap. AG Studio is commercial software under its own licence; it runs with a watermark without a licence key.
+- [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the stand recap. AG Studio is commercial software under its own licence; it runs with a watermark without a licence key. The recap's assistant uses AG Studio's Agent Framework, with Claude Sonnet 5.5 called through a server route.
 - [Claude Sonnet 5.5](https://platform.claude.com/docs) reads price-sign photos into a draft catalog, using structured outputs
 - [Bun](https://bun.sh/) as the package manager
 

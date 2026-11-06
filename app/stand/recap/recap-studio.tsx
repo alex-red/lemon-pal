@@ -1,7 +1,12 @@
 "use client";
 
 import {
+  AgStudioAiModule,
+  createAiHarness,
   studioTheme,
+  type AgAiHarnessSetup,
+  type AgAiPromptStarter,
+  type AgStudioApi,
   type AgDataEngine,
   type AgDataSourcesDefinition,
   type AgFieldDefinition,
@@ -12,7 +17,20 @@ import {
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RecapData } from "@/lib/recap";
+import { claudeAdapter } from "./claude-adapter";
 import { TodaySalesWidget, type RecapRegistry, type TodaySalesDef } from "./today-widget";
+
+// Opening suggestions in the assistant panel. They show until the first message is sent.
+const PROMPT_STARTERS: AgAiPromptStarter[] = [
+  { label: "What sold by item", prompt: "Show me what sold today by item." },
+  { label: "Best seller", prompt: "Which item made the most money today, and how many did I sell?" },
+  { label: "Sales over time", prompt: "Add a chart of sales over time today." },
+];
+
+// Studio's built-in agents, run on Claude through our server route so the key stays server-side.
+// The setup params are typed with the core API, but Studio passes its full API at runtime.
+const ai: AgAiHarnessSetup = ({ api }) =>
+  createAiHarness(api as AgStudioApi, { adapter: claudeAdapter, promptStarters: PROMPT_STARTERS });
 
 // Citrus Glass tokens, read as CSS variables so Studio follows light and dark mode with the rest of the app.
 const lemonTheme = studioTheme.withParams({
@@ -132,6 +150,11 @@ const initialState: AgReportState<RecapRegistry> = {
             units: [{ id: "sales.units", aggregation: "sum" }],
           },
         },
+        itemFilter: {
+          type: "button-filter",
+          dataMapping: { value: [{ id: "lines.item" }] },
+          format: { title: { enabled: true, text: "Filter by item" } },
+        },
         byItem: {
           type: "grid",
           dataMapping: {
@@ -163,8 +186,9 @@ const initialState: AgReportState<RecapRegistry> = {
       widgetLayout: {
         today: { xTrack: 0, yTrack: 0, xSpan: 9, ySpan: 11 },
         unitsChart: { xTrack: 9, yTrack: 0, xSpan: 15, ySpan: 11 },
-        byItem: { xTrack: 0, yTrack: 11, xSpan: 10, ySpan: 14 },
-        sales: { xTrack: 10, yTrack: 11, xSpan: 14, ySpan: 14 },
+        itemFilter: { xTrack: 0, yTrack: 11, xSpan: 24, ySpan: 5 },
+        byItem: { xTrack: 0, yTrack: 16, xSpan: 10, ySpan: 14 },
+        sales: { xTrack: 10, yTrack: 16, xSpan: 14, ySpan: 14 },
       },
     },
   ],
@@ -231,14 +255,16 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
   }
 
   return (
-    <AgStudioProvider licenseKey={licenseKey ?? undefined}>
+    <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
       <div style={{ height: "100%", width: "100%" }}>
         <AgStudio<RecapRegistry>
           data={data}
           initialState={initialState}
           widgets={widgets}
           theme={lemonTheme}
-          mode="view"
+          ai={ai}
+          // The assistant adds and changes widgets, which needs edit mode.
+          mode="edit"
           onStudioReady={onStudioReady}
         />
       </div>
