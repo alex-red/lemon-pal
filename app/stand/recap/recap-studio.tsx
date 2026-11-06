@@ -19,7 +19,7 @@ import {
 import { AgStudio, AgStudioProvider, createWidgets } from "ag-studio-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { RecapData } from "@/lib/recap";
-import { claudeAdapter } from "./claude-adapter";
+import { claudeAdapter, isThinking, subscribeThinking } from "./claude-adapter";
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
 import { useSetFirstSale } from "./first-sale";
 import { TodaySalesWidget, type RecapRegistry, type TodaySalesDef } from "./today-widget";
@@ -237,6 +237,7 @@ const phonePanels: AgPanelConfig = { view: { left: [], right: [] } };
 export function RecapStudio({ licenseKey, currency }: { licenseKey: string | null; currency: string }) {
   const [initial, setInitial] = useState<RecapData | null>(null);
   const phone = useMedia(PHONE);
+  const thinking = useSyncExternalStore(subscribeThinking, isThinking, () => false);
   // What the first load held, and every sale added since. A remount starts again from the first load,
   // so it re-adds the rest (see onStudioReady).
   const firstSaleIds = useRef<Set<string>>(new Set());
@@ -314,7 +315,8 @@ export function RecapStudio({ licenseKey, currency }: { licenseKey: string | nul
 
   return (
     <AgStudioProvider licenseKey={licenseKey ?? undefined} modules={[AgStudioAiModule]}>
-      <div style={{ height: "100%", width: "100%" }}>
+      {/* Lights the assistant's input while Claude answers (see the AI glow in globals.css). */}
+      <div data-assistant-thinking={thinking || undefined} style={{ height: "100%", width: "100%" }}>
         <AgStudio<RecapRegistry>
           // Studio opens every panel when it switches into edit mode, so a mode change remounts it instead,
           // starting again from initialState with the panels collapsed. An open assistant chat is lost.

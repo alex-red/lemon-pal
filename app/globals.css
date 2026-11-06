@@ -395,6 +395,21 @@
   }
 }
 
+/*
+ * The recap assistant's input glows while Claude answers. Studio clips its input (overflow: hidden), so the
+ * glow can't sit outside it: its own border carries the travelling light, over a soft halo. Written against
+ * AG Studio 3.1.0's .ag-studio-ai-assistant-input; recheck after upgrading ag-studio.
+ */
+[data-assistant-thinking] .ag-studio-ai-assistant-panel .ag-studio-ai-assistant-input {
+  --glow-colors: var(--lemon), var(--leaf), var(--lemon-deep), var(--peel), var(--lemon);
+  border-color: transparent;
+  background:
+    linear-gradient(var(--ag-background-color), var(--ag-background-color)) padding-box,
+    conic-gradient(from var(--glow-angle), var(--glow-colors)) border-box;
+  box-shadow: 0 0 18px -2px color-mix(in oklch, var(--lemon) 55%, transparent);
+  animation: var(--animate-glow-sweep);
+}
+
 /* Text that shimmers while it waits, like iOS "Thinking…". It stays real text for screen readers. */
 @utility shimmer-text {
   color: transparent;
@@ -728,6 +743,10 @@
   .ai-glow[data-active]::after,
   .shimmer-text {
     animation: var(--animate-breathe) !important;
+  }
+  /* The input holds what the person is typing, so its glow stays still rather than breathing. */
+  [data-assistant-thinking] .ag-studio-ai-assistant-panel .ag-studio-ai-assistant-input {
+    animation: none !important;
   }
   .scan-band {
     animation: none !important;
