@@ -1,4 +1,5 @@
 import { lineTotalCents } from "./deals";
+import { countryName } from "./shipping";
 import type { Sale } from "./types";
 
 // Row shapes for the AG Studio recap. Amounts are in currency units because Studio formats them as money.
@@ -21,7 +22,15 @@ export type RecapSaleRow = {
   channel: "Stand" | "Online";
   /** Shipping charged on an online order. 0 otherwise. */
   shipping: number;
+  /** How the buyer got it. */
+  fulfillment: RecapFulfillment;
+  /** Where a shipped order went: country name and state or region. "Not shipped" otherwise. */
+  country: string;
+  region: string;
+  /** 1 for a shipped order, so a chart can count them by place. 0 otherwise. */
+  shippedOrders: number;
 };
+export type RecapFulfillment = "At the stand" | "Pickup" | "Shipped";
 export type RecapLineRow = {
   id: string;
   saleId: string;
@@ -39,6 +48,10 @@ export type RecapLineRow = {
   /** Item sales given back in a refund, after deals. */
   refunded: number;
   paidAt: string;
+  /** The item's category and finish when sold. "Other" and "Not set" for items without them. */
+  category: string;
+  finish: string;
+  channel: "Stand" | "Online";
 };
 export type RecapData = {
   sales: RecapSaleRow[];
@@ -67,6 +80,8 @@ export function toRecap(sales: Sale[]): RecapData {
       currency: s.currency,
       channel: s.channel === "online" ? "Online" : "Stand",
       shipping: (s.shippingCents ?? 0) / 100,
+      fulfillment: fulfillmentOf(s),
+      ...shipTo(s),
       };
     }),
     lines: paid.flatMap((s) => {
@@ -83,7 +98,22 @@ export function toRecap(sales: Sale[]): RecapData {
         refundedUnits: refunded ? l.quantity : 0,
         refunded: refunded ? lineTotalCents(l) / 100 : 0,
         paidAt: s.paidAt,
+        category: l.category ?? "Other",
+        finish: l.finish ?? "Not set",
+        channel: s.channel === "online" ? ("Online" as const) : ("Stand" as const),
       }));
     }),
   };
+}
+
+function fulfillmentOf(sale: Sale): RecapFulfillment {
+  if (sale.channel !== "online") return "At the stand";
+  return sale.fulfillment?.method === "ship" ? "Shipped" : "Pickup";
+}
+
+// Country and region only, never the street: the recap goes to the Booth Analyst too.
+function shipTo(sale: Sale): { country: string; region: string; shippedOrders: number } {
+  const address = sale.fulfillment?.method === "ship" ? sale.fulfillment.address : undefined;
+  if (!address) return { country: "Not shipped", region: "Not shipped", shippedOrders: 0 };
+  return { country: countryName(address.country, "en"), region: address.region || address.city, shippedOrders: 1 };
 }

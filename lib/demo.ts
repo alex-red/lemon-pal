@@ -137,10 +137,19 @@ export async function ensureDemoUser(): Promise<User> {
   const local = await store.getStand(DEMO_STAND_ID);
   await store.saveStand(local ? { ...local, ownerId: user.id, kind: kindOf(local) } : sampleStand(kindSample("local")));
   if (!(await store.getStand(DEMO_ONLINE_STAND_ID))) {
-    const online = sampleStand(kindSample("online"), { id: DEMO_ONLINE_STAND_ID, ownerId: user.id, kind: "online" });
-    // Everything in the merch sample can be posted, so shipping works on the first order.
-    await store.saveStand(online);
-    await saveDemoStorefront(online);
+    // A store the old single stand had moves to the online stand, with that stand's catalog, so its link keeps working.
+    const legacyStore = local && (await store.getStorefront(local.id));
+    if (local && legacyStore) {
+      const online: Stand = { ...local, id: DEMO_ONLINE_STAND_ID, ownerId: user.id, kind: "online" };
+      await store.saveStand(online);
+      await store.deleteStorefront(local.id);
+      await store.saveStorefront({ ...legacyStore, standId: online.id });
+    } else {
+      const online = sampleStand(kindSample("online"), { id: DEMO_ONLINE_STAND_ID, ownerId: user.id, kind: "online" });
+      // Everything in the merch sample can be posted, so shipping works on the first order.
+      await store.saveStand(online);
+      await saveDemoStorefront(online);
+    }
   }
   await store.saveUser(user);
   return user;

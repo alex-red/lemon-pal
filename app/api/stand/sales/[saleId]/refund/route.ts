@@ -16,6 +16,16 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sa
     return Response.json({ error: `This sale is ${sale.status === "open" ? "not paid yet" : sale.status}, so there's nothing to refund.` }, { status: 409 });
   }
 
+  // A demo sale never went through PayPal, so there's nothing to send back. It flips locally, like a real refund would.
+  if (sale.demo) {
+    const refunded = await store.updateSale(sale.id, (s) =>
+      s.status === "paid"
+        ? { ...s, status: "refunded", refund: { paypalRefundId: `DEMO-REFUND-${s.id.slice(0, 8)}`, refundedAt: new Date().toISOString() } }
+        : null,
+    );
+    return Response.json(publicSale(refunded!));
+  }
+
   try {
     const result = await refundCapture(sale);
     if (!result.ok) {

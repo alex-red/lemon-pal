@@ -17,6 +17,8 @@ export interface Store {
   listStands(ownerId: string): Promise<Stand[]>;
   getSale(id: string): Promise<Sale | null>;
   saveSale(sale: Sale): Promise<void>;
+  /** Writes many sales in one transaction, for the demo seed. */
+  saveSales(sales: Sale[]): Promise<void>;
   /**
    * Atomically read, change, and write one sale, so a cancel and a capture can't overwrite each other.
    * `change` returns the new sale, or null to leave it as is. Resolves to the stored sale.
@@ -29,6 +31,8 @@ export interface Store {
   getStorefrontBySlug(slug: string): Promise<Storefront | null>;
   /** Creates or replaces a stand's storefront. Throws SlugTakenError when another stand has the slug. */
   saveStorefront(storefront: Storefront): Promise<void>;
+  /** Removes a stand's storefront, so its handle is free again. */
+  deleteStorefront(standId: string): Promise<void>;
 }
 
 /**
@@ -130,6 +134,17 @@ class SqliteStore implements Store {
     this.writeSale(sale);
   }
 
+  async saveSales(sales: Sale[]) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const sale of sales) this.writeSale(sale);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   async updateSale(id: string, change: (sale: Sale) => Sale | null) {
     // IMMEDIATE takes the write lock up front, so the read and the write see the same row.
     this.db.exec("BEGIN IMMEDIATE");
@@ -182,6 +197,10 @@ class SqliteStore implements Store {
       throw error;
     }
   }
+
+  async deleteStorefront(standId: string) {
+    this.db.prepare("DELETE FROM storefronts WHERE stand_id = ?").run(standId);
+  }
 }
 
 export function databasePath() {
@@ -212,10 +231,12 @@ export const store: Store = {
   listStands: (ownerId) => instance().listStands(ownerId),
   getSale: (id) => instance().getSale(id),
   saveSale: (sale) => instance().saveSale(sale),
+  saveSales: (sales) => instance().saveSales(sales),
   updateSale: (id, change) => instance().updateSale(id, change),
   listSales: (standId) => instance().listSales(standId),
   clearSales: (standId) => instance().clearSales(standId),
   getStorefront: (standId) => instance().getStorefront(standId),
   getStorefrontBySlug: (slug) => instance().getStorefrontBySlug(slug),
   saveStorefront: (storefront) => instance().saveStorefront(storefront),
+  deleteStorefront: (standId) => instance().deleteStorefront(standId),
 };

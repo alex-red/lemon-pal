@@ -60,7 +60,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sal
   });
 
   // Shipped is recorded either way. PayPal tracking is a bonus for the buyer and for seller protection.
-  if (input.action === "ship" && input.tracking && sale) {
+  // A demo order has no PayPal order behind it, so its tracking stays here.
+  if (input.action === "ship" && input.tracking && sale && !sale.demo) {
     let sent = false;
     try {
       await addTracking(sale, { tracking: input.tracking, carrier: input.carrier, carrierName: input.carrierName });

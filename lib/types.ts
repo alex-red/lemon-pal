@@ -15,6 +15,10 @@ export type CatalogItem = {
   online?: boolean;
   /** Whether it can be posted to an online buyer. Missing means pickup only. */
   ships?: boolean;
+  /** A shelf the recap groups items by, such as "Animals". Optional. */
+  category?: string;
+  /** What it's made of or how it's finished, such as "Holographic". Optional. */
+  finish?: string;
 };
 
 /** Part of a photo, as fractions of its width and height from the top-left corner. */
@@ -78,6 +82,9 @@ export type SaleLine = {
   deal?: Deal;
   /** What the deal took off this line. The line costs unitPriceCents × quantity − discountCents. */
   discountCents?: Cents;
+  /** The item's category and finish when it was sold, for the recap. */
+  category?: string;
+  finish?: string;
 };
 
 /** A sale moves open → paid, or open → canceled. Only a paid sale can become refunded. */
@@ -139,6 +146,8 @@ export type Sale = {
   buyerName?: string;
   /** Set when the seller refunded the whole capture and PayPal accepted it. */
   refund?: { paypalRefundId: string; refundedAt: string };
+  /** A sale the sticker shop demo made up. It never went through PayPal, so refunds and tracking stay local. */
+  demo?: boolean;
 };
 
 export type StorefrontAccent = "lemon" | "leaf" | "berry";
