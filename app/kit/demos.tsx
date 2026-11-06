@@ -38,13 +38,14 @@ import { dealDiscount, dealLabel, type Deal } from "@/lib/deals";
 import { playDing, unlockDing } from "@/lib/ding";
 
 // Sample items for the kit only. The real register prices sales from the stored catalog on the server.
-const sampleItems: { id: string; name: string; priceCents: number; emoji: string; image?: string; deal?: Deal }[] = [
+const sampleItems: { id: string; name: string; priceCents: number; emoji: string; image?: string; deal?: Deal; soldOut?: boolean }[] = [
   // A photo thumbnail, as the setup screen crops from a display photo. It takes the emoji's place.
   { id: "lemonade", name: "Lemonade", priceCents: 250, emoji: "🍋", image: "/demo/lemons-thumb.jpg" },
   { id: "pink", name: "Pink lemonade", priceCents: 300, emoji: "🌸" },
   { id: "iced-tea", name: "Iced tea", priceCents: 200, emoji: "🧊" },
   { id: "cookie", name: "Cookie", priceCents: 150, emoji: "🍪", deal: { quantity: 2, priceCents: 250 } },
-  { id: "brownie", name: "Brownie", priceCents: 225, emoji: "🍫" },
+  // Sold out: greyed, labelled, and not tappable.
+  { id: "brownie", name: "Brownie", priceCents: 225, emoji: "🍫", soldOut: true },
   { id: "tip", name: "Tip jar", priceCents: 100, emoji: "🫙" },
 ];
 
@@ -192,6 +193,7 @@ export function RegisterDemo() {
               image={item.image}
               priceCents={item.priceCents}
               currency={currency}
+              soldOut={item.soldOut}
               count={cart[item.id] ?? 0}
               onAdd={() => bump(item.id, 1)}
               onRemove={() => bump(item.id, -1)}

@@ -37,10 +37,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const draft = await readSign(input);
-    // The time to first sale counts from here: the seller has a sign and is setting up.
     const stand = await requestStand(request);
-    const started = stand && startDraft(stand, arrivedAt);
+    // A published stand is being updated, so the reader matches the sign against what it sells now.
+    const current = stand?.publishedAt
+      ? stand.items.map(({ name, priceCents, soldOut }) => ({ name, priceCents, soldOut }))
+      : [];
+    const draft = await readSign(input, current);
+    // The time to first sale counts from here: the seller has a sign and is setting up. An update doesn't restart it.
+    const started = stand && !stand.publishedAt ? startDraft(stand, arrivedAt) : stand;
     if (stand && started !== stand) await store.saveStand(started!);
     return Response.json(draft);
   } catch (error) {

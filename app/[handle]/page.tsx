@@ -86,6 +86,7 @@ export default async function StorePage({ params, searchParams }: PageProps) {
             image: item.image,
             deal: item.deal,
             ships: shipsOnline(item),
+            soldOut: item.soldOut === true,
           }))}
         />
         <footer className="mt-12 flex justify-center">

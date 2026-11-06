@@ -281,6 +281,7 @@ export function Register({ standId, currency, items, payOrigin, switcher }: Prop
             deal={item.deal ? dealLabel(item.deal, currency) : undefined}
             priceCents={item.priceCents}
             currency={currency}
+            soldOut={item.soldOut}
             count={cart[item.id] ?? 0}
             onAdd={() => setCart((c) => ({ ...c, [item.id]: (c[item.id] ?? 0) + 1 }))}
             onRemove={() => setCart((c) => ({ ...c, [item.id]: Math.max(0, (c[item.id] ?? 0) - 1) }))}

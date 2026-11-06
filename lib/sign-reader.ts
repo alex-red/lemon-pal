@@ -35,6 +35,13 @@ const SignSchema = z.object({
         })
         .nullable()
         .describe("A multi-buy price written for this item, such as \"2 for $5\" or \"3/$10\". null if there isn't one."),
+      sold_out: z
+        .boolean()
+        .describe("true if the sign or display shows this item as sold out: crossed out, covered, or labelled \"sold out\" or \"out\"."),
+      existing_item: z
+        .string()
+        .nullable()
+        .describe("The name from <current_items> this item is, copied exactly. null if it's new or there's no current list."),
     }),
   ),
 });
@@ -62,6 +69,28 @@ const RULES = `- Use the price exactly as written. Don't guess or calculate a pr
 - Put a multi-buy price such as "2 for $5", "3/$10" or "buy 2 for $5" in deal on the item it belongs to, and keep the single-item price in price_cents.
   Set deal to null when it's unclear, when it covers a mix of different items, or when it's a percentage or "buy one get one" offer.
   Mark confidence low if any part of the deal was hard to read.`;
+
+// Only when the stand already sells something: the reader matches what it sees against the current catalog.
+const UPDATE_RULES = `The seller already sells the items in <current_items> and is updating their stand from this new sign or list.
+- For each item you find, set existing_item to the matching name from <current_items>, copied exactly, when it's the same product.
+  Match on meaning, not spelling: "Choc chip cookie" is "Chocolate Chip Cookie". Use each current name at most once. Use null for a new item.
+- Read the price shown now, even when it differs from the current price. Never copy a price from <current_items>.
+- When an old price is crossed out with a new one written beside it, use the new price.
+- Keep listing an item that's marked sold out, with sold_out true. Don't list current items that aren't on the sign at all.`;
+
+const SOLD_OUT_RULES = `- Set sold_out true when an item is marked as gone: crossed or scribbled out, covered with tape or a sticky note, or labelled
+  "sold out", "out", "gone", or "none left". For a display, an empty shelf or hook under its price tag also counts. Otherwise false.
+  If a crossed-out item has no readable price, still list it with price_cents null.`;
+
+/** A current catalog line the reader matches against. Treated as data, never instructions. */
+export type CurrentItem = { name: string; priceCents: number; soldOut?: boolean };
+
+function currentItemsBlock(items: CurrentItem[]): string {
+  const lines = items.map(
+    (item) => `- ${item.name.replace(/[<>\n]/g, " ")} | ${(item.priceCents / 100).toFixed(2)}${item.soldOut ? " | sold out" : ""}`,
+  );
+  return `<current_items>\n${lines.join("\n")}\n</current_items>`;
+}
 
 export class SignReadError extends Error {}
 
@@ -94,11 +123,15 @@ export const MAX_LIST_CHARS = 4000;
 
 type SignInput = { image: { data: string; mediaType: SignImageType } } | { text: string };
 
-/** Reads a sign photo, or a pasted price list, into a draft catalog for the seller to check. */
-export async function readSign(input: SignInput): Promise<SignDraft> {
+/**
+ * Reads a sign photo, or a pasted price list, into a draft catalog for the seller to check.
+ * With the stand's current items, it also says which current item each line is, so the seller sees what changed.
+ */
+export async function readSign(input: SignInput, current: CurrentItem[] = []): Promise<SignDraft> {
   client ??= new Anthropic({ apiKey: env.anthropicApiKey() });
 
   // Haiku reads clear signs as well as Sonnet, at about twice the speed. It has no server-side refusal fallback.
+  const rules = [RULES, SOLD_OUT_RULES, ...(current.length ? [currentItemsBlock(current), UPDATE_RULES] : [])].join("\n\n");
   const response = await client.beta.messages.parse({
     model: "claude-haiku-5-5",
     max_tokens: 16000,
@@ -110,9 +143,9 @@ export async function readSign(input: SignInput): Promise<SignDraft> {
           "image" in input
             ? [
                 { type: "image", source: { type: "base64", media_type: input.image.mediaType, data: input.image.data } },
-                { type: "text", text: `${PHOTO_INTRO}\n\n${RULES}` },
+                { type: "text", text: `${PHOTO_INTRO}\n\n${rules}` },
               ]
-            : [{ type: "text", text: `<price_list>\n${input.text}\n</price_list>\n\n${TEXT_INTRO}\n\n${RULES}` }],
+            : [{ type: "text", text: `<price_list>\n${input.text}\n</price_list>\n\n${TEXT_INTRO}\n\n${rules}` }],
       },
     ],
   });
@@ -123,8 +156,17 @@ export async function readSign(input: SignInput): Promise<SignDraft> {
   }
 
   const { stand_name, items } = response.parsed_output;
+  // Only names the catalog really has, each claimed once, so a made-up or repeated match reads as a new item.
+  const unclaimed = new Map(current.map((item) => [item.name.trim().toLowerCase(), item.name]));
+  const claim = (name: string | null) => {
+    const key = name?.trim().toLowerCase();
+    const found = key ? unclaimed.get(key) : undefined;
+    if (key && found) unclaimed.delete(key);
+    return found;
+  };
   const draftItems = items
     .map((item) => ({
+      existingName: claim(item.existing_item),
       name: item.name.trim().slice(0, 60),
       // Drop impossible prices so the seller has to enter them.
       priceCents:
@@ -133,6 +175,7 @@ export async function readSign(input: SignInput): Promise<SignDraft> {
       emoji: cleanEmoji(item.emoji),
       region: "image" in input ? toRegion(item.region) : undefined,
       deal: toDeal(item.deal, item.price_cents),
+      ...(item.sold_out ? { soldOut: true } : {}),
     }))
     .filter((item) => item.name.length > 0);
   return { standName: stand_name?.trim().slice(0, 40) || null, items: draftItems };

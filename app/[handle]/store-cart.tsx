@@ -25,6 +25,7 @@ export type StoreItem = {
   image?: string;
   deal?: Deal;
   ships: boolean;
+  soldOut?: boolean;
 };
 
 type Props = {
@@ -137,6 +138,7 @@ export function StoreCart({ handle, currency, open: storeOpen, methods, shipping
               deal={item.deal ? dealLabel(item.deal, currency) : undefined}
               priceCents={item.priceCents}
               currency={currency}
+              soldOut={item.soldOut}
               count={cart[item.id] ?? 0}
               onAdd={open ? () => setCart((c) => ({ ...c, [item.id]: Math.min(99, (c[item.id] ?? 0) + 1) })) : undefined}
               onRemove={() => setCart((c) => ({ ...c, [item.id]: Math.max(0, (c[item.id] ?? 0) - 1) }))}

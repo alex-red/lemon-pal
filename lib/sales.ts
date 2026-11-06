@@ -13,6 +13,7 @@ export function priceCart(stand: Stand, cart: CartEntry[]): { lines: SaleLine[];
   const lines: SaleLine[] = cart.map(({ itemId, quantity }) => {
     const item = stand.items.find((i) => i.id === itemId);
     if (!item) throw new CartError(`Unknown item ${itemId}`);
+    if (item.soldOut) throw new CartError(`${item.name} is sold out.`);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new CartError("Invalid quantity");
     const discountCents = dealDiscount(item.priceCents, quantity, item.deal);
     return {

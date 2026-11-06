@@ -1,8 +1,8 @@
 import { formatMoney, type Cents } from "@/lib/money";
 import { cn } from "./cn";
-import { MinusIcon, TagIcon } from "./icons";
+import { MinusIcon, TagIcon, XmarkIcon } from "./icons";
 import { Money } from "./money";
-import { CountBadge } from "./status";
+import { CountBadge, Pill } from "./status";
 
 /**
  * A register tile: the biggest target on the seller's screen, sized for a thumb in a hurry (Fitts's law).
@@ -17,6 +17,7 @@ export function ItemTile({
   emoji,
   image,
   deal,
+  soldOut = false,
   onAdd,
   onRemove,
   className,
@@ -31,6 +32,8 @@ export function ItemTile({
   image?: string;
   /** A multi-buy price to show under the price, such as "2 for $5.00". */
   deal?: string;
+  /** Out of stock: the tile greys out, says so, and can't be tapped. */
+  soldOut?: boolean;
   onAdd?: () => void;
   onRemove?: () => void;
   className?: string;
@@ -47,11 +50,14 @@ export function ItemTile({
       <button
         type="button"
         onClick={onAdd}
-        aria-label={`${name}, ${price}${deal ? `, deal ${deal}` : ""}${active ? `, ${count} in sale` : ""}. Add one.`}
+        disabled={soldOut}
+        aria-label={soldOut ? `${name}, ${price}, sold out.` : `${name}, ${price}${deal ? `, deal ${deal}` : ""}${active ? `, ${count} in sale` : ""}. Add one.`}
         className={cn(
           "pressable focus-ring relative flex min-w-0 flex-col justify-between gap-3 overflow-hidden rounded-tile p-5 text-left [grid-area:1/1] max-[24rem]:p-4",
           "ring-[0.5px]",
-          active
+          soldOut
+            ? "pointer-events-none bg-surface text-ink-2 shadow-card ring-hairline [&>img]:opacity-40 [&>img]:grayscale [&>span[aria-hidden]]:opacity-40 [&>span[aria-hidden]]:grayscale"
+            : active
             ? "bg-lemon text-[oklch(0.23_0.03_85)] shadow-float ring-lemon-deep"
             : "bg-surface text-ink shadow-card ring-hairline hover:shadow-float",
         )}
@@ -81,7 +87,11 @@ export function ItemTile({
         <span className="relative flex flex-col gap-1">
           <span className="text-title3 font-semibold text-balance [overflow-wrap:anywhere]">{name}</span>
           <Money cents={priceCents} currency={currency} size="title" className={active ? "[&>span]:text-current" : undefined} />
-          {deal ? (
+          {soldOut ? (
+            <Pill tone="berry" icon={<XmarkIcon />} className="mt-1 self-start">
+              Sold out
+            </Pill>
+          ) : deal ? (
             <span
               aria-hidden
               className={cn(

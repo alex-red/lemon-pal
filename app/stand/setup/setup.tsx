@@ -8,10 +8,13 @@ import {
   Button,
   CameraIcon,
   Card,
+  CheckIcon,
   ConfidencePill,
   ExclamationIcon,
   ListIcon,
+  Money,
   MoreBelow,
+  PencilIcon,
   PhotoIcon,
   Pill,
   PlusIcon,
@@ -19,6 +22,7 @@ import {
   scrollToReveal,
   ShimmerText,
   SparklesIcon,
+  Switch,
   TagIcon,
   TextArea,
   TextField,
@@ -28,7 +32,7 @@ import {
 import { isValidDeal, MAX_DEAL_QUANTITY, type Deal } from "@/lib/deals";
 import { cleanEmoji } from "@/lib/emoji";
 import { standApi, standHome } from "@/lib/stands";
-import type { DraftItem, Region, SignDraft, StandKind } from "@/lib/types";
+import type { CatalogItem, DraftItem, Region, SignDraft, StandKind } from "@/lib/types";
 import { CameraSheet, canUseLiveCamera } from "./camera-sheet";
 
 type Row = {
@@ -42,9 +46,16 @@ type Row = {
   image?: string;
   /** A multi-buy price, as typed: "2" for "5.00". null when the item has no deal. */
   deal: { quantity: string; price: string } | null;
+  soldOut: boolean;
+  /** The published item this row edits, to show what changed. Missing for a new item. */
+  before?: CatalogItem;
+  /** After a read while updating: whether the sign showed this published item. */
+  onSign?: boolean;
 };
 
 let nextKey = 1;
+
+const toAmount = (cents: number) => (cents / 100).toFixed(2);
 
 function toRow(item: DraftItem): Row {
   return {
@@ -54,8 +65,92 @@ function toRow(item: DraftItem): Row {
     price: item.priceCents === null ? "" : (item.priceCents / 100).toFixed(2),
     confidence: item.priceCents === null ? "low" : item.confidence,
     unreadPrice: item.priceCents === null,
-    deal: item.deal ? { quantity: String(item.deal.quantity), price: (item.deal.priceCents / 100).toFixed(2) } : null,
+    deal: item.deal ? { quantity: String(item.deal.quantity), price: toAmount(item.deal.priceCents) } : null,
+    soldOut: item.soldOut ?? false,
   };
+}
+
+/** A published item as an editable row, remembering how it was so the screen can show what changed. */
+function fromCatalog(item: CatalogItem): Row {
+  return {
+    key: nextKey++,
+    emoji: item.emoji ?? "",
+    name: item.name,
+    price: toAmount(item.priceCents),
+    confidence: null,
+    unreadPrice: false,
+    image: item.image,
+    deal: item.deal ? { quantity: String(item.deal.quantity), price: toAmount(item.deal.priceCents) } : null,
+    soldOut: item.soldOut ?? false,
+    before: item,
+  };
+}
+
+/**
+ * Lays a fresh read over the published catalog. Items the reader matched take the sign's price and sold-out mark,
+ * keeping their photo, icon, and deal unless the sign shows a new one. Unmatched lines become new items. Published
+ * items the sign didn't show stay as they were, flagged for the seller to decide.
+ */
+function mergeRead(catalog: CatalogItem[], items: DraftItem[], thumbnails: (string | undefined)[]): Row[] {
+  const rows = catalog.map((item) => ({ ...fromCatalog(item), onSign: false }));
+  const added: Row[] = [];
+  items.forEach((item, i) => {
+    const match = item.existingName?.toLowerCase();
+    const row = match ? rows.find((r) => !r.onSign && r.before!.name.toLowerCase() === match) : undefined;
+    if (!row) {
+      added.push({ ...toRow(item), image: thumbnails[i] });
+      return;
+    }
+    row.onSign = true;
+    row.soldOut = item.soldOut ?? false;
+    // An unreadable price keeps the current one, but still asks the seller to look.
+    if (item.priceCents !== null) row.price = toAmount(item.priceCents);
+    row.confidence = item.priceCents === null ? "low" : item.confidence;
+    if (item.deal) row.deal = { quantity: String(item.deal.quantity), price: toAmount(item.deal.priceCents) };
+    row.image ??= thumbnails[i];
+    if (!row.emoji && item.emoji) row.emoji = item.emoji;
+  });
+  // What the seller needs to look at comes first: changes, then new items, then what the sign left out.
+  const rank = (row: Row) => (row.confidence === "low" || (row.before && isChanged(row)) ? 0 : !row.before ? 1 : row.onSign === false ? 2 : 3);
+  return [...rows, ...added].sort((a, b) => rank(a) - rank(b));
+}
+
+/** What an update changes about a row, compared with the published item. */
+function rowChanges(row: Row) {
+  const before = row.before;
+  const price = parsePrice(row.price);
+  const deal = parseDeal(row);
+  if (!before) return { added: true, price: null, soldOut: false, restocked: false, renamed: false, otherEdit: false };
+  // A half-typed deal isn't a change yet: the form already asks for it to be finished.
+  const dealChanged = row.deal
+    ? deal !== null && (deal.quantity !== before.deal?.quantity || deal.priceCents !== before.deal?.priceCents)
+    : Boolean(before.deal);
+  return {
+    added: false,
+    price: price !== null && price !== before.priceCents ? { from: before.priceCents, to: price } : null,
+    soldOut: row.soldOut && !before.soldOut,
+    restocked: !row.soldOut && Boolean(before.soldOut),
+    renamed: row.name.trim() !== before.name,
+    otherEdit: dealChanged || row.emoji !== (before.emoji ?? ""),
+  };
+}
+
+function isChanged(row: Row) {
+  const c = rowChanges(row);
+  return c.added || c.price !== null || c.soldOut || c.restocked || c.renamed || c.otherEdit;
+}
+
+/** A pasted note that raises a price, sells one item out, drops one, and adds one, for demoing an update. */
+function restockNote(catalog: CatalogItem[], symbol: string): string {
+  const price = (cents: number) => `${symbol}${toAmount(cents).replace(/\.00$/, "")}`;
+  const lines = catalog.map((item, i) => {
+    if (i === 0) return `${item.name.toLowerCase()} now ${price(item.priceCents + 100)} (was ${price(item.priceCents)})`;
+    if (i === 1) return `${item.name} - SOLD OUT`;
+    return `${item.name} ${price(item.priceCents)}`;
+  });
+  // Leave the last item off when there are enough, so one shows as not on the sign.
+  if (catalog.length > 3) lines.pop();
+  return ["Restock update!", ...lines, `NEW: Mystery grab bag ${price(500)}`].join("\n");
 }
 
 /** The row's deal in cents, or null when it's missing or not filled in correctly. */
@@ -109,6 +204,7 @@ const emptyRow = (): Row => ({
   confidence: null,
   unreadPrice: false,
   deal: null,
+  soldOut: false,
 });
 
 /** Phone photos are often larger than the model's 5 MB image limit, so shrink before upload. */
@@ -185,6 +281,7 @@ export function Setup({
   currency,
   standName,
   samples,
+  catalog,
 }: {
   standId: string;
   kind: StandKind;
@@ -193,6 +290,8 @@ export function Setup({
   currency: string;
   standName: string;
   samples: SampleChoice[];
+  /** The published items. When there are some, the screen opens on them for an update instead of a fresh setup. */
+  catalog: CatalogItem[];
 }) {
   const home = standHome(kind);
   const router = useRouter();
@@ -205,7 +304,9 @@ export function Setup({
     setName(standName);
   }
   const [preview, setPreview] = useState<string | null>(null);
-  const [rows, setRows] = useState<Row[] | null>(null);
+  // Updating edits the published items in place. Starting over replaces them, as a first setup does.
+  const [updating, setUpdating] = useState(catalog.length > 0);
+  const [rows, setRows] = useState<Row[] | null>(() => (catalog.length > 0 ? catalog.map(fromCatalog) : null));
   const [busy, setBusy] = useState<"reading" | "publishing" | `sample:${string}` | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Where the draft came from, which changes the review copy.
@@ -241,7 +342,8 @@ export function Setup({
   /** Sends a photo or a pasted list to the reader and fills the review form with what it found. */
   async function read(kind: "photo" | "list", body: FormData, photo?: Blob) {
     setError(null);
-    setRows(null);
+    // While updating, the items stay on screen as the sign is read, then change in place.
+    if (!updating) setRows(null);
     setBusy("reading");
     const scrolledFrom = window.scrollY;
     try {
@@ -256,10 +358,14 @@ export function Setup({
             : "No items with prices found. Put each item on its own line with its price.",
         );
       }
-      if (draft.standName) setName(draft.standName);
       setSource(kind);
       const thumbnails = photo ? await cropThumbnails(photo, draft.items.map((item) => item.region)) : [];
-      setRows(draft.items.map((item, i) => ({ ...toRow(item), image: thumbnails[i] })));
+      if (updating) {
+        setRows(mergeRead(catalog, draft.items, thumbnails));
+      } else {
+        if (draft.standName) setName(draft.standName);
+        setRows(draft.items.map((item, i) => ({ ...toRow(item), image: thumbnails[i] })));
+      }
       scrolledAtRead.current = scrolledFrom;
     } catch (e) {
       setError((e as Error).message);
@@ -281,7 +387,7 @@ export function Setup({
   /** Runs a bundled stand photo through the photo reader, for demos without a real stand. */
   async function readDemoPhoto(demo: (typeof DEMO_PHOTOS)[number]) {
     setBusy("reading");
-    setName(demo.standName); // the photo has no stand name, so the reader won't supply one
+    if (!updating) setName(demo.standName); // the photo has no stand name, so the reader won't supply one
     setError(null);
     const photo = await fetch(demo.src)
       .then((res) => (res.ok ? res.blob() : undefined))
@@ -291,11 +397,38 @@ export function Setup({
     setError("Couldn't load the demo photo. Try again.");
   }
 
-  async function readList() {
+  async function readList(text = list) {
     setPreview(null);
     const form = new FormData();
-    form.append("text", list);
+    form.append("text", text);
     await read("list", form);
+  }
+
+  /** Demo: fills the paste box with a restock note made from this stand's items, and reads it. */
+  async function readRestockNote() {
+    const note = restockNote(catalog, symbol);
+    setList(note);
+    setPasting(true);
+    await readList(note);
+  }
+
+  /** Leaves the published items behind and sets the stand up from scratch. Nothing changes until publishing. */
+  function startOver() {
+    setUpdating(false);
+    setRows(null);
+    setSource(null);
+    setPreview(null);
+    setError(null);
+  }
+
+  /** Back from starting over, to the published items as they are. */
+  function keepItems() {
+    setUpdating(true);
+    setRows(catalog.map(fromCatalog));
+    setSource(null);
+    setPreview(null);
+    setError(null);
+    setName(savedName);
   }
 
   function startBlank() {
@@ -314,6 +447,18 @@ export function Setup({
   const invalid =
     !name.trim() || !rows?.length || rows.some((row) => !row.name.trim() || parsePrice(row.price) === null || (row.deal !== null && !parseDeal(row)));
   const toCheck = rows?.filter((row) => row.confidence === "low").length ?? 0;
+  // What an update would change, for the summary and the save button.
+  const changes = (rows ?? []).map((row) => rowChanges(row));
+  const removed = updating ? catalog.filter((item) => !rows?.some((row) => row.before?.id === item.id)).length : 0;
+  const summary = {
+    price: changes.filter((c) => c.price).length,
+    soldOut: changes.filter((c) => c.soldOut).length,
+    restocked: changes.filter((c) => c.restocked).length,
+    added: changes.filter((c) => c.added).length,
+    notOnSign: rows?.filter((row) => row.onSign === false).length ?? 0,
+  };
+  const changeCount =
+    (rows?.filter(isChanged).length ?? 0) + removed + (updating && name.trim() !== savedName.trim() ? 1 : 0);
 
   async function publish() {
     if (!rows || invalid) return;
@@ -324,18 +469,20 @@ export function Setup({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: name.trim(),
+        update: updating,
         items: rows.map((row) => ({
           name: row.name.trim(),
           priceCents: parsePrice(row.price),
           emoji: row.emoji || undefined,
           image: row.image,
           deal: parseDeal(row) ?? undefined,
+          soldOut: row.soldOut || undefined,
         })),
       }),
     });
     if (res.ok) return router.push(home, { transitionTypes: ["nav-forward"] });
     setBusy(null);
-    setError((await res.json().catch(() => ({}))).error ?? "Couldn't publish the stand.");
+    setError((await res.json().catch(() => ({}))).error ?? (updating ? "Couldn't save your changes." : "Couldn't publish the stand."));
   }
 
   async function loadSample(id: string) {
@@ -353,7 +500,7 @@ export function Setup({
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           {switcher}
-          <h1 className="font-display text-large-title font-semibold">Snap your price sign</h1>
+          <h1 className="font-display text-large-title font-semibold">{updating ? "Update your stand" : "Snap your price sign"}</h1>
         </div>
         <Link
           href={home}
@@ -383,8 +530,14 @@ export function Setup({
                 <CameraIcon />
               </span>
             )}
-            <span className="text-title3 font-semibold">{preview ? "Retake photo" : "Photograph your sign"}</span>
-            <span className="text-subhead text-ink-2">Lemon Pal reads your items and prices for you to check.</span>
+            <span className="text-title3 font-semibold">
+              {preview ? "Retake photo" : updating ? "Snap your sign again" : "Photograph your sign"}
+            </span>
+            <span className="text-subhead text-ink-2">
+              {updating
+                ? "Lemon Pal spots new prices, sold-out items, and anything new for you to check."
+                : "Lemon Pal reads your items and prices for you to check."}
+            </span>
           </button>
           <div className="flex flex-wrap justify-center gap-2 border-t border-hairline p-4">
             <Button variant="tinted" icon={<PhotoIcon />} disabled={busy !== null} onClick={() => libraryInput.current?.click()}>
@@ -400,9 +553,11 @@ export function Setup({
             >
               Paste a list
             </Button>
-            <Button variant="tinted" icon={<PlusIcon />} disabled={busy !== null} onClick={startBlank}>
-              Start blank
-            </Button>
+            {updating ? null : (
+              <Button variant="tinted" icon={<PlusIcon />} disabled={busy !== null} onClick={startBlank}>
+                Start blank
+              </Button>
+            )}
           </div>
           {/* The library picker has no capture hint, so phones offer saved photos. The other opens the camera app. */}
           <input
@@ -452,7 +607,7 @@ export function Setup({
               icon={<SparklesIcon />}
               disabled={!list.trim() || busy !== null}
               loading={reading}
-              onClick={readList}
+              onClick={() => readList()}
             >
               Read my list
             </Button>
@@ -497,10 +652,14 @@ export function Setup({
               tabIndex={-1}
               className="scroll-mt-6 font-display text-title2 font-semibold outline-none"
             >
-              {source === "blank" ? "Add your items" : "Check your items"}
+              {updating ? "Your items" : source === "blank" ? "Add your items" : "Check your items"}
             </h2>
             <p className="text-subhead text-ink-2">
-              {source === "blank"
+              {updating
+                ? source === null
+                  ? "Mark anything sold out or change a price, then save. Or snap your updated sign and Lemon Pal finds the changes."
+                  : describeRead(summary, toCheck)
+                : source === "blank"
                 ? "Name each thing you sell and give it a price. Add as many as you like."
                 : toCheck > 0
                   ? `${toCheck} ${toCheck === 1 ? "item was" : "items were"} hard to read. Check ${toCheck === 1 ? "it" : "them"} before you publish.`
@@ -526,16 +685,24 @@ export function Setup({
                 <li key={row.key}>
                   <Card className={row.confidence === "low" ? "attention flex flex-col gap-3 p-4" : "flex flex-col gap-3 p-4"}>
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         {row.image ? (
                           // eslint-disable-next-line @next/next/no-img-element -- data URL cropped in the browser
                           <img
                             src={row.image}
                             alt={`Photo of ${row.name || `item ${i + 1}`}`}
-                            className="size-16 shrink-0 rounded-[14px] object-cover shadow-card"
+                            className={
+                              row.soldOut
+                                ? "size-16 shrink-0 rounded-[14px] object-cover opacity-50 shadow-card grayscale"
+                                : "size-16 shrink-0 rounded-[14px] object-cover shadow-card"
+                            }
                           />
                         ) : null}
-                        {row.confidence ? <ConfidencePill confidence={row.confidence} /> : null}
+                        {/* While updating, most items read clearly and haven't changed, so only flag the ones to check. */}
+                        {row.confidence === "low" || (row.confidence && !updating) ? (
+                          <ConfidencePill confidence={row.confidence} />
+                        ) : null}
+                        <ChangePills row={row} currency={currency} updating={updating} />
                       </div>
                       <Button
                         variant="ghost"
@@ -584,17 +751,36 @@ export function Setup({
                         error={dealError(row)}
                         onChange={(deal) => update(row.key, { deal })}
                       />
-                    ) : (
-                      <Button
-                        variant="plain"
-                        size="sm"
-                        icon={<TagIcon />}
-                        className="self-start"
-                        onClick={() => update(row.key, { deal: { quantity: "2", price: "" } })}
-                      >
-                        Add a deal
-                      </Button>
-                    )}
+                    ) : null}
+                    {row.onSign === false && !row.soldOut ? (
+                      <p className="px-1 text-footnote text-ink-2">
+                        Not on your new sign. Mark it sold out, or remove it if you&rsquo;ve stopped selling it.
+                      </p>
+                    ) : null}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      {row.deal ? null : (
+                        <Button
+                          variant="plain"
+                          size="sm"
+                          icon={<TagIcon />}
+                          onClick={() => update(row.key, { deal: { quantity: "2", price: "" } })}
+                        >
+                          Add a deal
+                        </Button>
+                      )}
+                      {updating || row.soldOut ? (
+                        <div className="ml-auto flex min-h-11 items-center gap-3">
+                          <span aria-hidden className="text-subhead font-semibold text-ink-2">
+                            Sold out
+                          </span>
+                          <Switch
+                            label={`${row.name || `Item ${i + 1}`} is sold out`}
+                            checked={row.soldOut}
+                            onChange={(soldOut) => update(row.key, { soldOut })}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
                   </Card>
                 </li>
               );
@@ -614,11 +800,15 @@ export function Setup({
             variant="filled"
             size="xl"
             className="mt-2 w-full"
-            disabled={invalid || busy !== null}
+            disabled={invalid || busy !== null || (updating && changeCount === 0)}
             loading={busy === "publishing"}
             onClick={publish}
           >
-            Publish stand
+            {updating
+              ? changeCount === 0
+                ? "No changes yet"
+                : `Save ${changeCount} ${changeCount === 1 ? "change" : "changes"}`
+              : "Publish stand"}
           </Button>
           <MoreBelow count={unseenRows} one="item" many="items" onClick={showNextRow} />
           {invalid ? (
@@ -629,45 +819,141 @@ export function Setup({
         </section>
       ) : null}
 
-      <section aria-labelledby="demo-heading" className="flex flex-col items-center gap-3 text-center">
-        <h2 id="demo-heading" className="text-subhead text-ink-2">
-          Demo: watch Lemon Pal read a real stand.
-        </h2>
-        <div className="flex flex-wrap justify-center gap-2">
-          {DEMO_PHOTOS.map((demo) => (
-            <Button
-              key={demo.id}
-              variant="tinted"
-              icon={<PhotoIcon />}
-              disabled={busy !== null}
-              onClick={() => readDemoPhoto(demo)}
-            >
-              {demo.label}
+      {updating ? (
+        <>
+          {catalog.length >= 2 ? (
+            <section aria-labelledby="restock-heading" className="flex flex-col items-center gap-3 text-center">
+              <h2 id="restock-heading" className="text-subhead text-ink-2">
+                Demo: watch Lemon Pal catch a price change and a sell-out.
+              </h2>
+              <Button variant="tinted" icon={<ListIcon />} disabled={busy !== null} onClick={readRestockNote}>
+                Read a restock note
+              </Button>
+            </section>
+          ) : null}
+          <section aria-labelledby="start-over-heading" className="flex flex-col items-center gap-3 text-center">
+            <h2 id="start-over-heading" className="text-subhead text-ink-2">
+              Selling something completely different?
+            </h2>
+            <Button variant="plain" disabled={busy !== null} onClick={startOver}>
+              Start over with a new sign
             </Button>
-          ))}
-        </div>
-      </section>
+          </section>
+        </>
+      ) : (
+        <>
+          {catalog.length > 0 ? (
+            <div className="flex justify-center">
+              <Button variant="plain" disabled={busy !== null} onClick={keepItems}>
+                Keep my current items
+              </Button>
+            </div>
+          ) : null}
 
-      <section aria-labelledby="samples-heading" className="flex flex-col items-center gap-3 text-center">
-        <h2 id="samples-heading" className="text-subhead text-ink-2">
-          No sign handy? Start from a sample stand.
-        </h2>
-        <div className="flex flex-wrap justify-center gap-2">
-          {samples.map((sample) => (
-            <Button
-              key={sample.id}
-              variant="tinted"
-              icon={<span aria-hidden>{sample.emoji}</span>}
-              loading={busy === `sample:${sample.id}`}
-              disabled={busy !== null}
-              onClick={() => loadSample(sample.id)}
-            >
-              {sample.name}
-            </Button>
-          ))}
-        </div>
-      </section>
+          <section aria-labelledby="demo-heading" className="flex flex-col items-center gap-3 text-center">
+            <h2 id="demo-heading" className="text-subhead text-ink-2">
+              Demo: watch Lemon Pal read a real stand.
+            </h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {DEMO_PHOTOS.map((demo) => (
+                <Button
+                  key={demo.id}
+                  variant="tinted"
+                  icon={<PhotoIcon />}
+                  disabled={busy !== null}
+                  onClick={() => readDemoPhoto(demo)}
+                >
+                  {demo.label}
+                </Button>
+              ))}
+            </div>
+          </section>
+
+          <section aria-labelledby="samples-heading" className="flex flex-col items-center gap-3 text-center">
+            <h2 id="samples-heading" className="text-subhead text-ink-2">
+              No sign handy? Start from a sample stand.
+            </h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {samples.map((sample) => (
+                <Button
+                  key={sample.id}
+                  variant="tinted"
+                  icon={<span aria-hidden>{sample.emoji}</span>}
+                  loading={busy === `sample:${sample.id}`}
+                  disabled={busy !== null}
+                  onClick={() => loadSample(sample.id)}
+                >
+                  {sample.name}
+                </Button>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </main>
+  );
+}
+
+/** "Lemon Pal found 2 new prices and 1 sold out." with what wasn't on the sign and what's hard to read. */
+function describeRead(
+  summary: { price: number; soldOut: number; restocked: number; added: number; notOnSign: number },
+  toCheck: number,
+): string {
+  const count = (n: number, one: string, many: string) => (n > 0 ? [`${n} ${n === 1 ? one : many}`] : []);
+  const found = [
+    ...count(summary.price, "new price", "new prices"),
+    ...count(summary.soldOut, "sold out", "sold out"),
+    ...count(summary.restocked, "back in stock", "back in stock"),
+    ...count(summary.added, "new item", "new items"),
+  ];
+  const list = found.length > 1 ? `${found.slice(0, -1).join(", ")} and ${found.at(-1)}` : found[0];
+  const sentences = [list ? `Lemon Pal found ${list}.` : "Nothing changed from your sign."];
+  if (summary.notOnSign > 0) {
+    sentences.push(
+      summary.notOnSign === 1 ? "1 item wasn’t on it, so it’s unchanged." : `${summary.notOnSign} items weren’t on it, so they’re unchanged.`,
+    );
+  }
+  if (toCheck > 0) sentences.push(`Check ${toCheck === 1 ? "the one" : `the ${toCheck}`} marked before you save.`);
+  return sentences.join(" ");
+}
+
+/** What an update does to one item, as pills: new, a price change, sold out, back in stock, not on the sign. */
+function ChangePills({ row, currency, updating }: { row: Row; currency: string; updating: boolean }) {
+  const change = rowChanges(row);
+  return (
+    <>
+      {updating && change.added ? (
+        <Pill tone="leaf" icon={<PlusIcon />}>
+          New
+        </Pill>
+      ) : null}
+      {change.price ? (
+        <Pill tone="lemon" icon={<TagIcon />}>
+          <span className="sr-only">Price from</span>
+          <s className="opacity-70">
+            <Money cents={change.price.from} currency={currency} size="inline" />
+          </s>
+          <span aria-hidden>→</span>
+          <span className="sr-only">to</span>
+          <Money cents={change.price.to} currency={currency} size="inline" />
+        </Pill>
+      ) : null}
+      {row.soldOut ? (
+        <Pill tone="berry" icon={<XmarkIcon />}>
+          Sold out
+        </Pill>
+      ) : change.restocked ? (
+        <Pill tone="leaf" icon={<CheckIcon />}>
+          Back in stock
+        </Pill>
+      ) : null}
+      {row.onSign === false ? (
+        <Pill icon={<ExclamationIcon />}>Not on sign</Pill>
+      ) : null}
+      {change.renamed || change.otherEdit ? (
+        <Pill icon={<PencilIcon />}>Edited</Pill>
+      ) : null}
+    </>
   );
 }
 

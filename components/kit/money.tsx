@@ -2,12 +2,14 @@ import type { CSSProperties } from "react";
 import { formatMoney, type Cents } from "@/lib/money";
 import { cn } from "./cn";
 
-type Size = "hero" | "title" | "body";
+type Size = "hero" | "title" | "body" | "inline";
 
 const sizes: Record<Size, string> = {
   hero: "font-price text-hero font-bold",
   title: "font-price text-title1 font-bold",
   body: "text-body font-semibold",
+  /** Takes the surrounding text's size, for an amount inside a sentence or a pill. */
+  inline: "font-semibold",
 };
 
 /**
@@ -29,8 +31,8 @@ export function Money({
   className?: string;
 }) {
   const label = formatMoney(cents, currency);
-  if (size === "body") {
-    return <span className={cn(sizes.body, "tabular-nums", className)}>{label}</span>;
+  if (size === "body" || size === "inline") {
+    return <span className={cn(sizes[size], "tabular-nums", className)}>{label}</span>;
   }
 
   const parts = new Intl.NumberFormat(undefined, { style: "currency", currency }).formatToParts(cents / 100);

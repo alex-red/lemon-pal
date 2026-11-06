@@ -22,6 +22,8 @@ export default async function SetupPage() {
         currency={env.currency()}
         standName={stand.name}
         samples={sampleChoices}
+        // A published stand opens on its items, ready to update, rather than an empty setup.
+        catalog={stand.publishedAt ? stand.items : []}
       />
     </PageTransition>
   );

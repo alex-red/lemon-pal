@@ -19,6 +19,8 @@ export type CatalogItem = {
   category?: string;
   /** What it's made of or how it's finished, such as "Holographic". Optional. */
   finish?: string;
+  /** Out of stock for now. It stays in the catalog, shown greyed out, and can't be added to a sale. */
+  soldOut?: boolean;
 };
 
 /** Part of a photo, as fractions of its width and height from the top-left corner. */
@@ -36,6 +38,10 @@ export type DraftItem = {
   region?: Region;
   /** A multi-buy price the model read for this item, for the seller to confirm or remove. */
   deal?: Deal;
+  /** The sign marks it sold out: crossed out, covered, or labelled "sold out". */
+  soldOut?: boolean;
+  /** When updating a published stand: the name of the catalog item this line is, as the catalog spells it. */
+  existingName?: string;
 };
 
 /** What the vision model read from a sign photo. */

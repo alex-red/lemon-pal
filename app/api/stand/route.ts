@@ -8,6 +8,8 @@ import { store } from "@/lib/store";
 const PublishSchema = z.object({
   // Optional: a stand published without a name keeps its current one.
   name: z.string().trim().max(40).optional(),
+  // An inventory update to a published stand: it keeps its publish time, so the first-sale clock isn't restarted.
+  update: z.boolean().optional(),
   items: z
     .array(
       z.object({
@@ -27,6 +29,7 @@ const PublishSchema = z.object({
             priceCents: z.number().int().min(1).max(100_000),
           })
           .optional(),
+        soldOut: z.boolean().optional(),
       })
       // A deal that saves nothing is a typo, not a deal.
       .refine((item) => !item.deal || isValidDeal(item.priceCents, item.deal), {
@@ -52,10 +55,14 @@ export async function POST(request: Request) {
   const stand = {
     ...current,
     name: parsed.data.name || current.name,
-    publishedAt: new Date().toISOString(),
-    // The clock runs from the sign read that drafted this catalog. A blank form or an edit without one has none.
-    setupStartedAt: current.draftStartedAt ?? null,
-    draftStartedAt: null,
+    ...(parsed.data.update && current.publishedAt
+      ? {}
+      : {
+          publishedAt: new Date().toISOString(),
+          // The clock runs from the sign read that drafted this catalog. A blank form or an edit without one has none.
+          setupStartedAt: current.draftStartedAt ?? null,
+          draftStartedAt: null,
+        }),
     items: parsed.data.items.map((item, i) => {
       // Item ids change on every publish, so the store's online and shipping choices, and the category
       // and finish the recap groups by, follow the item's name.
@@ -63,6 +70,7 @@ export async function POST(request: Request) {
       return {
         id: `item-${i + 1}-${Date.now().toString(36)}`,
         ...item,
+        ...(item.soldOut ? { soldOut: true } : { soldOut: undefined }),
         ...(before?.online !== undefined ? { online: before.online } : {}),
         ...(before?.ships !== undefined ? { ships: before.ships } : {}),
         ...(before?.category ? { category: before.category } : {}),
