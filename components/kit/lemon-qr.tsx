@@ -97,8 +97,12 @@ export function LemonQR({
   // Plain computation, no hooks, so the code also renders in server components. A few thousand modules is cheap.
   const { size, paths } = (() => {
     const m = buildMatrix(value);
-    const fills = new Map<string, string[]>();
-    const add = (color: string, d: string) => fills.set(color, [...(fills.get(color) ?? []), d]);
+    // Tinted squares first, then every center dot on top, each layer merged into one path per color.
+    const layers = [new Map<string, string[]>(), new Map<string, string[]>()];
+    const add = (layer: 0 | 1, color: string, d: string) => {
+      const fills = layers[layer];
+      fills.set(color, [...(fills.get(color) ?? []), d]);
+    };
     const inset = (1 - DOT) / 2;
 
     for (let r = 0; r < m.size; r++) {
@@ -110,11 +114,11 @@ export function LemonQR({
         const tone = TONES[art && !m.reserved(r, c) ? toneAt((c + 0.5) / m.size, (r + 0.5) / m.size) : "paper"];
         const own = dark ? tone.dark : tone.light;
         const truth = dark ? TONES.paper.dark : TONES.paper.light;
-        add(own, square(x, y, 1));
-        if (own !== truth) add(truth, square(x + inset, y + inset, DOT));
+        add(0, own, square(x, y, 1));
+        if (own !== truth) add(1, truth, square(x + inset, y + inset, DOT));
       }
     }
-    return { size: m.size, paths: [...fills] };
+    return { size: m.size, paths: layers.flatMap((fills, layer) => [...fills].map(([color, d]) => ({ key: `${layer}${color}`, color, d }))) };
   })();
 
   const full = size + QUIET * 2;
@@ -128,8 +132,8 @@ export function LemonQR({
     <div className={cn("relative", className)}>
       <svg viewBox={`0 0 ${full} ${full}`} role="img" aria-label={label} shapeRendering="crispEdges" className="block size-full">
         <rect width={full} height={full} rx={2.5} fill={TONES.paper.light} />
-        {paths.map(([color, d]) => (
-          <path key={color} d={d.join("")} fill={color} />
+        {paths.map(({ key, color, d }) => (
+          <path key={key} d={d.join("")} fill={color} />
         ))}
         <g shapeRendering="geometricPrecision">
           {finders.map(([x, y]) => (
