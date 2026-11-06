@@ -219,6 +219,7 @@
   --animate-rise: rise 600ms var(--ease-spring) both;
   --animate-ripple: ripple 1.4s var(--ease-glide) both;
   --animate-activity: activity 0.9s steps(8) infinite;
+  --animate-wiggle: wiggle 900ms var(--ease-spring) 2 both;
 
   @keyframes pop {
     from {
@@ -250,6 +251,18 @@
     to {
       opacity: 0;
       transform: scale(2.4);
+    }
+  }
+  @keyframes wiggle {
+    0%,
+    100% {
+      transform: rotate(0);
+    }
+    25% {
+      transform: rotate(-9deg) scale(1.04);
+    }
+    60% {
+      transform: rotate(6deg);
     }
   }
   @keyframes activity {

@@ -2,10 +2,12 @@ import type { Cents } from "@/lib/money";
 import { cn } from "./cn";
 import { CheckIcon } from "./icons";
 import { Money } from "./money";
+import { PalMascot } from "./pal-mascot";
 
 /**
- * The moment a sale is confirmed. It has to read from across the stand, so it uses size, shape, color and
- * a word together, and the register plays its ding at the same time. Mount it only after a verified capture.
+ * The moment a sale is confirmed: Pal pops up smiling with a green check, and the register plays its ding.
+ * It has to read from across the stand, so it uses size, shape, color and a word together.
+ * Mount it only after a verified capture.
  */
 export function PaidMoment({
   cents,
@@ -20,11 +22,14 @@ export function PaidMoment({
 }) {
   return (
     <div role="status" className={cn("flex flex-col items-center gap-5 text-center", className)}>
-      <div className="relative grid size-36 place-items-center">
-        <span aria-hidden className="absolute inset-0 animate-ripple rounded-full bg-leaf" />
-        <span aria-hidden className="absolute inset-0 animate-ripple rounded-full bg-leaf [animation-delay:240ms]" />
-        <span className="relative grid size-full animate-pop place-items-center rounded-full bg-leaf text-[4.5rem] text-on-accent shadow-lift">
-          <CheckIcon strokeWidth={2.5} />
+      <div className="relative grid size-44 place-items-center">
+        <span aria-hidden className="absolute inset-4 animate-ripple rounded-full bg-lemon" />
+        <span aria-hidden className="absolute inset-4 animate-ripple rounded-full bg-leaf [animation-delay:240ms]" />
+        <span className="relative size-full animate-pop">
+          <PalMascot className="size-full animate-wiggle drop-shadow-lg [animation-delay:650ms]" />
+          <span className="absolute right-3 bottom-4 grid size-14 animate-pop place-items-center rounded-full bg-leaf text-[2rem] text-on-accent shadow-lift ring-4 ring-canvas [animation-delay:350ms]">
+            <CheckIcon strokeWidth={3} />
+          </span>
         </span>
       </div>
       <p className="animate-rise font-display text-large-title font-semibold text-leaf [animation-delay:120ms]">Paid</p>

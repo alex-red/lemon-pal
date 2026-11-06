@@ -15,6 +15,7 @@ import {
   Money,
   PaidMoment,
   PalAppIcon,
+  PalMascot,
   Pill,
   PlusIcon,
   QrCodeIcon,
@@ -179,6 +180,15 @@ export default function KitPage() {
             <p className="border-t border-hairline px-5 py-4 text-footnote text-ink-2 sm:px-7">
               The installed web app uses Default. The other finishes preview the mark in different materials.
             </p>
+          </Card>
+          <Card className="mt-6 flex flex-col items-center gap-4 p-8 text-center sm:flex-row sm:text-left">
+            <PalMascot className="size-28 shrink-0 drop-shadow-lg" />
+            <div className="flex flex-col gap-1">
+              <h3 className="font-display text-title2 font-semibold">Pal, the mascot</h3>
+              <p className="text-subhead text-ink-2">
+                The full-color character for celebrations. It pops up on the Paid screen. It&rsquo;s decorative, so always put words next to it.
+              </p>
+            </div>
           </Card>
         </Section>
 
