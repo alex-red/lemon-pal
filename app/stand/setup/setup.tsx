@@ -17,15 +17,17 @@ import {
   TextField,
   XmarkIcon,
 } from "@/components/kit";
-import type { DraftItem } from "@/lib/types";
+import { cleanEmoji } from "@/lib/emoji";
+import type { DraftItem, SignDraft } from "@/lib/types";
 
-type Row = { key: number; name: string; price: string; confidence: "high" | "low" | null; unreadPrice: boolean };
+type Row = { key: number; emoji: string; name: string; price: string; confidence: "high" | "low" | null; unreadPrice: boolean };
 
 let nextKey = 1;
 
 function toRow(item: DraftItem): Row {
   return {
     key: nextKey++,
+    emoji: item.emoji ?? "",
     name: item.name,
     price: item.priceCents === null ? "" : (item.priceCents / 100).toFixed(2),
     confidence: item.priceCents === null ? "low" : item.confidence,
@@ -39,6 +41,12 @@ function parsePrice(text: string): number | null {
   if (!match) return null;
   const cents = Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
   return cents > 0 ? cents : null;
+}
+
+/** The emoji the seller typed last, so typing a new one replaces the old one. "" if there's none. */
+function lastEmoji(text: string): string {
+  const graphemes = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)].map((g) => g.segment);
+  return graphemes.reverse().map((g) => cleanEmoji(g)).find(Boolean) ?? "";
 }
 
 function currencySymbol(currency: string) {
@@ -64,11 +72,14 @@ async function shrinkPhoto(file: File): Promise<Blob> {
   }
 }
 
-export function Setup({ currency }: { currency: string }) {
+type SampleChoice = { id: string; name: string; emoji: string };
+
+export function Setup({ currency, standName, samples }: { currency: string; standName: string; samples: SampleChoice[] }) {
   const router = useRouter();
+  const [name, setName] = useState(standName);
   const [preview, setPreview] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[] | null>(null);
-  const [busy, setBusy] = useState<"reading" | "publishing" | "sample" | null>(null);
+  const [busy, setBusy] = useState<"reading" | "publishing" | `sample:${string}` | null>(null);
   const [error, setError] = useState<string | null>(null);
   const symbol = currencySymbol(currency);
 
@@ -84,9 +95,10 @@ export function Setup({ currency }: { currency: string }) {
       const res = await fetch("/api/stand/sign", { method: "POST", body: form });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Couldn't read the sign.");
-      const items = json.items as DraftItem[];
-      if (items.length === 0) throw new Error("No prices found in that photo. Try a closer, straighter shot.");
-      setRows(items.map(toRow));
+      const draft = json as SignDraft;
+      if (draft.items.length === 0) throw new Error("No prices found in that photo. Try a closer, straighter shot.");
+      if (draft.standName) setName(draft.standName);
+      setRows(draft.items.map(toRow));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -108,17 +120,23 @@ export function Setup({ currency }: { currency: string }) {
     const res = await fetch("/api/stand", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: rows.map((row) => ({ name: row.name.trim(), priceCents: parsePrice(row.price) })) }),
+      body: JSON.stringify({
+        name: name.trim(),
+        items: rows.map((row) => ({ name: row.name.trim(), priceCents: parsePrice(row.price), emoji: row.emoji || undefined })),
+      }),
     });
     if (res.ok) return router.push("/stand/register");
     setBusy(null);
     setError((await res.json().catch(() => ({}))).error ?? "Couldn't publish the stand.");
   }
 
-  async function useSample() {
-    setBusy("sample");
-    await fetch("/api/stand", { method: "DELETE" });
-    router.push("/stand/register");
+  async function loadSample(id: string) {
+    setBusy(`sample:${id}`);
+    setError(null);
+    const res = await fetch(`/api/stand?sample=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+    if (res?.ok) return router.push("/stand/register");
+    setBusy(null);
+    setError("Couldn't load the sample. Try again.");
   }
 
   return (
@@ -201,6 +219,15 @@ export function Setup({ currency }: { currency: string }) {
             </p>
           </div>
 
+          <TextField
+            label="Stand name"
+            value={name}
+            maxLength={40}
+            placeholder="Maya’s Bake Sale"
+            hint="Customers see this when they pay."
+            onChange={(e) => setName(e.target.value)}
+          />
+
           <ul className="flex flex-col gap-3">
             {rows.map((row, i) => {
               const priceText = row.price.trim();
@@ -219,7 +246,16 @@ export function Setup({ currency }: { currency: string }) {
                         onClick={() => setRows((current) => current?.filter((r) => r.key !== row.key) ?? null)}
                       />
                     </div>
-                    <div className="grid grid-cols-[1fr_8.5rem] items-start gap-3">
+                    <div className="grid grid-cols-[4.25rem_1fr_7.5rem] items-start gap-3 sm:grid-cols-[4.5rem_1fr_8.5rem]">
+                      <TextField
+                        label="Icon"
+                        aria-label={`Icon for ${row.name || `item ${i + 1}`}, one emoji`}
+                        value={row.emoji}
+                        placeholder="＋"
+                        enterKeyHint="next"
+                        className="[&_input]:text-center [&_input]:text-title3"
+                        onChange={(e) => update(row.key, { emoji: lastEmoji(e.target.value) })}
+                      />
                       <TextField
                         label="Item"
                         value={row.name}
@@ -252,7 +288,7 @@ export function Setup({ currency }: { currency: string }) {
             onClick={() =>
               setRows((current) => [
                 ...(current ?? []),
-                { key: nextKey++, name: "", price: "", confidence: null, unreadPrice: false },
+                { key: nextKey++, emoji: "", name: "", price: "", confidence: null, unreadPrice: false },
               ])
             }
           >
@@ -275,9 +311,25 @@ export function Setup({ currency }: { currency: string }) {
         </section>
       ) : null}
 
-      <Button variant="plain" className="self-center" loading={busy === "sample"} disabled={busy !== null} onClick={useSample}>
-        Use the sample lemonade stand instead
-      </Button>
+      <section aria-labelledby="samples-heading" className="flex flex-col items-center gap-3 text-center">
+        <h2 id="samples-heading" className="text-subhead text-ink-2">
+          No sign handy? Start from a sample stand.
+        </h2>
+        <div className="flex flex-wrap justify-center gap-2">
+          {samples.map((sample) => (
+            <Button
+              key={sample.id}
+              variant="tinted"
+              icon={<span aria-hidden>{sample.emoji}</span>}
+              loading={busy === `sample:${sample.id}`}
+              disabled={busy !== null}
+              onClick={() => loadSample(sample.id)}
+            >
+              {sample.name}
+            </Button>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

@@ -12,6 +12,7 @@ import {
   LemonIcon,
   Money,
   PaidMoment,
+  PalAppIcon,
   QrCodeIcon,
   SaleStatusPill,
   Toolbar,
@@ -83,7 +84,10 @@ export function Register({ standName, currency, items }: Props) {
     const json = await res.json();
     if (!res.ok) return setError(json.error ?? "Could not start the sale");
     const created = json as PublicSale;
-    setQr(await QRCode.toDataURL(`${window.location.origin}/pay/${created.id}`, { margin: 2, width: 320 }));
+    // High error correction (30%) leaves room for the lemon badge over the middle of the code.
+    setQr(
+      await QRCode.toDataURL(`${window.location.origin}/pay/${created.id}`, { margin: 2, width: 320, errorCorrectionLevel: "H" }),
+    );
     setSale(created);
   }
 
@@ -117,8 +121,14 @@ export function Register({ standName, currency, items }: Props) {
             <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
             {sale.status === "open" && qr ? (
               <div className="animate-rise rounded-[34px] bg-lemon p-4 shadow-float">
-                {/* eslint-disable-next-line @next/next/no-img-element -- data URL from the qrcode package */}
-                <img src={qr} alt="Scan to pay with PayPal" width={320} height={320} className="rounded-[18px] bg-white" />
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL from the qrcode package */}
+                  <img src={qr} alt="Scan to pay with PayPal" width={320} height={320} className="rounded-[18px] bg-white" />
+                  {/* About 4% of the code's area, well inside what level H can lose. The white rim keeps modules crisp. */}
+                  <span aria-hidden className="absolute top-1/2 left-1/2 size-[20%] -translate-x-1/2 -translate-y-1/2 rounded-[22%] bg-white p-[3%]">
+                    <PalAppIcon className="size-full" />
+                  </span>
+                </div>
               </div>
             ) : null}
             <p className="max-w-xs text-body text-ink-2">
@@ -167,6 +177,7 @@ export function Register({ standName, currency, items }: Props) {
           <ItemTile
             key={item.id}
             name={item.name}
+            emoji={item.emoji}
             priceCents={item.priceCents}
             currency={currency}
             count={cart[item.id] ?? 0}

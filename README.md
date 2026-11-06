@@ -12,9 +12,9 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Sta
 
 | Step | Route | What happens |
 | --- | --- | --- |
-| Create your stand | `/stand/setup` | Photo of the sign → vision model → reviewable draft catalog. Unreadable prices must be entered by the seller. |
-| Ring up a sale | `/stand/register` | Tap item tiles, then show a QR code for this sale. The server snapshots the cart and prices it from the confirmed catalog. |
-| Pay | `/pay/[saleId]` | The buyer's phone opens PayPal Checkout. The server creates and captures the order. |
+| Create your stand | `/stand/setup` | Photo of the sign → vision model → reviewable draft catalog with the stand name and an emoji per item. Unreadable prices must be entered by the seller. Sample stands (lemonade, bake sale, merch table, garage sale) skip the photo. |
+| Ring up a sale | `/stand/register` | Tap item tiles, then show a lemon-badged QR code for this sale. The server snapshots the cart and prices it from the confirmed catalog. |
+| Pay | `/pay/[saleId]` | The buyer's phone shows the stand name and order, then opens PayPal Checkout. The server creates and captures the order. PayPal emails the buyer a receipt. |
 | Confirm | `/stand/register` | The seller tablet polls the sale status and shows **Paid** only after a completed capture for the expected amount and currency. |
 | Recap | `/stand/recap` | AG Studio report over completed sales and line items, with a custom **Today's sales** widget, an item filter, and an assistant that answers questions and adds charts. |
 
@@ -24,7 +24,7 @@ All pricing, PayPal calls, and AI calls run on the server. Secrets never reach t
 
 You need two screens: a tablet or laptop for the seller and a phone for the buyer. Everything runs in PayPal's Sandbox, so no real money moves.
 
-1. Open **TODO: hosted demo URL** on the seller screen and choose **Create your stand**. Photograph a price sign, or pick **Use the sample lemonade stand instead**.
+1. Open **TODO: hosted demo URL** on the seller screen and choose **Create your stand**. Photograph a price sign, or pick a sample stand such as **Lemonade Stand** or **School Bake Sale**.
 2. On **Take a payment**, tap a few items and press **Charge**.
 3. Scan the QR code with the phone's camera. Check the items and total, then pay with PayPal using the Sandbox buyer account below.
 4. The seller screen shows **Paid** and plays a ding (tap anything on the seller screen first so the browser allows sound).
@@ -33,6 +33,14 @@ You need two screens: a tablet or laptop for the seller and a phone for the buye
 **Sandbox buyer:** TODO: Sandbox personal account email and password. These are PayPal test credentials that only work in the Sandbox.
 
 **Starting over:** **Reset demo** on the recap restores the sample stand and deletes test sales. Other people may be trying the demo at the same time, so you might see their sales too.
+
+## What's next
+
+The demo runs every stand through one PayPal Sandbox seller account, so judges can try it without signing up. Next up:
+
+- **Connect your own PayPal.** Each seller links their account through [PayPal's seller onboarding](https://developer.paypal.com/platforms/seller-onboarding), and payments go straight to them.
+- **Many stands per person.** Keep a stand for the bake sale and another for the merch table, and switch between them.
+- **Native seller apps** for iPhone, iPad and Android, with haptics on every sale. The buyer side stays a web page, so customers never need an app.
 
 ## Built with
 

@@ -13,7 +13,7 @@ export function priceCart(stand: Stand, cart: CartEntry[]): { lines: SaleLine[];
     const item = stand.items.find((i) => i.id === itemId);
     if (!item) throw new CartError(`Unknown item ${itemId}`);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new CartError("Invalid quantity");
-    return { itemId, name: item.name, unitPriceCents: item.priceCents, quantity };
+    return { itemId, name: item.name, emoji: item.emoji, unitPriceCents: item.priceCents, quantity };
   });
   const totalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
   return { lines, totalCents };

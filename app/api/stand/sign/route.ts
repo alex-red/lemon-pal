@@ -20,8 +20,8 @@ export async function POST(request: Request) {
 
   try {
     const data = Buffer.from(await photo.arrayBuffer()).toString("base64");
-    const items = await readSign({ data, mediaType: photo.type as SignImageType });
-    return Response.json({ items });
+    const draft = await readSign({ data, mediaType: photo.type as SignImageType });
+    return Response.json(draft);
   } catch (error) {
     if (error instanceof SignReadError) return Response.json({ error: error.message }, { status: 422 });
     console.error("Sign reading failed", error);
