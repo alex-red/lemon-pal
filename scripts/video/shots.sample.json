@@ -1,0 +1,9 @@
+{
+  "sample": true,
+  "shots": [
+    { "id": "booth", "source": "../../public/demo/convention-booth.jpg", "seconds": 5, "still": true },
+    { "id": "sign", "source": "../../public/demo/art-table-sign.jpg", "seconds": 6, "still": true },
+    { "id": "payment-slot", "source": "../../public/demo/stickers/rainbow-sheet.webp", "seconds": 8, "still": true },
+    { "id": "closing", "source": "../../public/demo/sticker-banner.jpg", "seconds": 4, "still": true }
+  ]
+}

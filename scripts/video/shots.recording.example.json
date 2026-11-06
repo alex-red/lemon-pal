@@ -1,0 +1,9 @@
+{
+  "sample": false,
+  "shots": [
+    { "id": "booth", "source": "footage/booth.mov", "in": 0, "seconds": 5 },
+    { "id": "draft", "source": "footage/sign-to-draft.mov", "in": 0, "seconds": 6 },
+    { "id": "payment", "source": "footage/synced-payment.mov", "in": 0, "seconds": 8 },
+    { "id": "closing", "source": "footage/merchandise.jpg", "seconds": 4, "still": true }
+  ]
+}
