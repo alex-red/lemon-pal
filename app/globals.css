@@ -436,6 +436,22 @@
   }
 }
 
+/* One digit of a rolling total (Money's `rolling`): a 0–9 strip in a one-line window. New digits roll up from 0. */
+@utility digit-roll {
+  display: inline-block;
+  height: 1lh;
+  overflow: hidden;
+  & > span {
+    display: flex;
+    flex-direction: column;
+    transform: translateY(calc(var(--digit) * -10%));
+    transition: transform 600ms var(--ease-snappy);
+    @starting-style {
+      transform: translateY(0);
+    }
+  }
+}
+
 /* A light band that passes over a photo while it's read. Put it inside an overflow-hidden frame. */
 @utility scan-band {
   pointer-events: none;
@@ -617,6 +633,70 @@
   }
 }
 
+/*
+ * View transitions (React's <ViewTransition>). Named things morph between screens: share="morph" gives the
+ * group a spring and a soft blur mid-flight, while the content crossfades quickly so the shape carries the move.
+ */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 300ms;
+  animation-timing-function: var(--ease-glide);
+}
+::view-transition-group(.morph) {
+  animation-duration: 560ms;
+  animation-timing-function: var(--ease-spring);
+}
+::view-transition-image-pair(.morph) {
+  animation: via-blur 560ms var(--ease-smooth);
+}
+::view-transition-old(.morph) {
+  animation-duration: 180ms;
+  animation-timing-function: var(--ease-glide);
+}
+::view-transition-new(.morph) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-glide);
+}
+/* The Charge button and the code card are both near-pills at their corners, so clip the morph to one radius. */
+::view-transition-group(sale-card) {
+  border-radius: 34px;
+  overflow: clip;
+}
+::view-transition-old(sale-card),
+::view-transition-new(sale-card) {
+  height: 100%;
+  object-fit: cover;
+}
+/* Something leaving without a partner, like a paid code making way for the Paid moment. */
+::view-transition-old(.step-aside) {
+  animation: step-aside 360ms var(--ease-smooth) both;
+}
+@keyframes via-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+@keyframes step-aside {
+  to {
+    opacity: 0;
+    transform: scale(0.86);
+    filter: blur(8px);
+  }
+}
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Accessibility settings win over decoration. */
 @media (prefers-reduced-transparency: reduce) {
   .glass,
@@ -652,5 +732,16 @@
   .scan-band {
     animation: none !important;
     opacity: 0;
+  }
+  /* Morphs become crossfades: nothing moves or scales, things just fade in place. */
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*) {
+    animation: none !important;
+  }
+  ::view-transition-old(*) {
+    animation: vt-fade-out 150ms ease both !important;
+  }
+  ::view-transition-new(*) {
+    animation: vt-fade-in 250ms ease both !important;
   }
 }

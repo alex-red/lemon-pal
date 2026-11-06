@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { addTransitionType, startTransition, useEffect, useMemo, useRef, useState, ViewTransition } from "react";
 import {
   ArrowUturnIcon,
   Button,
@@ -23,6 +23,18 @@ import { playDing, unlockDing } from "@/lib/ding";
 import { formatMoney } from "@/lib/money";
 import type { PublicSale } from "@/lib/sales";
 import type { CatalogItem } from "@/lib/types";
+
+/**
+ * The register moves between screens with view transitions, so things change shape instead of swapping:
+ * Charge grows into the code card and the total flies up to become the big price, Cancel folds them back,
+ * and a paid code steps aside for the Paid moment. Only updates inside `startTransition` animate.
+ */
+function moveTo(type: "charge" | "paid" | "back", update: () => void) {
+  startTransition(() => {
+    addTransitionType(type);
+    update();
+  });
+}
 
 // The sale code with Pal imprinted in it. Set to false for a plain code with a lemon badge, if a phone struggles to scan.
 const LEMON_ART_QR = true;
@@ -70,7 +82,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
       if (res.ok) {
         const next = (await res.json()) as PublicSale;
         if (next.status === "paid") dingFor(next.id);
-        if (next.status !== "open") setSale(next);
+        if (next.status !== "open") moveTo(next.status === "paid" ? "paid" : "back", () => setSale(next));
       }
     }, 1000);
     return () => clearInterval(timer);
@@ -84,7 +96,6 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
       await createSale();
     } catch {
       setError("Could not start the sale. Check the connection and try again.");
-    } finally {
       setCharging(false);
     }
   }
@@ -100,14 +111,23 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
       }),
     });
     const json = await res.json();
-    if (!res.ok) return setError(json.error ?? "Could not start the sale");
+    if (!res.ok) {
+      setCharging(false);
+      return setError(json.error ?? "Could not start the sale");
+    }
     const created = json as PublicSale;
-    setSale(created);
+    // In the same update as the sale, so the button stops spinning in the frame it turns into the code.
+    moveTo("charge", () => {
+      setCharging(false);
+      setSale(created);
+    });
   }
 
   function reset() {
-    setCart({});
-    setSale(null);
+    moveTo("back", () => {
+      setCart({});
+      setSale(null);
+    });
   }
 
   // Cancel on the server so the QR code can't be paid later. If the buyer already paid, show that instead.
@@ -117,7 +137,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
     const next = res.ok ? ((await res.json()) as PublicSale) : null;
     if (next?.status === "paid") {
       dingFor(next.id);
-      setSale(next);
+      moveTo("paid", () => setSale(next));
     } else {
       reset();
     }
@@ -146,19 +166,23 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
           <>
             <div className="flex flex-col items-center gap-7 tight:gap-3 short:col-start-2 short:row-start-1 short:gap-4 short:self-end">
               <SaleStatusPill status={sale.status} />
-              <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
+              <ViewTransition name="sale-total" share="morph" default="none">
+                <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
+              </ViewTransition>
             </div>
             {open ? (
-              <div className="animate-rise rounded-[34px] bg-lemon p-4 shadow-float short:col-start-1 short:row-span-2 short:row-start-1">
-                <LemonQR
-                  value={`${payOrigin ?? window.location.origin}/pay/${sale.id}`}
-                  label="Scan to pay with PayPal"
-                  art={LEMON_ART_QR}
-                  // As big as fits without scrolling: the rest of the screen takes about 27rem of height, or
-                  // 4.5rem beside the code on a phone on its side. Never smaller than a phone can scan from a step away.
-                  className="size-[min(22rem,75vw,max(11rem,calc(100dvh_-_27rem)))] tight:size-[min(75vw,max(11rem,calc(100dvh_-_22rem)))] short:size-[min(22rem,calc(100dvh_-_4.5rem))]"
-                />
-              </div>
+              <ViewTransition name="sale-card" share="morph" exit="step-aside" default="none">
+                <div className="rounded-[34px] bg-lemon p-4 shadow-float short:col-start-1 short:row-span-2 short:row-start-1">
+                  <LemonQR
+                    value={`${payOrigin ?? window.location.origin}/pay/${sale.id}`}
+                    label="Scan to pay with PayPal"
+                    art={LEMON_ART_QR}
+                    // As big as fits without scrolling: the rest of the screen takes about 27rem of height, or
+                    // 4.5rem beside the code on a phone on its side. Never smaller than a phone can scan from a step away.
+                    className="size-[min(22rem,75vw,max(11rem,calc(100dvh_-_27rem)))] tight:size-[min(75vw,max(11rem,calc(100dvh_-_22rem)))] short:size-[min(22rem,calc(100dvh_-_4.5rem))]"
+                  />
+                </div>
+              </ViewTransition>
             ) : null}
             <div className="flex flex-col items-center gap-7 tight:gap-4 short:col-start-2 short:row-start-2 short:gap-5 short:self-start">
               <p className="max-w-xs text-body text-ink-2">
@@ -210,6 +234,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
             key={item.id}
             name={item.name}
             emoji={item.emoji}
+            image={item.image}
             deal={item.deal ? dealLabel(item.deal, currency) : undefined}
             priceCents={item.priceCents}
             currency={currency}
@@ -241,20 +266,24 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
               {count === 0 ? "Tap an item to start" : `${count} ${count === 1 ? "item" : "items"}`}
               {saved > 0 ? <span className="font-semibold text-leaf"> · {formatMoney(saved, currency)} off with deals</span> : null}
             </span>
-            <Money cents={total} currency={currency} size="title" />
+            <ViewTransition name="sale-total" share="morph" default="none">
+              <Money cents={total} currency={currency} size="title" rolling className="self-start" />
+            </ViewTransition>
           </div>
-          <Button
-            variant="filled"
-            size="xl"
-            // Narrow phones: no icon and less padding, so the total beside it keeps its room.
-            icon={<QrCodeIcon className="max-[24rem]:hidden" />}
-            className="max-[24rem]:px-5"
-            disabled={total === 0}
-            loading={charging}
-            onClick={startSale}
-          >
-            Charge
-          </Button>
+          <ViewTransition name="sale-card" share="morph" default="none">
+            <Button
+              variant="filled"
+              size="xl"
+              // Narrow phones: no icon and less padding, so the total beside it keeps its room.
+              icon={<QrCodeIcon className="max-[24rem]:hidden" />}
+              className="max-[24rem]:px-5"
+              disabled={total === 0}
+              loading={charging}
+              onClick={startSale}
+            >
+              Charge
+            </Button>
+          </ViewTransition>
         </div>
       </div>
     </main>

@@ -15,6 +15,7 @@ export function ItemTile({
   currency,
   count = 0,
   emoji,
+  image,
   deal,
   onAdd,
   onRemove,
@@ -26,6 +27,8 @@ export function ItemTile({
   count?: number;
   /** Optional glyph from the sign, shown large. */
   emoji?: string;
+  /** Optional thumbnail cropped from the seller's photo. Fills the tile in place of the emoji, fading out behind the name. */
+  image?: string;
   /** A multi-buy price to show under the price, such as "2 for $5.00". */
   deal?: string;
   onAdd?: () => void;
@@ -46,14 +49,26 @@ export function ItemTile({
         onClick={onAdd}
         aria-label={`${name}, ${price}${deal ? `, deal ${deal}` : ""}${active ? `, ${count} in sale` : ""}. Add one.`}
         className={cn(
-          "pressable focus-ring flex min-w-0 flex-col justify-between gap-3 overflow-hidden rounded-tile p-5 text-left [grid-area:1/1] max-[24rem]:p-4",
+          "pressable focus-ring relative flex min-w-0 flex-col justify-between gap-3 overflow-hidden rounded-tile p-5 text-left [grid-area:1/1] max-[24rem]:p-4",
           "ring-[0.5px]",
           active
             ? "bg-lemon text-[oklch(0.23_0.03_85)] shadow-float ring-lemon-deep"
             : "bg-surface text-ink shadow-card ring-hairline hover:shadow-float",
         )}
       >
-        {emoji ? (
+        {image ? (
+          // The photo fills the tile and fades into it above the name, so it reads as part of the card.
+          // The empty span keeps the name and price at the bottom, as with an emoji.
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- small data URL thumbnail */}
+            <img
+              src={image}
+              alt=""
+              className="pointer-events-none absolute inset-0 size-full object-cover [mask-image:linear-gradient(to_bottom,#000_25%,transparent_72%)]"
+            />
+            <span aria-hidden />
+          </>
+        ) : emoji ? (
           <span aria-hidden className="text-[2.5rem] leading-none drop-shadow-sm">
             {emoji}
           </span>
@@ -63,7 +78,7 @@ export function ItemTile({
             {name.trim().charAt(0).toUpperCase()}
           </span>
         )}
-        <span className="flex flex-col gap-1">
+        <span className="relative flex flex-col gap-1">
           <span className="text-title3 font-semibold text-balance [overflow-wrap:anywhere]">{name}</span>
           <Money cents={priceCents} currency={currency} size="title" className={active ? "[&>span]:text-current" : undefined} />
           {deal ? (

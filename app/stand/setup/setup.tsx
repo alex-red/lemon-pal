@@ -27,7 +27,7 @@ import {
 } from "@/components/kit";
 import { isValidDeal, MAX_DEAL_QUANTITY, type Deal } from "@/lib/deals";
 import { cleanEmoji } from "@/lib/emoji";
-import type { DraftItem, SignDraft } from "@/lib/types";
+import type { DraftItem, Region, SignDraft } from "@/lib/types";
 import { CameraSheet, canUseLiveCamera } from "./camera-sheet";
 
 type Row = {
@@ -37,6 +37,8 @@ type Row = {
   price: string;
   confidence: "high" | "low" | null;
   unreadPrice: boolean;
+  /** A thumbnail cropped from the seller's photo, when the reader found where the item is. */
+  image?: string;
   /** A multi-buy price, as typed: "2" for "5.00". null when the item has no deal. */
   deal: { quantity: string; price: string } | null;
 };
@@ -124,8 +126,49 @@ async function shrinkPhoto(file: Blob): Promise<Blob> {
   }
 }
 
-/** A real lemonade stand sign, bundled for demos without a sign on hand. */
-const DEMO_SIGN = { src: "/demo/lemonade-stand-sign.jpg", standName: "Lemonade Stand" };
+/**
+ * Crops a square thumbnail around each region, for items read from a display rather than a written sign.
+ * The square is centred on the region and grown to its longer side, so a wide shelf keeps its products in frame.
+ */
+async function cropThumbnails(photo: Blob, regions: (Region | undefined)[]): Promise<(string | undefined)[]> {
+  if (!regions.some(Boolean)) return regions.map(() => undefined);
+  try {
+    const bitmap = await createImageBitmap(photo);
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = THUMB_SIZE;
+    const context = canvas.getContext("2d")!;
+    context.imageSmoothingQuality = "high";
+    return regions.map((region) => {
+      if (!region) return undefined;
+      const side = Math.min(
+        Math.max(region.width * bitmap.width, region.height * bitmap.height) * 1.08,
+        bitmap.width,
+        bitmap.height,
+      );
+      const left = Math.min(Math.max((region.x + region.width / 2) * bitmap.width - side / 2, 0), bitmap.width - side);
+      const top = Math.min(Math.max((region.y + region.height / 2) * bitmap.height - side / 2, 0), bitmap.height - side);
+      // A small lift for dim booth lighting. Crops enlarged past 1.5x also get a soft blur, so the photo's JPEG blocks
+      // read as soft focus. Big crops stay sharp. Browsers without canvas filters draw the crop as it is.
+      const enlarged = THUMB_SIZE / side;
+      const blur = enlarged > 1.5 ? Math.min((enlarged - 1) * 0.35, 1.2) : 0;
+      context.filter = `saturate(1.12) contrast(1.05)${blur ? ` blur(${blur.toFixed(2)}px)` : ""}`;
+      // Drawn a little past the edges, so the blur doesn't pull in the canvas's empty border as a dark rim.
+      context.drawImage(bitmap, left, top, side, side, -3, -3, THUMB_SIZE + 6, THUMB_SIZE + 6);
+      return canvas.toDataURL("image/jpeg", 0.72);
+    });
+  } catch {
+    return regions.map(() => undefined);
+  }
+}
+
+/** Register tiles fill with the thumbnail, about 20rem across at most, so this stays sharp on a 2x screen. */
+const THUMB_SIZE = 480;
+
+/** Real stand photos, bundled for demos without a stand on hand. The reader finds no stand name in either. */
+const DEMO_PHOTOS = [
+  { id: "lemonade", label: "Lemonade Stand Sign", src: "/demo/lemonade-stand-sign.jpg", standName: "Lemonade Stand" },
+  { id: "booth", label: "Messy Convention Booth", src: "/demo/convention-booth.jpg", standName: "Plush Booth" },
+] as const;
 
 type SampleChoice = { id: string; name: string; emoji: string };
 
@@ -167,7 +210,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
   }
 
   /** Sends a photo or a pasted list to the reader and fills the review form with what it found. */
-  async function read(kind: "photo" | "list", body: FormData) {
+  async function read(kind: "photo" | "list", body: FormData, photo?: Blob) {
     setError(null);
     setRows(null);
     setBusy("reading");
@@ -186,7 +229,8 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
       }
       if (draft.standName) setName(draft.standName);
       setSource(kind);
-      setRows(draft.items.map(toRow));
+      const thumbnails = photo ? await cropThumbnails(photo, draft.items.map((item) => item.region)) : [];
+      setRows(draft.items.map((item, i) => ({ ...toRow(item), image: thumbnails[i] })));
       scrolledAtRead.current = scrolledFrom;
     } catch (e) {
       setError((e as Error).message);
@@ -202,20 +246,20 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
     setPreview(URL.createObjectURL(photo));
     const form = new FormData();
     form.append("photo", await shrinkPhoto(photo), "sign.jpg");
-    await read("photo", form);
+    await read("photo", form, photo);
   }
 
-  /** Runs the bundled lemonade stand sign through the photo reader, for demos without a real sign. */
-  async function readDemoSign() {
+  /** Runs a bundled stand photo through the photo reader, for demos without a real stand. */
+  async function readDemoPhoto(demo: (typeof DEMO_PHOTOS)[number]) {
     setBusy("reading");
-    setName(DEMO_SIGN.standName); // the sign has no stand name, so the reader won't supply one
+    setName(demo.standName); // the photo has no stand name, so the reader won't supply one
     setError(null);
-    const photo = await fetch(DEMO_SIGN.src)
+    const photo = await fetch(demo.src)
       .then((res) => (res.ok ? res.blob() : undefined))
       .catch(() => undefined);
     if (photo) return onPhoto(photo);
     setBusy(null);
-    setError("Couldn't load the demo sign. Try again.");
+    setError("Couldn't load the demo photo. Try again.");
   }
 
   async function readList() {
@@ -255,6 +299,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
           name: row.name.trim(),
           priceCents: parsePrice(row.price),
           emoji: row.emoji || undefined,
+          image: row.image,
           deal: parseDeal(row) ?? undefined,
         })),
       }),
@@ -452,7 +497,17 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
                 <li key={row.key}>
                   <Card className={row.confidence === "low" ? "attention flex flex-col gap-3 p-4" : "flex flex-col gap-3 p-4"}>
                     <div className="flex items-center justify-between gap-3">
-                      {row.confidence ? <ConfidencePill confidence={row.confidence} /> : <span />}
+                      <div className="flex min-w-0 items-center gap-3">
+                        {row.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- data URL cropped in the browser
+                          <img
+                            src={row.image}
+                            alt={`Photo of ${row.name || `item ${i + 1}`}`}
+                            className="size-16 shrink-0 rounded-[14px] object-cover shadow-card"
+                          />
+                        ) : null}
+                        {row.confidence ? <ConfidencePill confidence={row.confidence} /> : null}
+                      </div>
                       <Button
                         variant="ghost"
                         iconOnly
@@ -547,11 +602,21 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
 
       <section aria-labelledby="demo-heading" className="flex flex-col items-center gap-3 text-center">
         <h2 id="demo-heading" className="text-subhead text-ink-2">
-          Demo: watch Lemon Pal read a real sign.
+          Demo: watch Lemon Pal read a real stand.
         </h2>
-        <Button variant="tinted" icon={<PhotoIcon />} disabled={busy !== null} onClick={readDemoSign}>
-          Lemonade stand sign
-        </Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          {DEMO_PHOTOS.map((demo) => (
+            <Button
+              key={demo.id}
+              variant="tinted"
+              icon={<PhotoIcon />}
+              disabled={busy !== null}
+              onClick={() => readDemoPhoto(demo)}
+            >
+              {demo.label}
+            </Button>
+          ))}
+        </div>
       </section>
 
       <section aria-labelledby="samples-heading" className="flex flex-col items-center gap-3 text-center">

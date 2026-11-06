@@ -35,8 +35,9 @@ import { dealDiscount, dealLabel, type Deal } from "@/lib/deals";
 import { playDing, unlockDing } from "@/lib/ding";
 
 // Sample items for the kit only. The real register prices sales from the stored catalog on the server.
-const sampleItems: { id: string; name: string; priceCents: number; emoji: string; deal?: Deal }[] = [
-  { id: "lemonade", name: "Lemonade", priceCents: 250, emoji: "🍋" },
+const sampleItems: { id: string; name: string; priceCents: number; emoji: string; image?: string; deal?: Deal }[] = [
+  // A photo thumbnail, as the setup screen crops from a display photo. It takes the emoji's place.
+  { id: "lemonade", name: "Lemonade", priceCents: 250, emoji: "🍋", image: "/demo/lemons-thumb.jpg" },
   { id: "pink", name: "Pink lemonade", priceCents: 300, emoji: "🌸" },
   { id: "iced-tea", name: "Iced tea", priceCents: 200, emoji: "🧊" },
   { id: "cookie", name: "Cookie", priceCents: 150, emoji: "🍪", deal: { quantity: 2, priceCents: 250 } },
@@ -185,6 +186,7 @@ export function RegisterDemo() {
               name={item.name}
               emoji={item.emoji}
               deal={item.deal ? dealLabel(item.deal, currency) : undefined}
+              image={item.image}
               priceCents={item.priceCents}
               currency={currency}
               count={cart[item.id] ?? 0}
@@ -209,7 +211,7 @@ export function RegisterDemo() {
               <span className="text-footnote text-ink-2">
                 {count === 0 ? "Tap an item to start" : `${count} ${count === 1 ? "item" : "items"}`}
               </span>
-              <Money cents={total} currency={currency} size="title" />
+              <Money cents={total} currency={currency} size="title" rolling className="self-start" />
             </div>
             <Button variant="filled" size="xl" icon={<QrCodeIcon />} disabled={total === 0} onClick={() => void charge()}>
               Charge
