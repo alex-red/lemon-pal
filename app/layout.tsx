@@ -1,22 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist_Mono, Hanken_Grotesk } from "next/font/google";
+import { Fraunces, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 
-// Citrus Glass type: Fraunces for display and prices, Hanken Grotesk for UI text, Geist Mono for receipts.
+// Citrus Glass type: Fraunces for titles. Interface text, prices and mono use the system fonts on Apple devices
+// (SF Pro, SF Pro Rounded, SF Mono), per Apple's HIG. Hanken Grotesk is the fallback everywhere else.
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
   axes: ["SOFT", "WONK", "opsz"],
 });
 
+// Not preloaded: Apple devices render SF Pro and never need it, so the buyer's phone skips the download.
 const hanken = Hanken_Grotesk({
   variable: "--font-hanken",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -39,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${hanken.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${hanken.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

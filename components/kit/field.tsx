@@ -26,9 +26,10 @@ export function TextField({ label, prefix, hint, error, className, id, ...props 
       </label>
       <div
         className={cn(
-          "flex h-12 items-center gap-1 rounded-field bg-fill-2 px-4 text-body transition-[background-color,box-shadow] duration-200",
-          "focus-within:bg-surface focus-within:shadow-[0_0_0_3px_var(--lemon-deep)]",
-          Boolean(error) && "shadow-[0_0_0_2px_var(--berry)] focus-within:shadow-[0_0_0_3px_var(--berry)]",
+          // The inset edge identifies the field at 3:1 (WCAG 1.4.11); focus swaps it for a thicker ring.
+          "flex h-12 items-center gap-1 rounded-field bg-fill px-4 text-body shadow-[inset_0_0_0_1px_var(--control-edge)] transition-[background-color,box-shadow] duration-200",
+          "focus-within:bg-surface focus-within:shadow-[inset_0_0_0_2px_var(--focus)]",
+          Boolean(error) && "shadow-[inset_0_0_0_2px_var(--berry)] focus-within:shadow-[inset_0_0_0_2px_var(--berry)]",
         )}
       >
         {prefix ? <span className="text-ink-2">{prefix}</span> : null}

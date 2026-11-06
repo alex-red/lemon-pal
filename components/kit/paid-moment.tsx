@@ -23,7 +23,7 @@ export function PaidMoment({
       <div className="relative grid size-36 place-items-center">
         <span aria-hidden className="absolute inset-0 animate-ripple rounded-full bg-leaf" />
         <span aria-hidden className="absolute inset-0 animate-ripple rounded-full bg-leaf [animation-delay:240ms]" />
-        <span className="relative grid size-full animate-pop place-items-center rounded-full bg-leaf text-[4.5rem] text-white shadow-lift">
+        <span className="relative grid size-full animate-pop place-items-center rounded-full bg-leaf text-[4.5rem] text-on-accent shadow-lift">
           <CheckIcon strokeWidth={2.5} />
         </span>
       </div>

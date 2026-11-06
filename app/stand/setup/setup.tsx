@@ -142,7 +142,7 @@ export function Setup({ currency }: { currency: string }) {
         <label
           className={cn(
             "flex cursor-pointer flex-col items-center gap-3 p-8 text-center",
-            "has-[:focus-visible]:shadow-[inset_0_0_0_3px_var(--lemon-deep)]",
+            "has-[:focus-visible]:shadow-[inset_0_0_0_3px_var(--focus)]",
             busy ? "pointer-events-none" : "pressable",
           )}
         >

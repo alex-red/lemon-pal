@@ -41,7 +41,7 @@ export function SegmentedControl<T extends string>({
           key={option.value}
           className={cn(
             "pressable relative z-10 flex cursor-pointer items-center justify-center rounded-full px-4 text-subhead font-semibold",
-            "has-[:focus-visible]:shadow-[0_0_0_3px_var(--lemon-deep)]",
+            "has-[:focus-visible]:shadow-[0_0_0_3px_var(--focus)]",
             option.value === value ? "text-ink" : "text-ink-2",
           )}
         >
@@ -82,7 +82,8 @@ export function Switch({
       className={cn(
         "focus-ring relative inline-flex h-[31px] w-[51px] shrink-0 items-center rounded-full p-0.5 transition-colors duration-300",
         "after:absolute after:-inset-1.5 after:content-['']",
-        checked ? "bg-leaf" : "bg-fill-3",
+        // Off keeps an edge at 3:1 so the control is findable; state also shows by knob position.
+        checked ? "bg-leaf" : "bg-fill-2 shadow-[inset_0_0_0_1.5px_var(--control-edge)]",
         className,
       )}
     >

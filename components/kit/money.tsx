@@ -4,14 +4,14 @@ import { cn } from "./cn";
 type Size = "hero" | "title" | "body";
 
 const sizes: Record<Size, string> = {
-  hero: "font-display text-hero font-semibold",
-  title: "font-display text-title1 font-semibold",
+  hero: "font-price text-hero font-bold",
+  title: "font-price text-title1 font-bold",
   body: "text-body font-semibold",
 };
 
 /**
- * A price, set like a hand-lettered price tag: a small currency mark and cents raised beside big whole units.
- * Screen readers get the plain formatted amount. Numerals are tabular so totals don't jitter as they change.
+ * A price, set like a price tag: a small currency mark and cents raised beside big whole units.
+ * Screen readers get the plain formatted amount. font-price has fixed-width digits, so totals don't jitter.
  */
 export function Money({
   cents,

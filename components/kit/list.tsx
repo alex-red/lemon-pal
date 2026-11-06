@@ -26,9 +26,9 @@ export function GroupedList({
 
 const iconTones = {
   lemon: "bg-lemon text-[oklch(0.23_0.03_85)]",
-  leaf: "bg-leaf text-white",
-  pool: "bg-pool text-white",
-  berry: "bg-berry text-white",
+  leaf: "bg-leaf text-on-accent",
+  pool: "bg-pool text-on-accent",
+  berry: "bg-berry text-on-accent",
   ink: "bg-ink text-on-ink",
 } as const;
 

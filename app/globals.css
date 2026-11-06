@@ -17,29 +17,35 @@
   --canvas-raised: oklch(0.995 0.006 95);
   --surface: oklch(1 0 0);
 
-  /* Labels (text). ink-3 is for large text, placeholders and disabled states only. */
+  /* Labels (text). Every level, ink-3 included, meets WCAG AA 4.5:1 on canvas, surface and fill-2. */
   --ink: oklch(0.23 0.03 85);
   --ink-2: oklch(0.43 0.025 85);
-  --ink-3: oklch(0.6 0.02 85);
+  --ink-3: oklch(0.5 0.02 85);
   --on-ink: oklch(0.985 0.014 95);
+  /* Text and icons on a solid leaf, pool or berry fill (3:1 or better). */
+  --on-accent: oklch(1 0 0);
 
   /* Fills and separators, tinted with ink so they work over any surface */
   --fill: oklch(0.23 0.03 85 / 0.055);
   --fill-2: oklch(0.23 0.03 85 / 0.09);
   --fill-3: oklch(0.23 0.03 85 / 0.14);
   --hairline: oklch(0.23 0.03 85 / 0.12);
+  /* Edges that identify a control (field outline, switch off track). 3:1 against surfaces, per WCAG 1.4.11. */
+  --control-edge: oklch(0.23 0.03 85 / 0.55);
+  /* Keyboard focus ring, 3:1 against canvas and surface. */
+  --focus: oklch(0.5 0.12 75);
 
   /* Accent and semantics. Each has a soft fill and a text-safe "deep" tone. */
   --lemon: oklch(0.91 0.17 100);
   --lemon-deep: oklch(0.83 0.17 88);
   --lemon-soft: oklch(0.91 0.17 100 / 0.32);
   --peel: oklch(0.5 0.11 75);
-  --leaf: oklch(0.56 0.14 145);
-  --leaf-soft: oklch(0.56 0.14 145 / 0.14);
-  --pool: oklch(0.53 0.16 252);
-  --pool-soft: oklch(0.53 0.16 252 / 0.12);
-  --berry: oklch(0.56 0.2 22);
-  --berry-soft: oklch(0.56 0.2 22 / 0.12);
+  --leaf: oklch(0.5 0.13 145);
+  --leaf-soft: oklch(0.5 0.13 145 / 0.12);
+  --pool: oklch(0.5 0.16 252);
+  --pool-soft: oklch(0.5 0.16 252 / 0.1);
+  --berry: oklch(0.52 0.2 22);
+  --berry-soft: oklch(0.52 0.2 22 / 0.1);
 
   /* Materials (liquid glass) */
   --glass: oklch(0.995 0.01 95 / 0.62);
@@ -65,13 +71,16 @@
 
     --ink: oklch(0.97 0.014 95);
     --ink-2: oklch(0.8 0.016 95);
-    --ink-3: oklch(0.62 0.016 95);
+    --ink-3: oklch(0.7 0.016 95);
     --on-ink: oklch(0.18 0.02 85);
+    --on-accent: oklch(0.18 0.02 85);
 
     --fill: oklch(0.97 0.014 95 / 0.07);
     --fill-2: oklch(0.97 0.014 95 / 0.11);
     --fill-3: oklch(0.97 0.014 95 / 0.17);
     --hairline: oklch(0.97 0.014 95 / 0.13);
+    --control-edge: oklch(0.97 0.014 95 / 0.45);
+    --focus: oklch(0.8 0.16 90);
 
     --lemon: oklch(0.89 0.17 100);
     --lemon-deep: oklch(0.8 0.16 90);
@@ -102,6 +111,8 @@
 @media (prefers-contrast: more) {
   :root {
     --ink-2: var(--ink);
+    --ink-3: var(--ink-2);
+    --control-edge: oklch(from var(--ink) l c h / 0.8);
     --hairline: oklch(from var(--ink) l c h / 0.4);
     --glass-rim: oklch(from var(--ink) l c h / 0.35);
   }
@@ -119,6 +130,9 @@
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
   --color-on-ink: var(--on-ink);
+  --color-on-accent: var(--on-accent);
+  --color-control-edge: var(--control-edge);
+  --color-focus: var(--focus);
   --color-fill: var(--fill);
   --color-fill-2: var(--fill-2);
   --color-fill-3: var(--fill-3);
@@ -134,9 +148,10 @@
   --color-berry: var(--berry);
   --color-berry-soft: var(--berry-soft);
 
-  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  /* SF Pro on Apple devices (Safari and Chrome), Hanken Grotesk elsewhere. */
+  --font-sans: -apple-system, BlinkMacSystemFont, var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 @theme {
@@ -297,12 +312,22 @@
     "WONK" 1;
 }
 
+/*
+ * Prices. Fraunces has no tabular figures, so a changing total would jitter.
+ * SF Pro Rounded (via ui-rounded, Apple devices) and Hanken Grotesk both have fixed-width digits.
+ */
+@utility font-price {
+  font-family: ui-rounded, -apple-system, BlinkMacSystemFont, var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
 @utility focus-ring {
   outline: none;
   &:focus-visible {
     box-shadow:
       0 0 0 2px var(--canvas),
-      0 0 0 5px var(--lemon-deep);
+      0 0 0 5px var(--focus);
   }
 }
 
@@ -310,6 +335,19 @@
   html {
     background: var(--canvas);
     -webkit-text-size-adjust: 100%;
+  }
+
+  /*
+   * Dynamic Type. On iPhone and iPad, Safari sets -apple-system-body to the person's chosen text size
+   * (17px at the default "Large"), and every rem in the kit scales with it. Touch devices only: on a Mac
+   * the same keyword is 13px and would shrink everything.
+   */
+  @supports (font: -apple-system-body) {
+    @media (pointer: coarse) {
+      html {
+        font: -apple-system-body;
+      }
+    }
   }
 
   body {
