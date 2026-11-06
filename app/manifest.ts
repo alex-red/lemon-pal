@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "LemonPal",
-    short_name: "LemonPal",
+    name: "Lemon Pal",
+    short_name: "Lemon Pal",
     description: "Create a stand for anything and get paid instantly with PayPal.",
     start_url: "/stand/register",
     display: "standalone",

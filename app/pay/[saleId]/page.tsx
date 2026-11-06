@@ -22,7 +22,7 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
         </span>
         <div className="flex flex-col gap-0.5">
           <p className="text-footnote font-semibold text-ink-2">You’re paying</p>
-          <h1 className="font-display text-large-title font-semibold text-balance">{stand?.name || "LemonPal"}</h1>
+          <h1 className="font-display text-large-title font-semibold text-balance">{stand?.name || "Lemon Pal"}</h1>
         </div>
         <Money cents={sale.totalCents} currency={sale.currency} size="hero" />
       </header>

@@ -174,7 +174,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
           )}
           <span className="text-title3 font-semibold">{rows || preview ? "Retake photo" : "Photograph your sign"}</span>
           <span className="text-subhead text-ink-2">
-            {preview ? "LemonPal reads the names and prices for you to check." : "LemonPal reads your items and prices. Or choose a photo you already took."}
+            {preview ? "Lemon Pal reads the names and prices for you to check." : "Lemon Pal reads your items and prices. Or choose a photo you already took."}
           </span>
           <input
             type="file"

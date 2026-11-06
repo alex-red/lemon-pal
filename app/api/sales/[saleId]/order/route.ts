@@ -13,7 +13,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sal
   if (!sale.paypalOrderId) {
     const origin = env.publicAppUrl() ?? new URL(request.url).origin;
     const stand = await store.getStand(sale.standId);
-    const order = await createOrder(sale, `${origin}/pay/${sale.id}`, stand?.name || "LemonPal");
+    const order = await createOrder(sale, `${origin}/pay/${sale.id}`, stand?.name || "Lemon Pal");
     sale.paypalOrderId = order.id;
     await store.saveSale(sale);
   }

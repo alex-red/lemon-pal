@@ -115,7 +115,7 @@ export const WalletIcon = (p: IconProps) => (
   </Icon>
 );
 
-/** The flat LemonPal mark for in-app use. */
+/** The flat Lemon Pal mark for in-app use. */
 export const LemonIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d={palLeaf} fill="currentColor" stroke="none" />

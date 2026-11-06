@@ -1,10 +1,10 @@
-# LemonPal 🍋
+# Lemon Pal 🍋
 
 **A lemonade stand for everyone.** Create a stand for anything, and get paid instantly.
 
-Bake sale, garage sale, merch table, a kid's lemonade stand: if you can write a price sign, you can sell with LemonPal. There's no card reader to buy and no cash box to watch. Snap a photo of your sign, and customers pay with PayPal on their own phone.
+Bake sale, garage sale, merch table, a kid's lemonade stand: if you can write a price sign, you can sell with Lemon Pal. There's no card reader to buy and no cash box to watch. Snap a photo of your sign, and customers pay with PayPal on their own phone.
 
-Under the hood, LemonPal turns that handwritten price sign into a working register. The seller photographs the sign, checks the names and prices an AI vision model read from it, and rings up sales on a tablet. The buyer scans a QR code and pays with PayPal on their own phone. The seller's screen flips to **Paid** the moment PayPal confirms the capture, and the stand recap in AG Studio shows what sold.
+Under the hood, Lemon Pal turns that handwritten price sign into a working register. The seller photographs the sign, checks the names and prices an AI vision model read from it, and rings up sales on a tablet. The buyer scans a QR code and pays with PayPal on their own phone. The seller's screen flips to **Paid** the moment PayPal confirms the capture, and the stand recap in AG Studio shows what sold.
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: in development. Sign reading, the register, PayPal checkout, and the AG Studio recap are implemented. Not yet deployed.
 

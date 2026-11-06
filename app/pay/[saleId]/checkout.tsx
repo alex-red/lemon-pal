@@ -106,7 +106,7 @@ export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents }: Pro
       <div className="w-full" hidden={state.kind !== "ready"}>
         <paypal-button type="pay" className="paypal-gold block w-full" onClick={pay} />
       </div>
-      <p className="text-center text-footnote text-ink-3">Your payment goes straight to PayPal. LemonPal never sees your card.</p>
+      <p className="text-center text-footnote text-ink-3">Your payment goes straight to PayPal. Lemon Pal never sees your card.</p>
     </div>
   );
 }

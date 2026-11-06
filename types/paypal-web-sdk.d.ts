@@ -1,4 +1,4 @@
-// Minimal types for the parts of the PayPal JavaScript SDK v6 that LemonPal uses.
+// Minimal types for the parts of the PayPal JavaScript SDK v6 that Lemon Pal uses.
 // https://developer.paypal.com/sdk/js/reference
 
 export type PayPalOneTimePaymentSession = {

@@ -18,9 +18,9 @@ const hanken = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "LemonPal: a lemonade stand for everyone",
+  title: "Lemon Pal: a lemonade stand for everyone",
   description: "Create a stand for anything and get paid instantly with PayPal.",
-  appleWebApp: { capable: true, title: "LemonPal", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Lemon Pal", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

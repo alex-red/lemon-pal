@@ -7,7 +7,8 @@ export default function Home() {
         <span className="grid size-20 place-items-center rounded-[26px] bg-lemon text-[2.75rem] text-[oklch(0.23_0.03_85)] shadow-float">
           <LemonIcon />
         </span>
-        <h1 className="font-display text-hero font-semibold">LemonPal</h1>
+        {/* One line on every phone: at 5rem the name is about 343px, wider than a 375px screen's column. */}
+        <h1 className="font-display text-hero font-semibold whitespace-nowrap max-[24rem]:text-[min(5rem,19vw)]">Lemon Pal</h1>
         <p className="font-display text-title1 font-semibold text-balance">A lemonade stand for everyone.</p>
         <p className="max-w-sm text-body text-ink-2 text-balance">Create a stand for anything. Get paid instantly.</p>
       </header>

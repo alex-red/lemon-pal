@@ -1,4 +1,4 @@
-// Citrus Glass, the LemonPal design kit. The living reference is the /kit page.
+// Citrus Glass, the Lemon Pal design kit. The living reference is the /kit page.
 export { Button, type ButtonSize, type ButtonVariant } from "./button";
 export { cn } from "./cn";
 export { SegmentedControl, Stepper, Switch } from "./controls";

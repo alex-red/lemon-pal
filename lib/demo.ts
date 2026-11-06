@@ -7,7 +7,7 @@ export const DEMO_STAND_ID = "demo";
 
 type Sample = { name: string; emoji: string; items: CatalogItem[] };
 
-/** Ready-made stands that show LemonPal works for anything. The first is the default and the reset target. */
+/** Ready-made stands that show Lemon Pal works for anything. The first is the default and the reset target. */
 const SAMPLES = {
   lemonade: {
     name: "Lemonade Stand",

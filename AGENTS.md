@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# LemonPal
+# Lemon Pal
 
 ## Commands
 
@@ -18,6 +18,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Gotchas
 
+- Write the product name as "Lemon Pal", two words, in all text. Lowercase `lemonpal` is only for identifiers and paths (package, database file, icons, Render service), so leave those as they are.
 - Keep `typescript` within typescript-eslint's supported range. `bun run typecheck` selects the native compiler via the `typescript7` alias.
 - Files that import `server-only` (everything in `lib/` except `money.ts`, `types.ts`, `ding.ts`, and `emoji.ts`) can't be imported by `"use client"` components. Use `import type` from them in client code.
 - `lib/store.ts` uses Node's built-in `node:sqlite` with one connection per process, at `DATABASE_PATH` (default `.data/lemonpal.sqlite`). It assumes a single instance, so don't deploy to serverless or scale out. Keep all persistence behind the `Store` interface, and use `updateSale` for any status change.

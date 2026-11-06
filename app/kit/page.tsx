@@ -28,8 +28,8 @@ import {
 import { ControlsDemo, RegisterDemo } from "./demos";
 
 export const metadata: Metadata = {
-  title: "Citrus Glass · LemonPal design kit",
-  description: "Tokens, components and interaction rules for LemonPal.",
+  title: "Citrus Glass · Lemon Pal design kit",
+  description: "Tokens, components and interaction rules for Lemon Pal.",
 };
 
 const sections = [
@@ -126,7 +126,7 @@ export default function KitPage() {
             </span>
             <div className="leading-tight">
               <p className="font-display text-title3 font-semibold">Citrus Glass</p>
-              <p className="text-footnote text-ink-2">LemonPal kit · 2026</p>
+              <p className="text-footnote text-ink-2">Lemon Pal kit · 2026</p>
             </div>
           </div>
           <nav aria-label="Kit sections" className="flex flex-col gap-0.5">
@@ -160,7 +160,7 @@ export default function KitPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-5 py-4 sm:px-7">
               <div className="flex items-center gap-3">
                 <LemonIcon className="text-[2rem]" />
-                <span className="font-display text-title2 font-semibold">LemonPal</span>
+                <span className="font-display text-title2 font-semibold">Lemon Pal</span>
               </div>
               <p className="font-mono text-caption uppercase tracking-[0.08em] text-ink-2">Flat mark</p>
             </div>
@@ -449,7 +449,7 @@ function Hero() {
     <header className="relative flex min-h-[22rem] flex-col justify-end overflow-hidden rounded-sheet bg-lemon p-8 text-[oklch(0.23_0.03_85)] shadow-float sm:p-12">
       <div aria-hidden className="absolute -top-24 -right-16 size-[26rem] rounded-full bg-[radial-gradient(circle_at_35%_35%,oklch(1_0_0/0.7),transparent_60%)]" />
       <LemonIcon aria-hidden className="absolute top-8 right-8 text-[9rem] opacity-90 drop-shadow-[0_20px_30px_oklch(0.5_0.15_90/0.35)] sm:text-[13rem]" />
-      <p className="relative animate-rise font-mono text-footnote uppercase tracking-[0.12em]">LemonPal · design kit · 2026</p>
+      <p className="relative animate-rise font-mono text-footnote uppercase tracking-[0.12em]">Lemon Pal · design kit · 2026</p>
       <h1 className="relative mt-3 max-w-3xl animate-rise font-display text-[clamp(3rem,8vw,6.5rem)] leading-[0.92] font-semibold tracking-[-0.04em] [animation-delay:80ms]">
         Citrus Glass
       </h1>
