@@ -1,4 +1,4 @@
-import { captureOrder, getOrder, orderShipping, PayPalError } from "@/lib/paypal";
+import { captureOrder, getOrder, orderShipping, PayPalError, verifyCapture } from "@/lib/paypal";
 import { publicSale } from "@/lib/sales";
 import { countryName } from "@/lib/shipping";
 import { store } from "@/lib/store";
@@ -8,10 +8,10 @@ import type { Fulfillment, Sale } from "@/lib/types";
  * A shipped order is checked before capture: if the buyer picked an address the seller doesn't ship to, nothing
  * is charged and they can choose another. Returns the error message, or null when the order can go ahead.
  */
-async function shippingProblem(sale: Sale, orderId: string): Promise<string | null> {
+async function shippingProblem(sale: Sale, order: Awaited<ReturnType<typeof getOrder>>): Promise<string | null> {
   if (sale.fulfillment?.method !== "ship") return null;
   const storefront = await store.getStorefront(sale.standId);
-  const shipping = orderShipping(sale, await getOrder(orderId));
+  const shipping = orderShipping(sale, order);
   const country = shipping?.address?.country;
   if (!country) return "PayPal didn’t send a shipping address. Please try again and choose one.";
   const countries = storefront?.shipping.countries ?? [];
@@ -36,14 +36,31 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sa
   }
 
   try {
-    const problem = await shippingProblem(sale, sale.paypalOrderId);
-    if (problem) {
-      // The approved order is tied to that address, so this sale can't be paid. The buyer starts again from the store.
-      await store.updateSale(sale.id, (s) => (s.status === "open" ? { ...s, status: "canceled" } : null));
-      return Response.json({ error: problem, restart: true }, { status: 422 });
+    const order = await getOrder(sale.paypalOrderId);
+    let result;
+    if (order.status === "COMPLETED") {
+      // Already captured, by an earlier call that came back pending: read the result instead of capturing again.
+      result = verifyCapture(sale, order);
+    } else {
+      const problem = await shippingProblem(sale, order);
+      if (problem) {
+        // The approved order is tied to that address, so this sale can't be paid. The buyer starts again from the store.
+        await store.updateSale(sale.id, (s) => (s.status === "open" ? { ...s, status: "canceled" } : null));
+        return Response.json({ error: problem, restart: true }, { status: 422 });
+      }
+      result = await captureOrder(sale, sale.paypalOrderId);
     }
 
-    const result = await captureOrder(sale, sale.paypalOrderId);
+    if (!result.ok && result.pending) {
+      // The money is on its way but hasn't arrived. Not paid yet, and the buyer mustn't pay a second time.
+      const { captureId, reason } = result;
+      await store.updateSale(sale.id, (s) =>
+        s.status === "open" && !s.pendingCapture
+          ? { ...s, paypalCaptureId: captureId, pendingCapture: { captureId, reason, since: new Date().toISOString() } }
+          : null,
+      );
+      return Response.json({ pending: true, reason }, { status: 202 });
+    }
     if (!result.ok) {
       console.error(`Capture for sale ${sale.id} not accepted: ${result.reason}`);
       return Response.json({ error: "PayPal didn't complete the payment." }, { status: 402 });
@@ -56,8 +73,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sa
         s.fulfillment?.method === "ship"
           ? { ...s.fulfillment, recipient: result.shipping?.recipient, address: result.shipping?.address }
           : s.fulfillment;
+      const { pendingCapture, ...rest } = s;
+      void pendingCapture;
       return {
-        ...s,
+        ...rest,
         status: "paid",
         paypalCaptureId: result.captureId,
         paidAt: new Date().toISOString(),

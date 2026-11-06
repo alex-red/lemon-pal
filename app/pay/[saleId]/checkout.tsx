@@ -2,7 +2,7 @@
 
 import Script from "next/script";
 import { useRef, useState } from "react";
-import { ExclamationIcon, PaidMoment, Pill, Spinner } from "@/components/kit";
+import { Button, ClockIcon, ExclamationIcon, PaidMoment, Pill, Spinner } from "@/components/kit";
 import type { Cents } from "@/lib/money";
 import type { PayPalOneTimePaymentSession } from "@/types/paypal-web-sdk";
 
@@ -14,6 +14,8 @@ type Props = {
   totalCents: Cents;
   /** The online store this order came from, for starting again when this sale can't be paid. */
   storeUrl?: string;
+  /** PayPal already has this payment and is still moving the money. Show that, never the PayPal button. */
+  pending?: boolean;
 };
 
 type State =
@@ -21,6 +23,7 @@ type State =
   | { kind: "ready"; message?: string }
   | { kind: "capturing" }
   | { kind: "paid" }
+  | { kind: "pending"; checking?: boolean; message?: string }
   | { kind: "failed"; message: string; restart?: boolean };
 
 /** A failed request. `restart` means this sale can't be paid any more and the buyer has to start a new one. */
@@ -33,6 +36,8 @@ class RequestError extends Error {
   }
 }
 
+type CaptureResponse = { pending?: boolean };
+
 async function postJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { method: "POST" });
   const json = await res.json().catch(() => ({}));
@@ -40,8 +45,24 @@ async function postJson<T>(url: string): Promise<T> {
   return json as T;
 }
 
-export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents, storeUrl }: Props) {
-  const [state, setState] = useState<State>({ kind: "loading" });
+export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents, storeUrl, pending = false }: Props) {
+  const [state, setState] = useState<State>(pending ? { kind: "pending" } : { kind: "loading" });
+
+  /** Captures, or rechecks a pending capture. 202 with `pending` means the money hasn't arrived yet. */
+  async function capture(): Promise<"paid" | "pending"> {
+    const result = await postJson<CaptureResponse>(`/api/sales/${saleId}/capture`);
+    return result.pending ? "pending" : "paid";
+  }
+
+  async function checkAgain() {
+    setState({ kind: "pending", checking: true });
+    try {
+      if ((await capture()) === "paid") return setState({ kind: "paid" });
+      setState({ kind: "pending", message: "Still on its way. Check again later." });
+    } catch (error) {
+      setState({ kind: "pending", message: (error as Error).message });
+    }
+  }
   const session = useRef<PayPalOneTimePaymentSession | null>(null);
 
   async function onSdkReady() {
@@ -57,8 +78,7 @@ export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents, store
         async onApprove() {
           setState({ kind: "capturing" });
           try {
-            await postJson(`/api/sales/${saleId}/capture`);
-            setState({ kind: "paid" });
+            setState({ kind: (await capture()) === "paid" ? "paid" : "pending" });
           } catch (error) {
             if (error instanceof RequestError && error.restart) {
               return setState({ kind: "failed", message: error.message, restart: true });
@@ -96,6 +116,30 @@ export function Checkout({ saleId, clientId, sdkUrl, currency, totalCents, store
 
   if (state.kind === "paid") {
     return <PaidMoment cents={totalCents} currency={currency} className="pt-4" />;
+  }
+
+  if (state.kind === "pending") {
+    return (
+      <div className="flex flex-col items-center gap-3 pt-2 text-center" aria-live="polite">
+        <Pill tone="pool" icon={<ClockIcon />}>
+          Payment pending
+        </Pill>
+        <p className="text-body">
+          <span className="font-semibold">PayPal has your payment and is still moving the money.</span>{" "}
+          <span className="text-ink-2">
+            A bank transfer can take a few days. You don&rsquo;t need to pay again: PayPal will email you when it&rsquo;s done.
+          </span>
+        </p>
+        {state.message ? (
+          <p role="status" className="text-subhead text-ink-2">
+            {state.message}
+          </p>
+        ) : null}
+        <Button variant="tinted" loading={state.checking} onClick={checkAgain}>
+          Check again
+        </Button>
+      </div>
+    );
   }
 
   return (

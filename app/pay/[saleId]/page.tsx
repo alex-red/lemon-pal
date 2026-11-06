@@ -69,6 +69,7 @@ export default async function PayPage({ params }: { params: Promise<{ saleId: st
           currency={sale.currency}
           totalCents={sale.totalCents}
           storeUrl={storeUrl}
+          pending={Boolean(sale.pendingCapture)}
         />
       )}
 

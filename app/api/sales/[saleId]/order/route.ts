@@ -9,6 +9,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sal
   const sale = await store.getSale(saleId);
   if (!sale) return Response.json({ error: "not found" }, { status: 404 });
   if (sale.status !== "open") return Response.json({ error: `sale is ${sale.status}` }, { status: 409 });
+  // PayPal already has this payment and is finishing it. A second order would charge the buyer twice.
+  if (sale.pendingCapture) {
+    return Response.json({ error: "This payment is already going through PayPal. You don’t need to pay again." }, { status: 409 });
+  }
 
   if (!sale.paypalOrderId) {
     const origin = env.publicAppUrl() ?? new URL(request.url).origin;

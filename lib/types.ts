@@ -149,6 +149,11 @@ export type Sale = {
   buyerName?: string;
   /** Set when the seller refunded the whole capture and PayPal accepted it. */
   refund?: { paypalRefundId: string; refundedAt: string };
+  /**
+   * Set when PayPal took the payment but is still moving the money (an eCheck, say). The sale stays open, so it
+   * isn't counted as paid, and the buyer is told not to pay again. The capture route clears it once PayPal completes.
+   */
+  pendingCapture?: { captureId: string; reason: string; since: string };
   /** A sale the sticker shop demo made up. It never went through PayPal, so refunds and tracking stay local. */
   demo?: boolean;
 };

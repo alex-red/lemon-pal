@@ -72,7 +72,7 @@ type Order = {
   purchase_units: {
     reference_id?: string;
     shipping?: { name?: { full_name?: string }; address?: PayPalAddress };
-    payments?: { captures?: { id: string; status: string; amount: Amount }[] };
+    payments?: { captures?: { id: string; status: string; amount: Amount; status_details?: { reason?: string } }[] };
   }[];
 };
 
@@ -130,6 +130,9 @@ export async function createOrder(sale: Sale, checkoutUrl: string, brandName: st
             return_url: checkoutUrl,
             cancel_url: checkoutUrl,
             user_action: "PAY_NOW",
+            // Only funding that settles now. A bank transfer (eCheck) leaves the capture pending for days, and the
+            // buyer walks away from the stand unsure they've paid.
+            payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
             // A shipped order asks the buyer for an address in PayPal. Everything else never shows one.
             shipping_preference: ships ? "GET_FROM_FILE" : "NO_SHIPPING",
           },
@@ -162,7 +165,9 @@ export async function createOrder(sale: Sale, checkoutUrl: string, brandName: st
 
 export type CaptureResult =
   | { ok: true; captureId: string; shipping: OrderShipping | null; payerName?: string }
-  | { ok: false; reason: string };
+  /** PayPal took the payment but hasn't finished moving the money, as with an eCheck. Not paid yet, and not to be retried. */
+  | { ok: false; pending: true; captureId: string; reason: string }
+  | { ok: false; pending?: false; reason: string };
 
 /** Reads an order, so the capture route can check a shipping address before any money moves. */
 export async function getOrder(orderId: string): Promise<Order> {
@@ -179,13 +184,21 @@ export async function captureOrder(sale: Sale, orderId: string): Promise<Capture
   return verifyCapture(sale, order);
 }
 
+/** Reads an order that may already be captured, to finish a sale without capturing twice. */
+export async function checkCapture(sale: Sale, orderId: string): Promise<CaptureResult> {
+  return verifyCapture(sale, await getOrder(orderId));
+}
+
 export function verifyCapture(sale: Sale, order: Order): CaptureResult {
   if (order.status !== "COMPLETED") return { ok: false, reason: `order status ${order.status}` };
   const capture = saleUnit(sale, order)?.payments?.captures?.[0];
   if (!capture) return { ok: false, reason: "no capture on order" };
-  if (capture.status !== "COMPLETED") return { ok: false, reason: `capture status ${capture.status}` };
   if (capture.amount.currency_code !== sale.currency) return { ok: false, reason: "currency mismatch" };
   if (fromPayPalValue(capture.amount.value) !== sale.totalCents) return { ok: false, reason: "amount mismatch" };
+  if (capture.status === "PENDING") {
+    return { ok: false, pending: true, captureId: capture.id, reason: capture.status_details?.reason ?? "PENDING" };
+  }
+  if (capture.status !== "COMPLETED") return { ok: false, reason: `capture status ${capture.status}` };
   return { ok: true, captureId: capture.id, shipping: orderShipping(sale, order), payerName: payerName(order) };
 }
 
