@@ -14,13 +14,21 @@ const finishes = {
   "tinted-dark": { top: "#60754c", base: "#2b3a22", fruit: "#e9f0c5", leaf: "#cadba7", opacity: 1 },
 } as const;
 
+// Shrinks the mark about the tile's center so its farthest point sits inside the maskable safe zone:
+// a circle of 40% of the icon's width (9.6 units), which Android may crop to.
+const SAFE_ZONE_SCALE = 0.78;
+
 export function PalAppIcon({
   appearance = "default",
   fullBleed = false,
+  safeZone = false,
   className,
 }: {
   appearance?: keyof typeof finishes;
+  /** Square plate with no rounded corners or rim, for platforms that apply their own mask. */
   fullBleed?: boolean;
+  /** Keep the whole mark inside the maskable-icon safe zone. Use with fullBleed. */
+  safeZone?: boolean;
   className?: string;
 }) {
   const id = useId();
@@ -52,9 +60,11 @@ export function PalAppIcon({
       {fullBleed ? null : (
         <rect x="0.22" y="0.22" width="23.56" height="23.56" rx="5.28" fill="none" stroke={`url(#${edge})`} strokeWidth="0.28" />
       )}
-      <g transform="translate(1.68 1.88) scale(0.86)">
-        <path d={palLeaf} fill={leaf} stroke={`url(#${edge})`} strokeWidth="0.14" strokeLinejoin="round" />
-        <path d={palBody} fill={fruit} fillRule="evenodd" stroke={`url(#${edge})`} strokeWidth="0.14" strokeLinejoin="round" />
+      <g transform={safeZone ? `translate(12 12) scale(${SAFE_ZONE_SCALE}) translate(-12 -12)` : undefined}>
+        <g transform="translate(1.68 1.88) scale(0.86)">
+          <path d={palLeaf} fill={leaf} stroke={`url(#${edge})`} strokeWidth="0.14" strokeLinejoin="round" />
+          <path d={palBody} fill={fruit} fillRule="evenodd" stroke={`url(#${edge})`} strokeWidth="0.14" strokeLinejoin="round" />
+        </g>
       </g>
     </svg>
   );

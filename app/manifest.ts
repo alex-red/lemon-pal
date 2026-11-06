@@ -9,10 +9,13 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     orientation: "any",
     background_color: "#fffbea",
-    theme_color: "#ffe14d",
+    // Matches the page's light theme-color, so an installed app's title bar runs into the page.
+    theme_color: "#fffbea",
     icons: [
-      { src: "/icons/lemonpal-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/lemonpal-512.png", sizes: "512x512", type: "image/png" },
+      { src: "/icons/lemonpal-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/lemonpal-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/lemonpal-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/icons/lemonpal-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }
