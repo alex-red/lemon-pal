@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -38,7 +37,6 @@ export function Unlock({
   /** Why the seller is back here, such as a canceled PayPal sign-in. */
   error: string | null;
 }) {
-  const router = useRouter();
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -61,7 +59,7 @@ export function Unlock({
     const json = (await res?.json().catch(() => null)) as { account?: SavedDemoAccount; error?: string } | null;
     if (res?.ok && json?.account) {
       saveDemoAccount(json.account);
-      return router.replace(next);
+      return enter(next);
     }
     setBusy(null);
     setError(json?.error ?? "Couldn’t make a demo account. Try again.");
@@ -75,7 +73,7 @@ export function Unlock({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: account.token }),
     }).catch(() => null);
-    if (res?.ok) return router.replace(next);
+    if (res?.ok) return enter(next);
     const json = (await res?.json().catch(() => null)) as { error?: string; gone?: boolean } | null;
     if (json?.gone) {
       forgetDemoAccount(account.id);
@@ -183,4 +181,13 @@ export function Unlock({
       )}
     </main>
   );
+}
+
+/**
+ * Opens the seller's page with a full page load. Signing in changes whose pages these are, and the client router
+ * still holds what it fetched while signed out: a protected page cached as a redirect back here. A soft navigation
+ * would replay that redirect and leave the button spinning on this page.
+ */
+function enter(next: string) {
+  window.location.replace(next);
 }
