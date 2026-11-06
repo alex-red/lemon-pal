@@ -15,7 +15,9 @@ import {
   PaidMoment,
   QrCodeIcon,
   SaleStatusPill,
+  ScrollEdge,
   Toolbar,
+  useScrollCompact,
   XmarkIcon,
 } from "@/components/kit";
 import { dealDiscount, dealLabel } from "@/lib/deals";
@@ -53,6 +55,7 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [charging, setCharging] = useState(false);
   const dingedSaleId = useRef<string | null>(null);
+  const compactBar = useScrollCompact();
 
   // Ding once per sale, even if two status checks both see it paid.
   function dingFor(saleId: string) {
@@ -211,6 +214,8 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 pt-8 pb-44 sm:px-8">
+      <ScrollEdge />
+      <ScrollEdge edge="bottom" />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
@@ -219,10 +224,10 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
           <h1 className="font-display text-large-title font-semibold">{standName}</h1>
         </div>
         <Toolbar aria-label="Stand">
-          <Link href="/stand/setup" className={toolbarLink}>
+          <Link href="/stand/setup" transitionTypes={["nav-back"]} className={toolbarLink}>
             <CameraIcon /> Sign
           </Link>
-          <Link href="/stand/recap" className={toolbarLink}>
+          <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
             <ChartIcon /> Recap
           </Link>
         </Toolbar>
@@ -251,7 +256,10 @@ export function Register({ standName, currency, items, payOrigin }: Props) {
             {error}
           </p>
         ) : null}
-        <div className="glass pointer-events-auto flex w-full max-w-2xl items-center gap-3 rounded-full p-2 pl-3">
+        <div
+          data-compact={compactBar || undefined}
+          className="glass minimizable pointer-events-auto flex w-full max-w-2xl items-center gap-3 rounded-full p-2 pl-3"
+        >
           <Button
             variant="tinted"
             size="lg"

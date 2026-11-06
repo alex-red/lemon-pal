@@ -16,6 +16,7 @@ import {
   PhotoIcon,
   Pill,
   PlusIcon,
+  ScrollEdge,
   scrollToReveal,
   ShimmerText,
   SparklesIcon,
@@ -168,6 +169,7 @@ const THUMB_SIZE = 480;
 const DEMO_PHOTOS = [
   { id: "lemonade", label: "Lemonade Stand Sign", src: "/demo/lemonade-stand-sign.jpg", standName: "Lemonade Stand" },
   { id: "booth", label: "Messy Convention Booth", src: "/demo/convention-booth.jpg", standName: "Plush Booth" },
+  { id: "bakery", label: "Bakery Display Case", src: "/demo/bakery-case.jpg", standName: "Bakery" },
 ] as const;
 
 type SampleChoice = { id: string; name: string; emoji: string };
@@ -304,7 +306,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
         })),
       }),
     });
-    if (res.ok) return router.push("/stand/register");
+    if (res.ok) return router.push("/stand/register", { transitionTypes: ["nav-forward"] });
     setBusy(null);
     setError((await res.json().catch(() => ({}))).error ?? "Couldn't publish the stand.");
   }
@@ -313,13 +315,14 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
     setBusy(`sample:${id}`);
     setError(null);
     const res = await fetch(`/api/stand?sample=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
-    if (res?.ok) return router.push("/stand/register");
+    if (res?.ok) return router.push("/stand/register", { transitionTypes: ["nav-forward"] });
     setBusy(null);
     setError("Couldn't load the sample. Try again.");
   }
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-7 px-5 pt-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-8">
+      <ScrollEdge />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="flex items-center gap-1.5 text-footnote font-semibold text-ink-2">
@@ -329,6 +332,7 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
         </div>
         <Link
           href="/stand/register"
+          transitionTypes={["nav-forward"]}
           className="pressable focus-ring inline-flex h-11 items-center rounded-full px-4 text-callout font-semibold text-peel hover:bg-fill"
         >
           Register
