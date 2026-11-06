@@ -31,9 +31,10 @@ export async function POST(request: Request) {
   return Response.json(stand);
 }
 
-// Restores the sample catalog, for the judge demo.
-export async function DELETE() {
+// Restores the sample catalog. With ?sales=clear it also deletes the stand's sales, for the judge demo reset.
+export async function DELETE(request: Request) {
   const stand = demoStand();
   await store.saveStand(stand);
+  if (new URL(request.url).searchParams.get("sales") === "clear") await store.clearSales(stand.id);
   return Response.json(stand);
 }

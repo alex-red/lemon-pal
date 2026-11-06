@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { LemonIcon, QrCodeIcon, Toolbar } from "@/components/kit";
 import { env } from "@/lib/env";
 import { RecapLoader } from "./recap-loader";
+import { ResetDemo } from "./reset-demo";
 
 export default async function RecapPage() {
   await connection(); // read env at request time, not build time
@@ -22,6 +23,7 @@ export default async function RecapPage() {
           >
             <QrCodeIcon /> Register
           </Link>
+          <ResetDemo />
         </Toolbar>
       </header>
       {/* Studio fills its parent, so the parent needs a definite height, not just a minimum. */}
