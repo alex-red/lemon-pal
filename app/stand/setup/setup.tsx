@@ -78,6 +78,8 @@ async function shrinkPhoto(file: Blob): Promise<Blob> {
   }
 }
 
+const DEMO_SIGN = "/demo/lemonade-stand-sign.jpg";
+
 type SampleChoice = { id: string; name: string; emoji: string };
 
 export function Setup({ currency, standName, samples }: { currency: string; standName: string; samples: SampleChoice[] }) {
@@ -137,6 +139,19 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
     const form = new FormData();
     form.append("photo", await shrinkPhoto(photo), "sign.jpg");
     await read("photo", form);
+  }
+
+  /** Runs the bundled lemonade stand sign through the photo reader, for demos without a real sign. */
+  async function readDemoSign(standName: string) {
+    setBusy("reading");
+    setName(standName); // the sign has no stand name, so the reader won't supply one
+    setError(null);
+    const photo = await fetch(DEMO_SIGN)
+      .then((res) => (res.ok ? res.blob() : undefined))
+      .catch(() => undefined);
+    if (photo) return onPhoto(photo);
+    setBusy(null);
+    setError("Couldn't load the demo sign. Try again.");
   }
 
   async function readList() {
@@ -433,18 +448,31 @@ export function Setup({ currency, standName, samples }: { currency: string; stan
           No sign handy? Start from a sample stand.
         </h2>
         <div className="flex flex-wrap justify-center gap-2">
-          {samples.map((sample) => (
-            <Button
-              key={sample.id}
-              variant="tinted"
-              icon={<span aria-hidden>{sample.emoji}</span>}
-              loading={busy === `sample:${sample.id}`}
-              disabled={busy !== null}
-              onClick={() => loadSample(sample.id)}
-            >
-              {sample.name}
-            </Button>
-          ))}
+          {samples.map((sample) =>
+            // The lemonade sample reads a real sign photo instead, so the demo shows the camera flow.
+            sample.id === "lemonade" ? (
+              <Button
+                key={sample.id}
+                variant="tinted"
+                icon={<span aria-hidden>{sample.emoji}</span>}
+                disabled={busy !== null}
+                onClick={() => readDemoSign(sample.name)}
+              >
+                Demo – {sample.name}
+              </Button>
+            ) : (
+              <Button
+                key={sample.id}
+                variant="tinted"
+                icon={<span aria-hidden>{sample.emoji}</span>}
+                loading={busy === `sample:${sample.id}`}
+                disabled={busy !== null}
+                onClick={() => loadSample(sample.id)}
+              >
+                {sample.name}
+              </Button>
+            ),
+          )}
         </div>
       </section>
     </main>
