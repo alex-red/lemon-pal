@@ -60,7 +60,7 @@ cp .env.example .env.local   # then fill in the values
 bun run dev
 ```
 
-Open <http://localhost:3000>. To test the buyer flow from a phone, the phone must reach your machine over HTTPS; a tunnel or the hosted demo works best.
+Open <http://localhost:3000>. The dev server listens on your local network too, so a phone on the same Wi-Fi can scan a sale's QR code: when the register runs on `localhost`, the code points at your machine's network address (the **Network** URL `next dev` prints) instead. Set `PUBLIC_APP_URL` to override it. If PayPal's buttons won't load on the phone over plain HTTP, use a tunnel or the hosted demo, which serve HTTPS.
 
 Other scripts: `bun run typecheck`, `bun run lint`, `bun run build`, `bun run start`.
 

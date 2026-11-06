@@ -24,9 +24,15 @@ import type { CatalogItem } from "@/lib/types";
 // The sale code with Pal imprinted in it. Set to false for a plain code with a lemon badge, if a phone struggles to scan.
 const LEMON_ART_QR = true;
 
-type Props = { standName: string; currency: string; items: CatalogItem[] };
+type Props = {
+  standName: string;
+  currency: string;
+  items: CatalogItem[];
+  /** Origin for the sale QR code, such as the dev machine's network address. null uses this page's origin. */
+  payOrigin: string | null;
+};
 
-export function Register({ standName, currency, items }: Props) {
+export function Register({ standName, currency, items, payOrigin }: Props) {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [sale, setSale] = useState<PublicSale | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +124,7 @@ export function Register({ standName, currency, items }: Props) {
             {sale.status === "open" ? (
               <div className="animate-rise rounded-[34px] bg-lemon p-4 shadow-float">
                 <LemonQR
-                  value={`${window.location.origin}/pay/${sale.id}`}
+                  value={`${payOrigin ?? window.location.origin}/pay/${sale.id}`}
                   label="Scan to pay with PayPal"
                   art={LEMON_ART_QR}
                   className="size-[min(22rem,75vw)]"
