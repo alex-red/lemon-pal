@@ -102,6 +102,7 @@ async function cropThumbnails(photo: Blob, regions: (Region | undefined)[]): Pro
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = THUMB_SIZE;
     const context = canvas.getContext("2d")!;
+    context.imageSmoothingQuality = "high";
     return regions.map((region) => {
       if (!region) return undefined;
       const side = Math.min(
@@ -111,16 +112,22 @@ async function cropThumbnails(photo: Blob, regions: (Region | undefined)[]): Pro
       );
       const left = Math.min(Math.max((region.x + region.width / 2) * bitmap.width - side / 2, 0), bitmap.width - side);
       const top = Math.min(Math.max((region.y + region.height / 2) * bitmap.height - side / 2, 0), bitmap.height - side);
-      context.drawImage(bitmap, left, top, side, side, 0, 0, THUMB_SIZE, THUMB_SIZE);
-      return canvas.toDataURL("image/jpeg", 0.8);
+      // A small lift for dim booth lighting. Crops enlarged past 1.5x also get a soft blur, so the photo's JPEG blocks
+      // read as soft focus. Big crops stay sharp. Browsers without canvas filters draw the crop as it is.
+      const enlarged = THUMB_SIZE / side;
+      const blur = enlarged > 1.5 ? Math.min((enlarged - 1) * 0.35, 1.2) : 0;
+      context.filter = `saturate(1.12) contrast(1.05)${blur ? ` blur(${blur.toFixed(2)}px)` : ""}`;
+      // Drawn a little past the edges, so the blur doesn't pull in the canvas's empty border as a dark rim.
+      context.drawImage(bitmap, left, top, side, side, -3, -3, THUMB_SIZE + 6, THUMB_SIZE + 6);
+      return canvas.toDataURL("image/jpeg", 0.72);
     });
   } catch {
     return regions.map(() => undefined);
   }
 }
 
-/** Register tiles show thumbnails at about 4rem, so this stays sharp on a 3x screen. */
-const THUMB_SIZE = 192;
+/** Register tiles fill with the thumbnail, about 20rem across at most, so this stays sharp on a 2x screen. */
+const THUMB_SIZE = 480;
 
 /** Real stand photos, bundled for demos without a stand on hand. The reader finds no stand name in either. */
 const DEMO_PHOTOS = [

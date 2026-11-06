@@ -16,7 +16,7 @@ const PublishSchema = z.object({
         // A thumbnail the setup screen cropped from the seller's photo. Small enough to keep in the stand record.
         image: z
           .string()
-          .max(60_000)
+          .max(120_000)
           .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/)
           .optional(),
       }),
