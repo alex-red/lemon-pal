@@ -13,6 +13,8 @@ export interface Store {
   saveStand(stand: Stand): Promise<void>;
   getSale(id: string): Promise<Sale | null>;
   saveSale(sale: Sale): Promise<void>;
+  /** Writes many sales in one transaction, for the demo seed. */
+  saveSales(sales: Sale[]): Promise<void>;
   /**
    * Atomically read, change, and write one sale, so a cancel and a capture can't overwrite each other.
    * `change` returns the new sale, or null to leave it as is. Resolves to the stored sale.
@@ -94,6 +96,17 @@ class SqliteStore implements Store {
     this.writeSale(sale);
   }
 
+  async saveSales(sales: Sale[]) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const sale of sales) this.writeSale(sale);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   async updateSale(id: string, change: (sale: Sale) => Sale | null) {
     // IMMEDIATE takes the write lock up front, so the read and the write see the same row.
     this.db.exec("BEGIN IMMEDIATE");
@@ -157,7 +170,7 @@ export function databasePath() {
 // One connection per process, kept across dev hot reloads.
 // Bump SCHEMA when the tables or Store methods change, so a running dev server opens a fresh connection
 // instead of keeping one from before the change.
-const SCHEMA = 2;
+const SCHEMA = 3;
 const globalForStore = globalThis as unknown as { lemonpalSqliteStore?: { schema: number; store: Store } };
 
 function instance(): Store {
@@ -173,6 +186,7 @@ export const store: Store = {
   saveStand: (stand) => instance().saveStand(stand),
   getSale: (id) => instance().getSale(id),
   saveSale: (sale) => instance().saveSale(sale),
+  saveSales: (sales) => instance().saveSales(sales),
   updateSale: (id, change) => instance().updateSale(id, change),
   listSales: (standId) => instance().listSales(standId),
   clearSales: (standId) => instance().clearSales(standId),

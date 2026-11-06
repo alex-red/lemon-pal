@@ -2,6 +2,8 @@ type ItemTotal = { item: string; units: number; cents: number };
 
 export const receiptTime = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
+export const receiptDay = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+
 export function receiptRef(id: string): string {
   return `#${id.slice(0, 8).toUpperCase()}`;
 }

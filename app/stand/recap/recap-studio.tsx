@@ -25,7 +25,7 @@ import { Button, CheckIcon, ClockIcon, ExclamationIcon, Pill, SparklesIcon, Spin
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
 import { useSetFirstSale } from "./first-sale";
 import { boothAnalyst } from "./booth-analyst";
-import { receiptRef, receiptTime } from "./recap-metrics";
+import { receiptDay, receiptRef, receiptTime } from "./recap-metrics";
 import { ProductLeadersWidget, RecapCurrency, SalesPulseWidget, type ProductLeadersDef, type RecapRegistry, type SalesPulseDef } from "./recap-widgets";
 import { ReceiptSheet, RecapActions, RecentSalesWidget, type RecentSalesDef } from "./recent-sales";
 
@@ -111,7 +111,14 @@ function moneyFormat(currency: string) {
 }
 
 // Studio's date formats need Date values; the API sends ISO strings.
-const saleRows = (recap: RecapData) => recap.sales.map((s) => ({ ...s, receipt: receiptRef(s.id), paidAt: new Date(s.paidAt) }));
+// `day` is midnight of the payment's day in the viewer's own time zone, so a chart can group sales by day.
+const startOfDay = (iso: string) => {
+  const date = new Date(iso);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+const saleRows = (recap: RecapData) =>
+  recap.sales.map((s) => ({ ...s, receipt: receiptRef(s.id), paidAt: new Date(s.paidAt), day: startOfDay(s.paidAt) }));
 const lineRows = (recap: RecapData) => recap.lines.map((l) => ({ ...l, paidAt: new Date(l.paidAt) }));
 
 function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinition {
@@ -126,6 +133,12 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
     { id: "captured", name: "Captured", format: "currencyFormat", formatOptions: money },
     { id: "refunded", name: "Refunded", format: "currencyFormat", formatOptions: money },
     { id: "channel", name: "Channel", format: "textFormat" },
+    { id: "day", name: "Day", format: "dateTimeFormat", formatOptions: { format: receiptDay } },
+    { id: "fulfillment", name: "Fulfillment", format: "textFormat" },
+    { id: "shipping", name: "Shipping charged", format: "currencyFormat", formatOptions: money },
+    { id: "country", name: "Ship to country", format: "textFormat" },
+    { id: "region", name: "Ship to region", format: "textFormat" },
+    { id: "shippedOrders", name: "Orders shipped", format: "integerFormat" },
   ];
   const lineFields: AgFieldDefinition[] = [
     { id: "id", name: "Line", format: "textFormat" },
@@ -140,12 +153,18 @@ function toDataSources(recap: RecapData, currency: string): AgDataSourcesDefinit
     { id: "refundedUnits", name: "Units refunded", format: "integerFormat" },
     { id: "refunded", name: "Item refunds", format: "currencyFormat", formatOptions: money },
     { id: "paidAt", name: "Paid at", format: "dateTimeFormat", formatOptions: { format: receiptTime } },
+    { id: "category", name: "Category", format: "textFormat" },
+    { id: "finish", name: "Finish", format: "textFormat" },
+    { id: "channel", name: "Channel", format: "textFormat" },
   ];
   return {
     description:
       "Captured PayPal payments at a pop-up stand. Sales has one row per receipt. Items sold has one row per receipt line. " +
       "Item sales and receipt totals are after deals. A refunded receipt keeps its row with Status Refunded: its net total, units and item sales are 0, " +
-      "and what went back is in Sales → Refunded and Items sold → Units refunded and Item refunds. Sales → Captured is what PayPal took before any refund.",
+      "and what went back is in Sales → Refunded and Items sold → Units refunded and Item refunds. Sales → Captured is what PayPal took before any refund. " +
+      "Channel is Stand (rung up at the register) or Online (the seller's web store). Fulfillment is At the stand, Pickup or Shipped. " +
+      "Ship to country and region are set only for shipped orders and read Not shipped otherwise; Orders shipped is 1 per shipped order. " +
+      "Sales → Day is the calendar day of the payment. Items sold → Category and Finish describe the item, such as Animals and Holographic.",
     sources: [
       {
         id: "sales",
@@ -249,6 +268,60 @@ const initialState: AgReportState<RecapRegistry> = {
           },
           format: { title: { enabled: true, text: "Sold by item" } },
         },
+        daily: {
+          type: "column-chart-stacked",
+          dataMapping: {
+            categoryKey: [{ id: "sales.day" }],
+            valueKey: [{ id: "sales.total", aggregation: "sum" }],
+            legendKey: [{ id: "sales.channel" }],
+            tooltipKey: [],
+          },
+          sort: [{ field: { id: "sales.day" }, direction: "asc" }],
+          format: {
+            title: { enabled: true, text: "Daily sales by channel" },
+            // The colors mean Stand and Online, so say so.
+            style: { theme: { common: { legend: { enabled: true, position: "top" } } } },
+          },
+        },
+        categories: {
+          type: "donut-chart",
+          dataMapping: {
+            categoryKey: [{ id: "lines.category" }],
+            valueKey: [{ id: "lines.lineTotal", aggregation: "sum" }],
+            tooltipKey: [],
+          },
+          format: { title: { enabled: true, text: "Item sales by category" }, crossFilter: "highlight" },
+        },
+        pivot: {
+          type: "pivot-grid",
+          dataMapping: {
+            rows: [{ id: "lines.category" }, { id: "lines.item" }],
+            columns: [{ id: "lines.finish" }],
+            values: [{ id: "lines.lineTotal", aggregation: "sum" }],
+          },
+          format: { title: { enabled: true, text: "Category and finish" } },
+        },
+        places: {
+          type: "treemap-chart",
+          dataMapping: {
+            categoryKey: [{ id: "sales.country" }, { id: "sales.region" }],
+            valueKey: [{ id: "sales.shippedOrders", aggregation: "sum" }],
+            tooltipKey: [],
+          },
+          format: { title: { enabled: true, text: "Where orders ship" } },
+        },
+        fulfillment: {
+          type: "grid",
+          dataMapping: {
+            cols: [
+              { id: "sales.fulfillment" },
+              { id: "sales.units", aggregation: "sum" },
+              { id: "sales.shipping", aggregation: "sum" },
+              { id: "sales.total", aggregation: "sum" },
+            ],
+          },
+          format: { title: { enabled: true, text: "How buyers got it" } },
+        },
       },
       widgetLayout: {
         pulse: { xTrack: 0, yTrack: 0, xSpan: 13, ySpan: 19 },
@@ -258,6 +331,11 @@ const initialState: AgReportState<RecapRegistry> = {
         itemFilter: { xTrack: 0, yTrack: 41, xSpan: 24, ySpan: 12 },
         sales: { xTrack: 0, yTrack: 53, xSpan: 12, ySpan: 20 },
         byItem: { xTrack: 12, yTrack: 53, xSpan: 12, ySpan: 20 },
+        daily: { xTrack: 0, yTrack: 73, xSpan: 24, ySpan: 22 },
+        categories: { xTrack: 0, yTrack: 95, xSpan: 9, ySpan: 24 },
+        fulfillment: { xTrack: 9, yTrack: 95, xSpan: 15, ySpan: 24 },
+        pivot: { xTrack: 0, yTrack: 119, xSpan: 24, ySpan: 26 },
+        places: { xTrack: 0, yTrack: 145, xSpan: 24, ySpan: 24 },
       },
     },
   ],

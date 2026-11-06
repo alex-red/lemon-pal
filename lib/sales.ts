@@ -23,6 +23,9 @@ export function priceCart(stand: Stand, cart: CartEntry[]): { lines: SaleLine[];
       quantity,
       // Snapshot the deal only when it applied, so the receipt and recap show what the buyer got.
       ...(discountCents > 0 ? { deal: item.deal, discountCents } : {}),
+      // And the item's shelf, so the recap can group by it even after the catalog changes.
+      ...(item.category ? { category: item.category } : {}),
+      ...(item.finish ? { finish: item.finish } : {}),
     };
   });
   const totalCents = lines.reduce((sum, l) => sum + lineTotalCents(l), 0);

@@ -55,13 +55,16 @@ export async function POST(request: Request) {
     setupStartedAt: current.draftStartedAt ?? null,
     draftStartedAt: null,
     items: parsed.data.items.map((item, i) => {
-      // Item ids change on every publish, so the store's online and shipping choices follow the item's name.
+      // Item ids change on every publish, so the store's online and shipping choices, and the category
+      // and finish the recap groups by, follow the item's name.
       const before = current.items.find((old) => old.name.trim().toLowerCase() === item.name.toLowerCase());
       return {
         id: `item-${i + 1}-${Date.now().toString(36)}`,
         ...item,
         ...(before?.online !== undefined ? { online: before.online } : {}),
         ...(before?.ships !== undefined ? { ships: before.ships } : {}),
+        ...(before?.category ? { category: before.category } : {}),
+        ...(before?.finish ? { finish: before.finish } : {}),
       };
     }),
   };

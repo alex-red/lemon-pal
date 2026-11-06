@@ -32,6 +32,7 @@ import type { Cents } from "@/lib/money";
 import { countryName, parseCountries } from "@/lib/shipping";
 import type { PublicStorefront } from "@/lib/storefront";
 import type { StorefrontAccent } from "@/lib/types";
+import { StickerDemoButton } from "../sticker-demo";
 
 type EditorItem = {
   id: string;
@@ -308,6 +309,7 @@ export function StoreEditor({ origin, currency, published, initial, saved, items
             Share store
           </Button>
           {!storeUrl ? <p className="-mt-2 text-center text-footnote text-ink-2">Change anything to save your store and get its link.</p> : null}
+          <StickerDemoButton className="self-center" />
         </aside>
 
         <div className="flex flex-col gap-8 lg:order-1">

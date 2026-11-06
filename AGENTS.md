@@ -31,6 +31,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Money is integer cents (`lib/money.ts`). Convert to PayPal's decimal strings only inside `lib/paypal.ts`.
 - The server prices every sale from the stored catalog. Never trust a price or total sent by the client.
 - A sale becomes `paid` only in the capture route, and only after `verifyCapture` accepts it. Every PayPal create or capture call sends a `PayPal-Request-Id` derived from the sale id, so retries can't charge twice.
+- The one exception is the sticker shop demo (`lib/demo-stickers.ts`, `POST /api/stand/demo`), which writes made-up paid sales marked `demo: true`. Any route that calls PayPal for an existing sale (refund, tracking) must check `sale.demo` and stay local for those.
 - Online orders (`channel: "online"`) are priced by `priceOnlineOrder` in `lib/storefront.ts`, shipping included. `totalCents` is the lines after deals plus `shippingCents`, and `createOrder` sends shipping in the breakdown. A shipped order's country is checked against the store's list before capture, so an address the seller can't reach is never charged.
 
 ## Online store and seller pages
