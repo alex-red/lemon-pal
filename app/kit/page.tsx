@@ -14,6 +14,7 @@ import {
   ListRow,
   Money,
   PaidMoment,
+  PalAppIcon,
   Pill,
   PlusIcon,
   QrCodeIcon,
@@ -31,6 +32,7 @@ export const metadata: Metadata = {
 };
 
 const sections = [
+  { id: "brand", label: "Brand & app icons" },
   { id: "principles", label: "Principles" },
   { id: "color", label: "Color" },
   { id: "type", label: "Typography" },
@@ -39,6 +41,15 @@ const sections = [
   { id: "commerce", label: "Commerce" },
   { id: "register", label: "Register pattern" },
 ];
+
+const palAppearances = [
+  { label: "Default", appearance: "default" },
+  { label: "Dark", appearance: "dark" },
+  { label: "Clear light", appearance: "clear-light", backdrop: "bg-linear-to-br from-leaf/55 to-lemon/60" },
+  { label: "Clear dark", appearance: "clear-dark", backdrop: "bg-linear-to-br from-leaf/70 to-ink/90 dark:to-canvas" },
+  { label: "Tinted light", appearance: "tinted-light" },
+  { label: "Tinted dark", appearance: "tinted-dark" },
+] as const;
 
 const principles = [
   {
@@ -91,16 +102,16 @@ const labels = [
 const fills = ["--fill", "--fill-2", "--fill-3", "--hairline"];
 
 const typeRamp: Array<{ name: string; className: string; sample: string; spec: string }> = [
-  { name: "Hero", className: "font-display text-hero font-semibold", sample: "$7.25", spec: "Fraunces 80 / 0.95" },
+  { name: "Price", className: "font-price text-hero font-bold", sample: "$17.50", spec: "SF Pro Rounded 80, tabular" },
   { name: "Large title", className: "font-display text-large-title font-semibold", sample: "Sunny Side Stand", spec: "Fraunces 38 / 1.08" },
   { name: "Title 1", className: "font-display text-title1 font-semibold", sample: "Scan to pay", spec: "Fraunces 28 / 1.15" },
   { name: "Title 2", className: "font-display text-title2 font-semibold", sample: "Today at the market", spec: "Fraunces 22 / 1.2" },
-  { name: "Title 3", className: "text-title3 font-semibold", sample: "Pink lemonade", spec: "Hanken 20 / 1.25" },
-  { name: "Headline", className: "text-headline", sample: "Next customer", spec: "Hanken 17 semibold" },
-  { name: "Body", className: "text-body", sample: "Point your phone camera at the code.", spec: "Hanken 17 / 1.45" },
-  { name: "Subhead", className: "text-subhead text-ink-2", sample: "3 items · paid with PayPal", spec: "Hanken 15 / 1.38" },
-  { name: "Footnote", className: "text-footnote text-ink-2", sample: "Prices come from your confirmed sign.", spec: "Hanken 13 / 1.38" },
-  { name: "Mono", className: "font-mono text-footnote text-ink-2", sample: "SALE 01JD-7Q3K · 2026-11-05 14:02", spec: "Geist Mono 13" },
+  { name: "Title 3", className: "text-title3 font-semibold", sample: "Pink lemonade", spec: "SF Pro 20 / 1.25" },
+  { name: "Headline", className: "text-headline", sample: "Next customer", spec: "SF Pro 17 semibold" },
+  { name: "Body", className: "text-body", sample: "Point your phone camera at the code.", spec: "SF Pro 17 / 1.45" },
+  { name: "Subhead", className: "text-subhead text-ink-2", sample: "3 items · paid with PayPal", spec: "SF Pro 15 / 1.38" },
+  { name: "Footnote", className: "text-footnote text-ink-2", sample: "Prices come from your confirmed sign.", spec: "SF Pro 13 / 1.38" },
+  { name: "Mono", className: "font-mono text-footnote text-ink-2", sample: "SALE 01JD-7Q3K · 2026-11-05 14:02", spec: "SF Mono 13" },
 ];
 
 export default function KitPage() {
@@ -124,7 +135,7 @@ export default function KitPage() {
                 href={`#${s.id}`}
                 className="pressable focus-ring flex h-11 items-center gap-3 rounded-[16px] px-3 text-callout font-medium text-ink hover:bg-fill-2"
               >
-                <span className="w-5 text-right font-mono text-caption text-ink-3">{String(i + 1).padStart(2, "0")}</span>
+                <span className="w-5 text-right font-mono text-caption text-ink-3">{String(i).padStart(2, "0")}</span>
                 {s.label}
               </a>
             ))}
@@ -137,6 +148,39 @@ export default function KitPage() {
 
       <main className="flex min-w-0 flex-1 flex-col gap-24 pb-24">
         <Hero />
+
+        <Section
+          id="brand"
+          eyebrow="00 · Brand"
+          title="Meet The Pal"
+          lede="The smile is cut from the lemon, so it reads in one color at toolbar and browser-tab sizes. The Home Screen icon gives the same mark a softly lit glass tile."
+        >
+          <Card className="overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-5 py-4 sm:px-7">
+              <div className="flex items-center gap-3">
+                <LemonIcon className="text-[2rem]" />
+                <span className="font-display text-title2 font-semibold">LemonPal</span>
+              </div>
+              <p className="font-mono text-caption uppercase tracking-[0.08em] text-ink-2">Flat mark</p>
+            </div>
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-6 p-5 sm:grid-cols-3 sm:gap-x-6 sm:p-7">
+              {palAppearances.map(({ label, appearance, ...sample }) => (
+                <li key={appearance} className="min-w-0">
+                  <div className="relative isolate grid min-h-28 place-items-center overflow-hidden rounded-tile bg-fill p-4 sm:min-h-36">
+                    {"backdrop" in sample ? (
+                      <div aria-hidden className={`absolute inset-0 -z-10 ${sample.backdrop}`} />
+                    ) : null}
+                    <PalAppIcon appearance={appearance} className="size-18 drop-shadow-sm sm:size-24" />
+                  </div>
+                  <p className="mt-2 text-footnote font-semibold">{label}</p>
+                </li>
+              ))}
+            </ul>
+            <p className="border-t border-hairline px-5 py-4 text-footnote text-ink-2 sm:px-7">
+              The installed web app uses Default. The other finishes preview the mark in different materials.
+            </p>
+          </Card>
+        </Section>
 
         <Section id="principles" eyebrow="01 · Principles" title="Built for a busy stand">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -154,7 +198,7 @@ export default function KitPage() {
           id="color"
           eyebrow="02 · Color"
           title="One loud lemon, everything else warm"
-          lede="Colors are semantic tokens in OKLCH, defined once in globals.css and redefined for dark mode. Grey is tinted with the same warm ink, so nothing looks cold next to the lemon."
+          lede="Colors are semantic tokens in OKLCH, defined once in globals.css and redefined for dark mode. Every text pairing meets WCAG AA (4.5:1) in both themes, and control edges and focus rings meet 3:1."
         >
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
             {swatches.map((s) => (
@@ -200,8 +244,8 @@ export default function KitPage() {
         <Section
           id="type"
           eyebrow="03 · Typography"
-          title="A sign-painter's serif, a workhorse sans"
-          lede="Fraunces, with its soft and wonky axes on, sets titles and prices like a hand-painted sign. Hanken Grotesk carries the interface. Numerals are tabular wherever they change."
+          title="A sign-painter's serif, Apple's system for the rest"
+          lede="Fraunces, with its soft and wonky axes on, sets titles like a hand-painted sign. Everything else follows Apple: SF Pro for the interface, SF Pro Rounded for prices (fixed-width digits, so totals don't jitter) and SF Mono for codes. Other platforms get Hanken Grotesk. On iPhone and iPad, sizes follow the person's Dynamic Type setting."
         >
           <Card className="divide-y divide-hairline">
             {typeRamp.map((t) => (

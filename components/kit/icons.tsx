@@ -1,4 +1,5 @@
 import type { SVGProps } from "react";
+import { palBody, palLeaf } from "./pal-app-icon";
 
 // A small symbol set drawn on a 24pt grid with a 1.75 stroke and round joins, in the spirit of SF Symbols.
 // Icons inherit currentColor and scale with font size (1em), so they align with the text beside them.
@@ -114,14 +115,10 @@ export const WalletIcon = (p: IconProps) => (
   </Icon>
 );
 
-/** The LemonPal mark: a lemon with a leaf, drawn to sit on the same grid as the symbols. */
+/** The flat LemonPal mark for in-app use. */
 export const LemonIcon = (p: IconProps) => (
   <Icon {...p}>
-    <path
-      d="M5.2 15.6c-1.6-3.9.4-8.6 4.4-10.2 2.6-1 5.4-.6 7.4.9l1.3-.4.2 1.4c1.5 2 1.9 4.8.9 7.4-1.6 4-6.3 6-10.2 4.4l-1.3.4-.2-1.4c-1.1-.7-2-1.5-2.5-2.5Z"
-      fill="var(--lemon)"
-      stroke="currentColor"
-    />
-    <path d="M17.6 6.3c.2-1.8 1.4-3 3.4-3.1-.2 2-1.4 3.2-3.4 3.1Z" fill="var(--leaf)" stroke="currentColor" />
+    <path d={palLeaf} fill="currentColor" stroke="none" />
+    <path d={palBody} fill="currentColor" fillRule="evenodd" stroke="none" />
   </Icon>
 );

@@ -8,6 +8,7 @@ export { ItemTile } from "./item-tile";
 export { GroupedList, ListRow } from "./list";
 export { Money } from "./money";
 export { PaidMoment } from "./paid-moment";
+export { PalAppIcon } from "./pal-app-icon";
 export { Sheet } from "./sheet";
 export { Spinner } from "./spinner";
 export { ConfidencePill, CountBadge, Pill, SaleStatusPill } from "./status";
