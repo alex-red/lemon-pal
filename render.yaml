@@ -1,0 +1,40 @@
+# Render Blueprint: one Node web service with a persistent disk for the SQLite database.
+# A service with a disk runs as a single instance, which is what lib/store.ts expects.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: lemonpal
+    runtime: node
+    plan: starter # disks need a paid instance
+    region: oregon
+    # Render's Node image has no Bun, so install the pinned version for the build. The app itself runs on Node.
+    buildCommand: >-
+      curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.4" &&
+      ~/.bun/bin/bun install --frozen-lockfile &&
+      ~/.bun/bin/bun run build
+    startCommand: npm run start
+    healthCheckPath: /
+    disk:
+      name: lemonpal-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DATABASE_PATH
+        value: /var/data/lemonpal.sqlite
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: STAND_CURRENCY
+        value: USD
+      # Secrets: Render asks for these when the Blueprint is first applied. Never commit them.
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AG_STUDIO_LICENSE_KEY
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false

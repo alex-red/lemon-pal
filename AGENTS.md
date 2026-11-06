@@ -20,7 +20,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Keep `typescript` within typescript-eslint's supported range. `bun run typecheck` selects the native compiler via the `typescript7` alias.
 - Files that import `server-only` (everything in `lib/` except `money.ts`, `types.ts`, and `ding.ts`) can't be imported by `"use client"` components. Use `import type` from them in client code.
-- `lib/store.ts` keeps data in memory, so it's lost on restart and doesn't work on serverless hosts. Keep all persistence behind the `Store` interface.
+- `lib/store.ts` uses Node's built-in `node:sqlite` with one connection per process, at `DATABASE_PATH` (default `.data/lemonpal.sqlite`). It assumes a single instance, so don't deploy to serverless or scale out. Keep all persistence behind the `Store` interface, and use `updateSale` for any status change.
 - AG Studio is large. Import it only through `app/stand/recap/recap-loader.tsx`, which loads it on the client only.
 
 ## Payment rules
@@ -38,6 +38,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Tap targets are at least 44px tall. Register tiles stay the largest target on the seller's screen.
 - Show status with color, an icon and a word together (`SaleStatusPill`, `Pill`). Never use color alone.
 - Show prices with `Money`, which formats from cents and labels the amount for screen readers. Don't hand-format amounts in markup.
+- Fonts follow Apple's HIG: `font-display` (Fraunces) for titles only, `font-sans` (SF Pro, falling back to Hanken Grotesk), `font-price` for changing numbers, and `font-mono` (SF Mono). Never put prices or totals in Fraunces: it has no fixed-width digits, so they jitter. Size text with the rem-based `text-*` styles, never px, so it follows Dynamic Type on iPhone and iPad.
 - Text on lemon is always dark (`oklch(0.23 0.03 85)`), not `text-ink`, because `ink` turns light in dark mode.
 - `cn` joins classes but doesn't resolve conflicts. Add a variant or prop instead of overriding a component's color or radius through `className`.
 - Write only the standard `backdrop-filter`. Next's CSS minifier keeps just one copy when both are present and drops the standard one, so blur silently disappears in Chrome.

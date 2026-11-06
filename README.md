@@ -2,7 +2,7 @@
 
 LemonPal turns a handwritten price sign into a working register for a pop-up stand. The seller photographs the sign, checks the names and prices an AI vision model read from it, and rings up sales on a tablet. The buyer scans a QR code and pays with PayPal on their own phone. The seller's screen flips to **Paid** the moment PayPal confirms the capture, and the stand recap in AG Studio shows what sold.
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: in development. Sign reading, the register, and PayPal checkout are implemented. The recap is not built yet.
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: in development. Sign reading, the register, PayPal checkout, and the AG Studio recap are implemented. Not yet deployed.
 
 ## How it works
 
@@ -26,7 +26,7 @@ All pricing, PayPal calls, and AI calls run on the server. Secrets never reach t
 
 ## Run locally
 
-Requires [Bun](https://bun.sh/) 1.4+, Node.js 20.9+, and a [PayPal Sandbox REST app](https://developer.paypal.com/dashboard/applications/sandbox).
+Requires [Bun](https://bun.sh/) 1.4+, Node.js 24+ (for the built-in `node:sqlite`), and a [PayPal Sandbox REST app](https://developer.paypal.com/dashboard/applications/sandbox).
 
 ```bash
 bun install
@@ -39,6 +39,10 @@ Open <http://localhost:3000>. To test the buyer flow from a phone, the phone mus
 Other scripts: `bun run typecheck`, `bun run lint`, `bun run build`, `bun run start`.
 
 `bun run typecheck` runs the native TypeScript 7 compiler through the `typescript7` alias. The main `typescript` package is 6.0.3. It provides the compiler API used by typescript-eslint and the default compiler CLI used by `next build`.
+
+## Deploy on Render
+
+[`render.yaml`](render.yaml) is a Render Blueprint for one Node web service with a 1 GB persistent disk, which holds the SQLite database. Disks need a paid instance (Starter). Create the service from the Blueprint in the Render dashboard and enter the secret environment variables when asked. Set `PUBLIC_APP_URL` to the service's HTTPS URL so QR codes point at it.
 
 ## Project layout
 

@@ -51,3 +51,6 @@ next-env.d.ts
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# local SQLite database
+/.data/
