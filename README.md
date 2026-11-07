@@ -4,49 +4,59 @@
 
 Bake sale, garage sale, merch table, a kid's lemonade stand: if you can write a price sign, you can sell with Lemon Pal. There's no card reader to buy and no cash box to watch. Snap a photo of your sign, and customers pay with PayPal on their own phone.
 
-Under the hood, Lemon Pal turns that handwritten price sign into a working register. The seller photographs the sign, checks the names and prices an AI vision model read from it, and rings up sales on a tablet. The buyer scans a QR code and pays with PayPal on their own phone. The seller's screen flips to **Paid** the moment PayPal confirms the capture, and the stand recap in AG Studio shows what sold.
+The seller photographs their handwritten sign. Claude reads the items, prices and deals like "2 for $5" into a draft, and the seller checks it before anything goes on sale. The confirmed items become a tablet register. The buyer scans a QR code for that one sale and pays with PayPal on their phone. The seller's screen flips to **Paid** only after PayPal confirms the capture, and the Sales desk in AG Studio shows what sold, with an assistant that charts it on request.
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Status: in development. Sign reading, the register, PayPal checkout, and the AG Studio recap are implemented. Not yet deployed.
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Everything runs in PayPal's Sandbox, so no real money moves.
 
-## How it works
+## What a seller can do
 
-| Step | Route | What happens |
+| | Route | What happens |
 | --- | --- | --- |
-| Create your stand | `/stand/setup` | A photo of the sign (taken with the in-page camera or chosen from the library) or a pasted price list → vision model → reviewable draft catalog with the stand name and an emoji per item. Unreadable prices must be entered by the seller. Sellers can also start blank, or pick a sample stand (lemonade, bake sale, merch table, garage sale). |
-| Ring up a sale | `/stand/register` | Tap item tiles, then show a lemon-badged QR code for this sale. The server snapshots the cart and prices it from the confirmed catalog. |
-| Pay | `/pay/[saleId]` | The buyer's phone shows the stand name and order, then opens PayPal Checkout. The server creates and captures the order. PayPal emails the buyer a receipt. |
-| Confirm | `/stand/register` | The seller tablet polls the sale status and shows **Paid** only after a completed capture for the expected amount and currency. |
-| Recap | `/stand/recap` | AG Studio dashboard with live stand totals, product leaders by units and sales, linked receipt filtering, and a Booth Analyst that can add charts. |
+| **Set up from a photo** | `/stand/setup` | Take a photo of the sign with the in-page camera, pick one from the library, or paste a price list. Claude Haiku 5.5 returns a draft catalog through structured outputs: the stand name, an emoji per item, prices and multi-buy deals. A price it can't read comes back empty and flagged, and the stand can't open until the seller fills it in. A new photo of the sign later updates the stand, marking items sold out and changing prices. Four sample sign photos and four sample stands are there for anyone without a sign. |
+| **Ring up a sale** | `/stand/register` | Tap item tiles and press **Charge**. The server prices the cart from the confirmed catalog and applies deals with plain arithmetic, so the client never sets a price. The register shows a QR code for that sale. |
+| **Get paid** | `/pay/[saleId]` | The buyer's phone shows the stand, the items, any deal and the total, then opens PayPal Checkout. The server creates and captures the Orders v2 order. |
+| **Know it's paid** | `/stand/register` | The register shows **Paid** and plays a ding only after the capture is checked for status, amount and currency. Every create and capture sends a `PayPal-Request-Id` derived from the sale, so a retried or canceled checkout can't charge twice. The paid screen shows the time from photo to first sale. |
+| **See what sold** | `/stand/recap` | The Sales desk is an AG Studio dashboard with live stand totals, standouts by units and sales, and recent receipts. Select an item to filter its receipts. **Ask Booth Analyst** opens AG Studio's assistant, run by Claude Haiku 5.5, which adds charts to the dashboard. Receipts can be refunded through PayPal from here. |
+| **Sell online** | `/<handle>`, `/stand/store`, `/stand/orders` | An online stand is a public storefront with pickup or shipping. Shipping is priced on the server and sent in the PayPal order breakdown, and an address outside the store's countries is never charged. The seller marks orders shipped and the tracking number goes to PayPal. **Preview as customer** shows the store without making a sale. |
+| **Take donations** | `/<handle>`, `/stand/jar` | A donation stand is one fixed QR code for pay-what-you-want gifts, with presets, limits, a goal bar and donors' notes. `/stand/jar` shows it as a poster for the table. |
 
-All pricing, PayPal calls, and AI calls run on the server. Secrets never reach the browser.
+One seller can run several stands (at events, online, or donations) and switch between them.
 
 ## Try the demo
 
-You need two screens: a tablet or laptop for the seller and a phone for the buyer. Everything runs in PayPal's Sandbox, so no real money moves.
+**Hosted demo:** _link added after the Render deploy_. You need two screens: a tablet or laptop for the seller and a phone for the buyer.
 
-1. Open **TODO: hosted demo URL** on the seller screen and choose **Create your stand**. Photograph a price sign, or pick a sample stand such as **Lemonade Stand** or **School Bake Sale**.
-2. On **Take a payment**, tap a few items and press **Charge**.
-3. Scan the QR code with the phone's camera. Check the items and total, then pay with PayPal using the Sandbox buyer account below.
-4. The seller screen shows **Paid** and plays a ding (tap anything on the seller screen first so the browser allows sound).
-5. Open **See your sales** to find the receipt in AG Studio. Select a product to filter its receipts. On a tablet or laptop, open **Ask Booth Analyst** and choose **Chart sales by item**.
+1. Open the demo on the seller screen. On the sign-in page, choose **Try a demo account**, enter the passcode given in the Devpost entry's testing instructions, and press **Create new demo account**. Sellers with a PayPal account can choose **Log in with PayPal** instead.
+2. Your demo account is your own. It starts with a sticker shop (a stand at events and an online store, each with a month of made-up sales) and a fundraiser for an animal rescue. The browser remembers it for 30 days under **On this browser**.
+3. To try sign reading, open the stand switcher, add a stand at events, and photograph a price sign or pick one of the sample sign photos. Check the draft, fill in anything flagged, and open the register.
+4. On the register, tap a few items and press **Charge**. Scan the QR code with the phone's camera, check the items and total, and pay with PayPal using the Sandbox buyer below.
+5. The seller screen shows **Paid** and plays a ding. Tap anything on the seller screen first so the browser allows sound.
+6. Open the Sales desk to find the receipt. Select an item to filter its receipts. On a tablet or laptop, open **Ask Booth Analyst** and choose **Chart sales by item**.
+7. Switch to the online store to order with pickup or shipping, or to the fundraiser to scan its QR code and give.
 
-**Sandbox buyer:** TODO: Sandbox personal account email and password. These are PayPal test credentials that only work in the Sandbox.
+**Sandbox buyer** (PayPal Sandbox test login with fake money, published on purpose; it doesn't work on real PayPal):
 
-**Starting over:** **Reset demo** on the recap restores the sample stand and deletes test sales. Other people may be trying the demo at the same time, so you might see their sales too.
+| | |
+| --- | --- |
+| Email | `sb-k43vrk53722534@personal.example.com` |
+| Password | `5LHm<#aN` |
+
+**Starting over:** **Reset demo** on the Sales desk brings back the sticker shop or a fresh sample stand. The made-up sales are marked as demo data, so refunding one or marking it shipped never calls PayPal.
+
+See [docs/testing.md](docs/testing.md) for a fuller checklist.
 
 ## What's next
 
-Sellers sign in with Log in with PayPal and get their own stands, or make a demo account of their own behind the passcode, filled with a sticker shop and kept on their browser for 30 days. Each seller can run several stands, at events or online, and switch between them. Payments for every stand still go to one PayPal Sandbox seller account. Next up:
-
-- **Get paid directly.** Each seller links their account through [PayPal's seller onboarding](https://developer.paypal.com/platforms/seller-onboarding), and payments go straight to them.
-- **Native seller apps** for iPhone, iPad and Android, with haptics on every sale. The buyer side stays a web page, so customers never need an app.
+- **Get paid directly.** Payments for every stand go to one PayPal Sandbox seller account today. Next, each seller links their own account through [PayPal's seller onboarding](https://developer.paypal.com/platforms/seller-onboarding) and gets paid straight away.
+- **Native seller apps** for iPhone, iPad and Android, with camera capture and haptics on every sale. The buyer side stays a web page, so customers never need an app.
 
 ## Built with
 
 - [Next.js 16](https://nextjs.org/) and React 19, TypeScript, Tailwind CSS 4
-- [PayPal Checkout](https://developer.paypal.com/checkout/) and the Orders v2 REST API (Sandbox)
-- [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the stand recap. AG Studio is commercial software under its own licence; it runs with a watermark without a licence key. The recap's assistant uses AG Studio's Agent Framework, with Claude Haiku 5.5 called through a server route. Prompt caching and context editing keep long chats fast and cheap.
-- [Claude Haiku 5.5](https://platform.claude.com/docs) reads price-sign photos into a draft catalog, using structured outputs
+- [PayPal Checkout](https://developer.paypal.com/checkout/) (JavaScript SDK v6), the Orders v2 REST API, refunds and shipment tracking, and [Log in with PayPal](https://developer.paypal.com/docs/log-in-with-paypal/), all in the Sandbox
+- [Claude Haiku 5.5](https://platform.claude.com/docs) through the Anthropic API, for reading signs with structured outputs and for the Booth Analyst. The API key stays on the server. Prompt caching and context editing keep long chats fast and cheap.
+- [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the Sales desk, with custom widgets, our own theme and a Claude adapter for its Agent Framework. AG Studio is commercial software under its own licence and runs with a watermark without a licence key.
+- SQLite through Node's built-in `node:sqlite`, on [Render](https://render.com/) with a persistent disk
 - [Bun](https://bun.sh/) as the package manager
 
 ## Run locally
@@ -74,10 +84,12 @@ Other scripts: `bun run typecheck`, `bun run lint`, `bun run build`, `bun run st
 ## Project layout
 
 ```
-app/stand/        Seller screens: setup, register, recap
+app/stand/        Seller screens: setup, register, Sales desk, store, orders, donation poster
+app/[handle]/     Public storefronts and donation pages
 app/pay/          Buyer checkout opened from the QR code
-app/api/          Server endpoints: sales, PayPal order and capture, sign reading
-lib/              Domain types, money helpers, storage, PayPal client
+app/api/          Server endpoints: sales, PayPal order and capture, sign reading, sign-in, the assistant
+components/kit/   Citrus Glass, the design kit (live reference at /kit)
+lib/              Domain types, money, storage, PayPal and Claude clients, demo data
 ```
 
 ## Contributing
