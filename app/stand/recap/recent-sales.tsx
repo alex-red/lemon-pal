@@ -88,6 +88,7 @@ export function ReceiptSheet({
   onClose,
   onRefunded,
   onCheckPayPal,
+  confirmRefund = false,
 }: {
   /** The receipt to show, or null to close the sheet. */
   saleId: string | null;
@@ -98,11 +99,13 @@ export function ReceiptSheet({
   onClose: () => void;
   onRefunded: () => void;
   onCheckPayPal?: (id: string) => void;
+  /** Open straight at the refund confirmation, as Booth Analyst does when the seller asks it for a refund. */
+  confirmRefund?: boolean;
 }) {
   const sale = recap?.sales.find((s) => s.id === shownId) ?? null;
   const lines = recap?.lines.filter((l) => l.saleId === shownId) ?? [];
-  const [state, setState] = useState<RefundState>({ step: "view" });
   const refunded = sale?.status === "Refunded";
+  const [state, setState] = useState<RefundState>({ step: confirmRefund && sale && !refunded ? "confirm" : "view" });
   const capturedCents = sale ? cents(sale.captured) : 0;
 
   async function refund() {

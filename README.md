@@ -55,6 +55,7 @@ See [docs/testing.md](docs/testing.md) for a fuller checklist.
 - [Next.js 16](https://nextjs.org/) and React 19, TypeScript, Tailwind CSS 4
 - [PayPal Checkout](https://developer.paypal.com/checkout/) (JavaScript SDK v6), the Orders v2 REST API, refunds and shipment tracking, and [Log in with PayPal](https://developer.paypal.com/docs/log-in-with-paypal/), all in the Sandbox
 - [Claude Haiku 5.5](https://platform.claude.com/docs) through the Anthropic API, for reading signs with structured outputs and for the Booth Analyst. The API key stays on the server. Prompt caching and context editing keep long chats fast and cheap.
+- [PayPal's MCP server](https://developer.paypal.com/ai-tools/mcp-server/) (Sandbox, behind `PAYPAL_MCP_RECEIPT_CHECK`), so Booth Analyst can check a receipt's capture and fees with PayPal. Booth Analyst can also open a refund for the seller to confirm. It never moves money itself.
 - [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the Sales desk, with custom widgets, our own theme and a Claude adapter for its Agent Framework. AG Studio is commercial software under its own licence and runs with a watermark without a licence key.
 - SQLite through Node's built-in `node:sqlite`, on [Render](https://render.com/) with a persistent disk
 - [Bun](https://bun.sh/) as the package manager

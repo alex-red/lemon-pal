@@ -103,6 +103,12 @@ const widgets = createWidgets<RecapRegistry>({
   ],
 });
 
+const aiToolDisplay = {
+  check_paypal_receipt: { label: () => ({ text: "Check receipt with PayPal Sandbox" }) },
+  start_refund: { label: () => ({ text: "Open refund for you to confirm" }) },
+  look_up_receipt: { label: () => ({ text: "Look up receipt" }) },
+};
+
 const localeText: AgStudioLocaleText = { filterWidgetFilterBy: "", panelTitleAi: "Booth Analyst" };
 
 const POLL_MS = 2000;
@@ -428,14 +434,19 @@ export function RecapStudio({
   const [recap, setRecap] = useState<RecapData | null>(null);
   // The id stays set while the sheet animates closed, so its content doesn't vanish mid-close.
   // `n` counts openings, so reopening a receipt starts its refund steps afresh.
-  const [receipt, setReceipt] = useState<{ id: string; open: boolean; n: number } | null>(null);
+  // `confirm` opens it at the refund confirmation, for a refund the seller asked Booth Analyst to start.
+  const [receipt, setReceipt] = useState<{ id: string; open: boolean; n: number; confirm?: boolean } | null>(null);
   const selectedPayPalReceipt = useRef<string | null>(null);
   const [payPalReceiptId, setPayPalReceiptId] = useState<string | null>(null);
   const pollNow = useRef<() => void>(() => {});
   const actions = useMemo(() => ({ openReceipt: (id: string) => setReceipt((r) => ({ id, open: true, n: (r?.n ?? 0) + 1 })) }), []);
   const setFirstSale = useSetFirstSale();
   const ai: AgAiHarnessSetup = useCallback(
-    (params) => boothAnalyst(params, () => applied.current, currency, paypalReceiptCheck ? () => selectedPayPalReceipt.current : undefined),
+    (params) =>
+      boothAnalyst(params, () => applied.current, currency, {
+        selectedPayPalReceipt: paypalReceiptCheck ? () => selectedPayPalReceipt.current : undefined,
+        startRefund: (id) => setReceipt((r) => ({ id, open: true, n: (r?.n ?? 0) + 1, confirm: true })),
+      }),
     [currency, paypalReceiptCheck],
   );
 
@@ -549,7 +560,7 @@ export function RecapStudio({
                 theme={lemonTheme}
                 localeText={localeText}
                 ai={ai}
-                aiToolDisplay={paypalReceiptCheck ? { check_paypal_receipt: { label: () => ({ text: "Check receipt with PayPal Sandbox" }) } } : undefined}
+                aiToolDisplay={aiToolDisplay}
                 mode={phone ? "view" : "edit"}
                 panels={phone ? phonePanels : undefined}
                 responsiveLayoutBreakpoints={stacked}
@@ -573,6 +584,7 @@ export function RecapStudio({
           onClose={() => setReceipt((r) => (r ? { ...r, open: false } : r))}
           onRefunded={() => pollNow.current()}
           onCheckPayPal={paypalReceiptCheck && !phone && studioApi ? selectPayPalReceipt : undefined}
+          confirmRefund={receipt.confirm}
         />
       )}
       </RecapActions>
