@@ -41,6 +41,15 @@ The same values sit in `.env.local` as `PAYPAL_SANDBOX_USER_EMAIL` and `PAYPAL_S
 2. Add items and press **Checkout**. The checkout preview shows the total with a greyed-out PayPal button.
 3. Check that no sale was created (the recap and `/stand/orders` don't change).
 
+### Pal, the stand assistant
+1. On `/stand/register`, tap **Ask Pal** and send "Mark Happy Toast sold out". A card shows the change, and the tile greys out.
+2. Press **Undo**. The tile is back, and asking "Is Happy Toast in stock?" gets the right answer.
+3. Send "Refund the last sale". A **Refund** card appears and nothing is refunded yet. Press **Not now**, then ask whether it went through: Pal says it didn't.
+4. On `/stand/store`, send "Close the store for today". The editor shows **Taking orders** off. **Undo** turns it back on.
+5. On `/stand/jar`, send "Set a $500 goal". The poster's goal bar changes straight away, and **Undo** puts it back.
+6. On the register, tap the camera in Pal's chat, pick a sign photo and send it. Pal reads it, applies the changes on one card, and names any line it couldn't read.
+7. On a tablet, send "Chart sales by hour" from any screen. The Sales desk opens with the question typed into Booth Analyst. On a phone, Pal says charts need a bigger screen.
+
 ### Seller passcode
 1. Set `SELLER_PASSCODE` in `.env.local` and restart the dev server.
 2. Open `/stand/register` in a private window. It sends you to `/stand/unlock`.

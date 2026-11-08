@@ -6,6 +6,8 @@ Bake sale, garage sale, merch table, a kid's lemonade stand: if you can write a 
 
 The seller photographs their handwritten sign. Claude reads the items, prices and deals like "2 for $5" into a draft, and the seller checks it before anything goes on sale. The confirmed items become a tablet register. The buyer scans a QR code for that one sale and pays with PayPal on their phone. The seller's screen flips to **Paid** only after PayPal confirms the capture, and the Sales desk in AG Studio shows what sold, with an assistant that charts it on request.
 
+Pal, a smiling lemon, rides along on every seller screen. Ask it in plain words, typed or spoken, to mark something sold out, add a "2 for $5" deal, close the store for the day or set a fundraising goal, and the change lands at once with an Undo button. Anything that moves money or can't be taken back, like a refund or marking an order shipped, comes back as a card the seller confirms.
+
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Everything runs in PayPal's Sandbox, so no real money moves.
 
 ## What a seller can do
@@ -18,6 +20,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Eve
 | **Know it's paid** | `/stand/register` | The register shows **Paid** and plays a ding only after the capture is checked for status, amount and currency. Every create and capture sends a `PayPal-Request-Id` derived from the sale, so a retried or canceled checkout can't charge twice. The paid screen shows the time from photo to first sale. |
 | **See what sold** | `/stand/recap` | The Sales desk is an AG Studio dashboard with live stand totals, standouts by units and sales, and recent receipts. Select an item to filter its receipts. **Ask Booth Analyst** opens AG Studio's assistant, run by Claude Haiku 5.5, which adds charts to the dashboard. Receipts can be refunded through PayPal from here. |
 | **Sell online** | `/<handle>`, `/stand/store`, `/stand/orders` | An online stand is a public storefront with pickup or shipping. Shipping is priced on the server and sent in the PayPal order breakdown, and an address outside the store's countries is never charged. The seller marks orders shipped and the tracking number goes to PayPal. **Preview as customer** shows the store without making a sale. |
+| **Ask Pal** | Every seller screen | Pal is a stand assistant run by Claude Haiku 5.5, with tools that read and change the stand on the server. It edits items, prices, deals, sold out, the stand's name, store and shipping settings, donation amounts and goals, and which donor notes the display shows. Each change lands at once on a card with **Undo**. Refunds, marking orders shipped or picked up, and deleting a stand come back as a card instead, and run through the same route as the screen's own button only when the seller taps confirm. Send it a photo of the sign and it applies what changed, or tap the mic and talk. Chart questions are passed to Booth Analyst with the question already typed. |
 | **Take donations** | `/<handle>`, `/stand/jar` | A donation stand is one fixed QR code for pay-what-you-want gifts, with presets, limits, a goal bar and donors' notes. `/stand/jar` shows it as a poster for the table. |
 
 One seller can run several stands (at events, online, or donations) and switch between them.
@@ -32,7 +35,8 @@ One seller can run several stands (at events, online, or donations) and switch b
 4. On the register, tap a few items and press **Charge**. Scan the QR code with the phone's camera, check the items and total, and pay with PayPal using the Sandbox buyer below.
 5. The seller screen shows **Paid** and plays a ding. Tap anything on the seller screen first so the browser allows sound.
 6. Open the Sales desk to find the receipt. Select an item to filter its receipts. On a tablet or laptop, open **Ask Booth Analyst** and choose **Chart sales by item**.
-7. Switch to the online store to order with pickup or shipping, or to the fundraiser to scan its QR code and give.
+7. Tap **Ask Pal** on any seller screen. Try **Mark something sold out** or "Make Busy Bee $3.50", watch the register change, then press **Undo**. Ask "Refund the last sale" to see the confirm card, and press **Not now** to keep the sale. On the register, tap the camera in Pal's chat and send a sign photo.
+8. Switch to the online store to order with pickup or shipping, or to the fundraiser to scan its QR code and give.
 
 **Sandbox buyer** (PayPal Sandbox test login with fake money, published on purpose; it doesn't work on real PayPal):
 
@@ -54,7 +58,7 @@ See [docs/testing.md](docs/testing.md) for a fuller checklist.
 
 - [Next.js 16](https://nextjs.org/) and React 19, TypeScript, Tailwind CSS 4
 - [PayPal Checkout](https://developer.paypal.com/checkout/) (JavaScript SDK v6), the Orders v2 REST API, refunds and shipment tracking, and [Log in with PayPal](https://developer.paypal.com/docs/log-in-with-paypal/), all in the Sandbox
-- [Claude Haiku 5.5](https://platform.claude.com/docs) through the Anthropic API, for reading signs with structured outputs and for the Booth Analyst. The API key stays on the server. Prompt caching and context editing keep long chats fast and cheap.
+- [Claude Haiku 5.5](https://platform.claude.com/docs) through the Anthropic API, for reading signs with structured outputs, for the Booth Analyst, and for Pal, whose tool loop runs on the server so the model only sees results the server made. The API key stays on the server. Prompt caching and context editing keep long chats fast and cheap.
 - [PayPal's MCP server](https://developer.paypal.com/ai-tools/mcp-server/) (Sandbox, behind `PAYPAL_MCP_RECEIPT_CHECK`), so Booth Analyst can check a receipt's capture and fees with PayPal. Booth Analyst can also open a refund for the seller to confirm. It never moves money itself.
 - [AG Grid](https://www.ag-grid.com/) and [AG Studio](https://www.ag-grid.com/studio/) for the Sales desk, with custom widgets, our own theme and a Claude adapter for its Agent Framework. AG Studio is commercial software under its own licence and runs with a watermark without a licence key.
 - SQLite through Node's built-in `node:sqlite`, on [Render](https://render.com/) with a persistent disk
@@ -88,7 +92,7 @@ Other scripts: `bun run typecheck`, `bun run lint`, `bun run build`, `bun run st
 app/stand/        Seller screens: setup, register, Sales desk, store, orders, donation poster
 app/[handle]/     Public storefronts and donation pages
 app/pay/          Buyer checkout opened from the QR code
-app/api/          Server endpoints: sales, PayPal order and capture, sign reading, sign-in, the assistant
+app/api/          Server endpoints: sales, PayPal order and capture, sign reading, sign-in, Pal and Booth Analyst
 components/kit/   Citrus Glass, the design kit (live reference at /kit)
 lib/              Domain types, money, storage, PayPal and Claude clients, demo data
 ```
