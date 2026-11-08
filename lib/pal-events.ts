@@ -38,6 +38,12 @@ export type PalProposal = {
 /** How a proposal ended, told back to Pal so it knows on the next message. */
 export type PalOutcome = "done" | "declined" | "failed";
 
+/**
+ * Fired on window whenever Pal changes the stand, an Undo lands or a confirmed action goes through. Screens that poll
+ * their own data, like the donation display, listen for it to check again at once.
+ */
+export const PAL_CHANGED = "pal:changed";
+
 /** One line of the NDJSON stream from POST /api/stand/pal. */
 export type PalEvent =
   /** What Pal is doing right now, shown as shimmering text. */

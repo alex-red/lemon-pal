@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { PAL_CHANGED } from "@/lib/pal-events";
 import {
   Button,
   ChartIcon,
@@ -110,6 +111,13 @@ export function DonationDisplay({ standId, switcher, assistant, currency, pageUr
       clearTimeout(hide);
     };
   }, [standId]);
+
+  // Pal changed the goal or a note: show it now rather than at the next poll.
+  useEffect(() => {
+    const now = () => void checkNow.current();
+    window.addEventListener(PAL_CHANGED, now);
+    return () => window.removeEventListener(PAL_CHANGED, now);
+  }, []);
 
   // A made-up gift from a demo donor, picked up straight away so the chime and pop-up follow the tap.
   async function simulate() {

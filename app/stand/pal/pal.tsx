@@ -17,7 +17,7 @@ import {
   type PalMood,
   type PalUndoState,
 } from "@/components/kit";
-import type { PalAction, PalChange, PalEvent, PalOutcome, PalProposal, PalScreen } from "@/lib/pal-events";
+import { PAL_CHANGED, type PalAction, type PalChange, type PalEvent, type PalOutcome, type PalProposal, type PalScreen } from "@/lib/pal-events";
 import { standApi } from "@/lib/stands";
 import type { StandKind } from "@/lib/types";
 import { handOff, PHONE_QUERY } from "./handoff";
@@ -129,7 +129,10 @@ export function PalProvider({ children }: { children: ReactNode }) {
     if (open && window.matchMedia("(pointer: fine)").matches) input.current?.focus();
   }, [open]);
 
-  const refresh = useCallback(() => startTransition(() => router.refresh()), [router]);
+  const refresh = useCallback(() => {
+    window.dispatchEvent(new Event(PAL_CHANGED));
+    startTransition(() => router.refresh());
+  }, [router]);
 
   async function send(text: string) {
     const message = text.trim();
