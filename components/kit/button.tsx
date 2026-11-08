@@ -19,11 +19,15 @@ const variants: Record<ButtonVariant, string> = {
 
 // md and up meet the 44pt minimum. sm is 36pt tall and extends its hit area with an invisible halo.
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-9 gap-1.5 px-3.5 text-subhead font-semibold [&_svg]:text-[1.05em] relative after:absolute after:-inset-1 after:content-['']",
-  md: "h-11 gap-2 px-5 text-callout font-semibold [&_svg]:text-[1.15em]",
-  lg: "h-14 gap-2.5 px-7 text-headline [&_svg]:text-[1.25em]",
-  xl: "h-[4.5rem] gap-3 px-9 text-title3 font-semibold [&_svg]:text-[1.2em]",
+  sm: "h-9 gap-1.5 text-subhead font-semibold [&_svg]:text-[1.05em] relative after:absolute after:-inset-1 after:content-['']",
+  md: "h-11 gap-2 text-callout font-semibold [&_svg]:text-[1.15em]",
+  lg: "h-14 gap-2.5 text-headline [&_svg]:text-[1.25em]",
+  xl: "h-[4.5rem] gap-3 text-title3 font-semibold [&_svg]:text-[1.2em]",
 };
+
+// Kept apart from sizes, because cn doesn't resolve conflicts: an icon-only button gets a width instead of padding.
+const padding: Record<ButtonSize, string> = { sm: "px-3.5", md: "px-5", lg: "px-7", xl: "px-9" };
+const square: Record<ButtonSize, string> = { sm: "w-9", md: "w-11", lg: "w-14", xl: "w-[4.5rem]" };
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -57,7 +61,7 @@ export function Button({
         "disabled:cursor-not-allowed disabled:opacity-40",
         variants[variant],
         sizes[size],
-        iconOnly && "aspect-square px-0",
+        iconOnly ? square[size] : padding[size],
         className,
       )}
       {...props}
