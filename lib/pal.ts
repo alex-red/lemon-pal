@@ -7,11 +7,11 @@ import { LABEL_MAX, MAX_GIFT_CENTS, MAX_PRESETS, raisedCents, settingsProblem, T
 import { env } from "./env";
 import { formatMoney, type Cents } from "./money";
 import { listSellerOrders, waitingCount } from "./orders";
-import type { PalChange, PalEvent, PalOutcome, PalProposal, PalScreen } from "./pal-events";
+import type { PalBubble, PalChange, PalEvent, PalOutcome, PalProposal, PalScreen, PalTranscript } from "./pal-events";
 import { countryName } from "./shipping";
 import { readSign, SignReadError } from "./sign-reader";
 import { kindOf } from "./stands";
-import { store } from "./store";
+import { store, type PalRecordKind } from "./store";
 import { storeProblem } from "./storefront";
 import type { CatalogItem, Sale, SignDraft, Stand, Storefront, User } from "./types";
 
@@ -19,8 +19,9 @@ import type { CatalogItem, Sale, SignDraft, Stand, Storefront, User } from "./ty
  * Pal, the stand assistant. Unlike the recap's Studio assistant, the agent loop runs here on the server: Pal's tools
  * change the seller's stand, so the model must only ever see tool results this server produced.
  *
- * Each chat's history stays in memory (one instance, see lib/store.ts) and only grows, so thinking blocks replay
- * unchanged and every turn reads the earlier prefix from the prompt cache. The browser sends only the new message.
+ * Each chat's history is saved through the store and only grows, so thinking blocks replay unchanged and every turn
+ * reads the earlier prefix from the prompt cache. The browser sends only the new message. Alongside it, each chat
+ * keeps the bubbles the seller saw, so the chat comes back after a reload, on another device, or after a restart.
  *
  * What Pal can change it applies at once, with an Undo card. Anything that moves money, reaches outside Lemon Pal or
  * can't be taken back (refunds, shipping, deleting) comes back as a proposal: the browser shows a confirm card and,
@@ -30,7 +31,8 @@ import type { CatalogItem, Sale, SignDraft, Stand, Storefront, User } from "./ty
 const MODEL = "claude-haiku-5-5";
 /** Tool rounds one message may take before Pal has to answer. */
 const MAX_STEPS = 8;
-const CHAT_TTL_MS = 2 * 60 * 60 * 1000;
+/** Chats, undo and waiting actions are kept this long after their last use. */
+const KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 /** Rough ceiling for one chat, about 75K tokens of JSON. Past it, the seller starts a new chat. */
 const MAX_CHAT_CHARS = 300_000;
 
@@ -38,12 +40,11 @@ export class PalBusyError extends Error {}
 export class PalChatFullError extends Error {}
 
 type Chat = {
-  userId: string;
   messages: Anthropic.MessageParam[];
   /** Things that happened outside the chat, such as an undo, told to Pal with the next message. */
   notes: string[];
-  busy: boolean;
-  at: number;
+  /** What the seller saw, for reopening the chat. */
+  view: PalBubble[];
 };
 
 type Snapshot = Pick<Stand, "name" | "items">;
@@ -54,22 +55,59 @@ type Restore =
   | { kind: "storefront"; before: Storefront; after: string }
   | { kind: "note"; saleId: string; before: boolean; after: boolean };
 
-type ChangeRecord = { userId: string; standId: string; chatId: string; title: string; restore: Restore; at: number };
-type ProposalRecord = { userId: string; chatId: string; title: string; at: number };
+type ChangeRecord = { standId: string; chatId: string; title: string; restore: Restore };
+type ProposalRecord = { chatId: string; title: string };
 
-// Kept on globalThis, so every route that imports this module shares one set of chats, including after a dev reload.
-const memory = ((globalThis as { __pal?: unknown }).__pal ??= {
-  chats: new Map<string, Chat>(),
-  changes: new Map<string, ChangeRecord>(),
-  proposals: new Map<string, ProposalRecord>(),
-}) as { chats: Map<string, Chat>; changes: Map<string, ChangeRecord>; proposals: Map<string, ProposalRecord> };
-const { chats, changes, proposals } = memory;
+/**
+ * Chats in the middle of a turn. The turn saves its chat when it ends, so a note added meanwhile (an Undo tapped
+ * mid-answer) goes into this copy rather than the store, where the turn's save would overwrite it. On globalThis so
+ * every route shares it, including after a dev reload.
+ */
+const live = ((globalThis as { __palLive?: Map<string, Chat> }).__palLive ??= new Map<string, Chat>());
 
-function sweep() {
-  const now = Date.now();
-  for (const [id, chat] of chats) if (!chat.busy && now - chat.at > CHAT_TTL_MS) chats.delete(id);
-  for (const [id, change] of changes) if (now - change.at > CHAT_TTL_MS) changes.delete(id);
-  for (const [id, proposal] of proposals) if (now - proposal.at > CHAT_TTL_MS) proposals.delete(id);
+const now = () => new Date().toISOString();
+
+async function getRecord<T>(kind: PalRecordKind, id: string, user: User): Promise<T | null> {
+  const record = await store.getPalRecord(kind, id);
+  return record && record.userId === user.id ? (record.doc as T) : null;
+}
+
+const putRecord = (kind: PalRecordKind, id: string, user: User, doc: unknown) =>
+  store.savePalRecord({ kind, id, userId: user.id, updatedAt: now(), doc });
+
+const saveChat = (user: User, chatId: string, chat: Chat) => putRecord("chat", chatId, user, chat);
+
+/** Changes a chat that isn't Pal's to write right now, or the copy a running turn will save. */
+async function updateChat(user: User, chatId: string, change: (chat: Chat) => void) {
+  const running = live.get(chatId);
+  if (running) return change(running);
+  const chat = await getRecord<Chat>("chat", chatId, user);
+  if (!chat) return;
+  change(chat);
+  await saveChat(user, chatId, chat);
+}
+
+let swept = 0;
+/** Drops what hasn't been used for a week, at most once an hour. */
+async function sweep() {
+  if (Date.now() - swept < 60 * 60 * 1000) return;
+  swept = Date.now();
+  await store.purgePalRecords(new Date(Date.now() - KEEP_MS).toISOString());
+}
+
+/** The seller's latest chat, if it's still kept. */
+export async function latestPalChat(user: User): Promise<PalTranscript | null> {
+  await sweep();
+  const record = await store.latestPalRecord(user.id, "chat");
+  if (!record) return null;
+  const chat = live.get(record.id) ?? (record.doc as Chat);
+  return { chatId: record.id, bubbles: chat.view ?? [] };
+}
+
+/** Deletes a chat when the seller starts a new one. Its Undo cards and waiting actions keep working until they expire. */
+export async function forgetPalChat(user: User, chatId: string) {
+  if (live.has(chatId)) throw new PalBusyError();
+  if (await getRecord("chat", chatId, user)) await store.deletePalRecord("chat", chatId);
 }
 
 /** Identifies the catalog and name a change left, so Undo can tell when something else changed the stand since. */
@@ -366,7 +404,7 @@ const editItems = tool({
     await store.saveStand(next);
     const [only] = lines;
     const title = lines.length > 1 ? `${lines.length} changes to your items` : only.before && only.after ? `${only.label}: ${only.after}` : only.label;
-    const change = record(ctx, title, lines, standRestore(stand, next));
+    const change = await record(ctx, title, lines, standRestore(stand, next));
     return {
       done: true,
       changed: change.lines,
@@ -384,7 +422,7 @@ const renameStand = tool({
     const stand = await loadStand(ctx);
     const next = { ...stand, name };
     await store.saveStand(next);
-    record(ctx, "Renamed your stand", [{ label: "Stand name", before: stand.name, after: name }], standRestore(stand, next));
+    await record(ctx, "Renamed your stand", [{ label: "Stand name", before: stand.name, after: name }], standRestore(stand, next));
     return { done: true, name };
   },
 });
@@ -396,9 +434,9 @@ const standRestore = (before: Stand, after: Stand): Restore => ({
 });
 
 /** Remembers a change for Undo and shows the seller its card. */
-function record(ctx: ToolContext, title: string, lines: PalChange["lines"], restore: Restore): PalChange {
+async function record(ctx: ToolContext, title: string, lines: PalChange["lines"], restore: Restore): Promise<PalChange> {
   const id = crypto.randomUUID();
-  changes.set(id, { userId: ctx.user.id, standId: ctx.standId, chatId: ctx.chatId, title, restore, at: Date.now() });
+  await putRecord("change", id, ctx.user, { standId: ctx.standId, chatId: ctx.chatId, title, restore } satisfies ChangeRecord);
   const change = { id, title, lines, undoable: true };
   ctx.emit({ type: "change", change });
   return change;
@@ -719,7 +757,7 @@ const setNoteHidden = tool({
     if (before === hidden) return { done: true, changed: "Nothing needed changing." };
     await store.updateSale(sale.id, (s) => ({ ...s, noteHidden: hidden }));
     const lines = [{ label: "Note on display", before: before ? "Hidden" : "Shown", after: hidden ? "Hidden" : "Shown" }];
-    record(ctx, hidden ? "Hid a note from the display" : "Showed a note on the display", lines, {
+    await record(ctx, hidden ? "Hid a note from the display" : "Showed a note on the display", lines, {
       kind: "note",
       saleId: sale.id,
       before,
@@ -826,7 +864,7 @@ const proposeAction = tool({
       }
     }
     const id = crypto.randomUUID();
-    proposals.set(id, { userId: ctx.user.id, chatId: ctx.chatId, title: card.title, at: Date.now() });
+    await putRecord("proposal", id, ctx.user, { chatId: ctx.chatId, title: card.title } satisfies ProposalRecord);
     ctx.emit({ type: "proposal", proposal: { id, ...card } });
     return { waitingForSeller: true, card: card.title, note: "The seller confirms or dismisses it on the card. Don't call it done." };
   },
@@ -962,17 +1000,30 @@ export async function runPalTurn({
   signal: AbortSignal;
 }) {
   client ??= new Anthropic({ apiKey: env.anthropicApiKey() });
-  sweep();
-  let chat = chats.get(chatId);
-  if (chat && chat.userId !== user.id) chat = undefined; // never another seller's history
-  if (!chat) {
-    chat = { userId: user.id, messages: [], notes: [], busy: false, at: Date.now() };
-    chats.set(chatId, chat);
-  }
-  if (chat.busy) throw new PalBusyError();
+  await sweep();
+  if (live.has(chatId)) throw new PalBusyError();
+  const saved = await store.getPalRecord("chat", chatId);
+  // A chat id belongs to the seller who started it. Never read or overwrite another seller's.
+  if (saved && saved.userId !== user.id) throw new PalBusyError();
+  const chat: Chat = { messages: [], notes: [], view: [], ...(saved?.doc as Chat | undefined) };
   if (JSON.stringify(chat.messages).length > MAX_CHAT_CHARS) throw new PalChatFullError();
-  chat.busy = true;
-  chat.at = Date.now();
+  live.set(chatId, chat);
+
+  // The bubbles the seller sees, kept with the chat. Pal's bubble fills in as events go by.
+  const reply: Extract<PalBubble, { from: "pal" }> = { id: crypto.randomUUID(), from: "pal", text: "", changes: [], proposals: [] };
+  chat.view.push({ id: crypto.randomUUID(), from: "seller", text, ...(photo ? { photo: true } : {}) }, reply);
+  const shown = emit;
+  emit = (event) => {
+    if (event.type === "text") reply.text += event.delta;
+    else if (event.type === "change") reply.changes.push(event.change);
+    else if (event.type === "proposal") reply.proposals.push(event.proposal);
+    else if (event.type === "error") reply.error = event.message;
+    shown(event);
+  };
+  const finish = async () => {
+    live.delete(chatId);
+    await saveChat(user, chatId, chat);
+  };
 
   // Pal never sees the photo itself, only what the sign reader made of it, so the chat stays small.
   let sign = "";
@@ -982,11 +1033,10 @@ export async function runPalTurn({
       const current = kindOf(stand) === "donation" ? [] : stand.items.map(({ name, priceCents, soldOut }) => ({ name, priceCents, soldOut }));
       sign = `\n\n${describeSign(await readSign({ image: { data: photo, mediaType: "image/jpeg" } }, current), stand.currency)}`;
     } catch (error) {
-      chat.busy = false;
-      if (error instanceof SignReadError) {
-        emit({ type: "error", message: error.message });
-        return;
-      }
+      if (error instanceof SignReadError) emit({ type: "error", message: error.message });
+      else reply.error = "Pal couldn't read that sign right now.";
+      await finish();
+      if (error instanceof SignReadError) return;
       throw error;
     }
   }
@@ -1046,14 +1096,16 @@ export async function runPalTurn({
       const results: Anthropic.ToolResultBlockParam[] = [];
       for (const call of calls) results.push(await runTool(call, ctx));
       chat.messages.push({ role: "assistant", content: message.content }, { role: "user", content: results });
+      // Saved each round, so a change Pal made is in the history even if the server stops mid-answer.
+      await saveChat(user, chatId, chat);
     }
     emit({ type: "text", delta: "That took more steps than I can manage at once. Tell me what to do next?" });
   } catch (error) {
     forgetUnanswered();
+    reply.error ??= "Pal couldn't answer that one.";
     throw error;
   } finally {
-    chat.busy = false;
-    chat.at = Date.now();
+    await finish();
   }
 }
 
@@ -1076,8 +1128,8 @@ async function runTool(call: Anthropic.ToolUseBlock, ctx: ToolContext): Promise<
 
 /** Puts back what a change of Pal's replaced, unless something else changed the same thing since. */
 export async function undoPalChange(user: User, changeId: string): Promise<{ error: string } | { standId: string }> {
-  const change = changes.get(changeId);
-  if (!change || change.userId !== user.id) return { error: "That change can't be undone any more." };
+  const change = await getRecord<ChangeRecord>("change", changeId, user);
+  if (!change) return { error: "That change can't be undone any more." };
   const stand = await store.getStand(change.standId);
   if (!stand || stand.ownerId !== user.id) return { error: "That stand is gone." };
   const changedSince = { error: "That's been changed since, so this can't be undone. Edit it instead." };
@@ -1098,17 +1150,24 @@ export async function undoPalChange(user: User, changeId: string): Promise<{ err
     if (!sale) return changedSince;
   }
 
-  changes.delete(changeId);
-  chats.get(change.chatId)?.notes.push(`the seller tapped Undo on "${change.title}", so that change is reversed.`);
+  await store.deletePalRecord("change", changeId);
+  await updateChat(user, change.chatId, (chat) => {
+    chat.notes.push(`the seller tapped Undo on "${change.title}", so that change is reversed.`);
+    for (const bubble of chat.view) if (bubble.from === "pal") for (const c of bubble.changes) if (c.id === changeId) c.undone = true;
+  });
   return { standId: stand.id };
 }
 
 /** Tells Pal how a proposal ended, with the seller's next message. */
-export function notePalOutcome(user: User, proposalId: string, outcome: PalOutcome): boolean {
-  const proposal = proposals.get(proposalId);
-  if (!proposal || proposal.userId !== user.id) return false;
-  proposals.delete(proposalId);
+export async function notePalOutcome(user: User, proposalId: string, outcome: PalOutcome): Promise<boolean> {
+  const proposal = await getRecord<ProposalRecord>("proposal", proposalId, user);
+  if (!proposal) return false;
+  await store.deletePalRecord("proposal", proposalId);
   const what = { done: "confirmed it, and it went through", declined: "dismissed it, so nothing happened", failed: "confirmed it, but it failed, so nothing changed" }[outcome];
-  chats.get(proposal.chatId)?.notes.push(`you proposed "${proposal.title}" and the seller ${what}.`);
+  await updateChat(user, proposal.chatId, (chat) => {
+    chat.notes.push(`you proposed "${proposal.title}" and the seller ${what}.`);
+    if (outcome === "failed") return;
+    for (const bubble of chat.view) if (bubble.from === "pal") for (const p of bubble.proposals) if (p.id === proposalId) p.outcome = outcome;
+  });
   return true;
 }

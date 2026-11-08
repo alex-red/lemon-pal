@@ -4,6 +4,11 @@ import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Sale, Stand, Storefront, User } from "./types";
 
+/** What Pal, the stand assistant, keeps: chats, changes it can undo, and actions waiting for the seller. */
+export type PalRecordKind = "chat" | "change" | "proposal";
+/** One of Pal's records. `doc` is Pal's own JSON, which the store doesn't look inside. */
+export type PalRecord = { kind: PalRecordKind; id: string; userId: string; updatedAt: string; doc: unknown };
+
 /** Thrown by saveStorefront when another stand already has the slug. */
 export class SlugTakenError extends Error {}
 
@@ -39,6 +44,13 @@ export interface Store {
   deleteUser(userId: string): Promise<void>;
   /** Deletes demo accounts last used before `before` (ISO time), and the old shared demo seller. Returns how many. */
   purgeDemoUsers(before: string): Promise<number>;
+  getPalRecord(kind: PalRecordKind, id: string): Promise<PalRecord | null>;
+  savePalRecord(record: PalRecord): Promise<void>;
+  deletePalRecord(kind: PalRecordKind, id: string): Promise<void>;
+  /** A user's most recently updated record of a kind. */
+  latestPalRecord(userId: string, kind: PalRecordKind): Promise<PalRecord | null>;
+  /** Deletes Pal's records last updated before `before` (ISO time). */
+  purgePalRecords(before: string): Promise<void>;
 }
 
 /**
@@ -76,6 +88,16 @@ class SqliteStore implements Store {
         slug TEXT NOT NULL UNIQUE,
         doc TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS pal_records (
+        kind TEXT NOT NULL,
+        id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        doc TEXT NOT NULL,
+        PRIMARY KEY (kind, id)
+      );
+      CREATE INDEX IF NOT EXISTS pal_records_by_user ON pal_records (user_id, kind, updated_at);
+      CREATE INDEX IF NOT EXISTS pal_records_by_time ON pal_records (updated_at);
     `);
     // Stands from before accounts have no owner column. Add it, then index it.
     const columns = this.db.prepare("PRAGMA table_info(stands)").all() as { name: string }[];
@@ -223,6 +245,8 @@ class SqliteStore implements Store {
     this.transaction(() => {
       const rows = this.db.prepare("SELECT id FROM stands WHERE owner_id = ?").all(userId) as { id: string }[];
       for (const row of rows) this.removeStand(row.id);
+      // Pal's chats can quote buyer names, so they go with the seller.
+      this.db.prepare("DELETE FROM pal_records WHERE user_id = ?").run(userId);
       this.db.prepare("DELETE FROM users WHERE id = ?").run(userId);
     });
   }
@@ -236,6 +260,41 @@ class SqliteStore implements Store {
       .all(before) as { id: string }[];
     for (const row of rows) await this.deleteUser(row.id);
     return rows.length;
+  }
+
+  private readPal(row: { kind: string; id: string; user_id: string; updated_at: string; doc: string } | undefined): PalRecord | null {
+    return row
+      ? { kind: row.kind as PalRecordKind, id: row.id, userId: row.user_id, updatedAt: row.updated_at, doc: JSON.parse(row.doc) }
+      : null;
+  }
+
+  async getPalRecord(kind: PalRecordKind, id: string) {
+    return this.readPal(this.db.prepare("SELECT * FROM pal_records WHERE kind = ? AND id = ?").get(kind, id) as never);
+  }
+
+  async savePalRecord(record: PalRecord) {
+    this.db
+      .prepare(
+        `INSERT INTO pal_records (kind, id, user_id, updated_at, doc) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (kind, id) DO UPDATE SET updated_at = excluded.updated_at, doc = excluded.doc`,
+      )
+      .run(record.kind, record.id, record.userId, record.updatedAt, JSON.stringify(record.doc));
+  }
+
+  async deletePalRecord(kind: PalRecordKind, id: string) {
+    this.db.prepare("DELETE FROM pal_records WHERE kind = ? AND id = ?").run(kind, id);
+  }
+
+  async latestPalRecord(userId: string, kind: PalRecordKind) {
+    return this.readPal(
+      this.db
+        .prepare("SELECT * FROM pal_records WHERE user_id = ? AND kind = ? ORDER BY updated_at DESC LIMIT 1")
+        .get(userId, kind) as never,
+    );
+  }
+
+  async purgePalRecords(before: string) {
+    this.db.prepare("DELETE FROM pal_records WHERE updated_at < ?").run(before);
   }
 
   private removeStand(standId: string) {
@@ -254,7 +313,7 @@ export function databasePath() {
 // One connection per process, kept across dev hot reloads.
 // Bump SCHEMA when the tables or Store methods change, so a running dev server opens a fresh connection
 // instead of keeping one from before the change.
-const SCHEMA = 6;
+const SCHEMA = 7;
 const globalForStore = globalThis as unknown as { lemonpalSqliteStore?: { schema: number; store: Store } };
 
 function instance(): Store {
@@ -284,4 +343,9 @@ export const store: Store = {
   deleteStand: (standId) => instance().deleteStand(standId),
   deleteUser: (userId) => instance().deleteUser(userId),
   purgeDemoUsers: (before) => instance().purgeDemoUsers(before),
+  getPalRecord: (kind, id) => instance().getPalRecord(kind, id),
+  savePalRecord: (record) => instance().savePalRecord(record),
+  deletePalRecord: (kind, id) => instance().deletePalRecord(kind, id),
+  latestPalRecord: (userId, kind) => instance().latestPalRecord(userId, kind),
+  purgePalRecords: (before) => instance().purgePalRecords(before),
 };

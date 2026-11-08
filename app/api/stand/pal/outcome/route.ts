@@ -12,6 +12,6 @@ export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Say how it went." }, { status: 400 });
   const user = await currentUser();
-  if (!notePalOutcome(user, parsed.data.proposalId, parsed.data.outcome)) return Response.json({ error: "not found" }, { status: 404 });
+  if (!(await notePalOutcome(user, parsed.data.proposalId, parsed.data.outcome))) return Response.json({ error: "not found" }, { status: 404 });
   return Response.json({ ok: true });
 }

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { PalBusyError, PalChatFullError, runPalTurn } from "@/lib/pal";
+import { forgetPalChat, latestPalChat, PalBusyError, PalChatFullError, runPalTurn } from "@/lib/pal";
 import { PAL_SCREENS, type PalEvent } from "@/lib/pal-events";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { kindOf } from "@/lib/stands";
@@ -38,6 +38,25 @@ const MessageSchema = z.object({
     })
     .catch("UTC"),
 });
+
+/** The seller's latest chat with Pal, so the chat sheet reopens where they left off. */
+export async function GET() {
+  const user = await currentUser();
+  return Response.json(await latestPalChat(user), { headers: { "Cache-Control": "no-store" } });
+}
+
+/** Deletes a chat (?chat=) when the seller starts a new one. */
+export async function DELETE(request: Request) {
+  const chatId = z.uuid().safeParse(new URL(request.url).searchParams.get("chat"));
+  if (!chatId.success) return Response.json({ error: "Say which chat." }, { status: 400 });
+  try {
+    await forgetPalChat(await currentUser(), chatId.data);
+  } catch (error) {
+    if (error instanceof PalBusyError) return Response.json({ error: "Pal is still answering." }, { status: 409 });
+    throw error;
+  }
+  return Response.json({ ok: true });
+}
 
 /**
  * One message to Pal, the stand assistant, for the stand on screen (?stand=). Answers with an NDJSON stream of

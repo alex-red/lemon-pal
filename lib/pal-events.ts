@@ -11,6 +11,8 @@ export type PalChange = {
   title: string;
   lines: { label: string; before?: string; after?: string }[];
   undoable: boolean;
+  /** Set once the seller undid it, so a reopened chat shows it undone. */
+  undone?: boolean;
 };
 
 /**
@@ -33,10 +35,21 @@ export type PalProposal = {
   /** Can't be taken back, so the button is red. */
   danger: boolean;
   action: PalAction;
+  /** How it ended, once the seller answered it. */
+  outcome?: "done" | "declined";
 };
 
 /** How a proposal ended, told back to Pal so it knows on the next message. */
 export type PalOutcome = "done" | "declined" | "failed";
+
+/** One bubble of a saved chat, as the seller saw it. */
+export type PalBubble =
+  /** `photo` says the seller sent a sign photo. The photo itself isn't kept. */
+  | { id: string; from: "seller"; text: string; photo?: true }
+  | { id: string; from: "pal"; text: string; changes: PalChange[]; proposals: PalProposal[]; error?: string };
+
+/** The seller's current chat, from GET /api/stand/pal, so a reload or a new device carries on where they left off. */
+export type PalTranscript = { chatId: string; bubbles: PalBubble[] };
 
 /**
  * Fired on window whenever Pal changes the stand, an Undo lands or a confirmed action goes through. Screens that poll

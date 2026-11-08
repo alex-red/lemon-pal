@@ -32,7 +32,16 @@ import {
   type PalMood,
   type PalUndoState,
 } from "@/components/kit";
-import { PAL_CHANGED, type PalAction, type PalChange, type PalEvent, type PalOutcome, type PalProposal, type PalScreen } from "@/lib/pal-events";
+import {
+  PAL_CHANGED,
+  type PalAction,
+  type PalChange,
+  type PalEvent,
+  type PalOutcome,
+  type PalProposal,
+  type PalScreen,
+  type PalTranscript,
+} from "@/lib/pal-events";
 import { standApi } from "@/lib/stands";
 import type { StandKind } from "@/lib/types";
 import { shrinkPhoto } from "../shrink-photo";
@@ -42,7 +51,8 @@ import { handOff, PHONE_QUERY } from "./handoff";
 type Anchor = { standId: string; kind: StandKind; screen: PalScreen };
 
 type Bubble =
-  | { id: string; from: "seller"; text: string; photo?: string }
+  /** `photo` is a local preview, or true for a photo sent before a reload, which isn't kept. */
+  | { id: string; from: "seller"; text: string; photo?: string | true }
   | { id: string; from: "pal"; text: string; changes: PalChange[]; proposals: PalProposal[]; error?: string };
 
 type PalApi = {
@@ -159,6 +169,7 @@ export function PalProvider({ children }: { children: ReactNode }) {
   const recognition = useRef<Recognizer | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const chatId = useRef<string | null>(null);
+  const resumed = useRef(false);
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
 
@@ -174,6 +185,23 @@ export function PalProvider({ children }: { children: ReactNode }) {
     const el = list.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [bubbles, status]);
+
+  // The first time the chat opens, pick up the seller's last chat from the server: after a reload, a restart, or on
+  // another device.
+  useEffect(() => {
+    if (!open || resumed.current) return;
+    resumed.current = true;
+    void (async () => {
+      const res = await fetch("/api/stand/pal", { cache: "no-store" }).catch(() => null);
+      const saved = res?.ok ? ((await res.json().catch(() => null)) as PalTranscript | null) : null;
+      if (!saved?.bubbles.length || chatId.current) return;
+      chatId.current = saved.chatId;
+      setBubbles(saved.bubbles);
+      const pal = saved.bubbles.flatMap((b) => (b.from === "pal" ? [b] : []));
+      setUndos(Object.fromEntries(pal.flatMap((b) => b.changes.filter((c) => c.undone).map((c) => [c.id, "undone" as const]))));
+      setConfirms(Object.fromEntries(pal.flatMap((b) => b.proposals.flatMap((p) => (p.outcome ? [[p.id, p.outcome]] : [])))));
+    })();
+  }, [open]);
 
   // On a keyboard and mouse, the chat is ready to type into. Phones wait for a tap, so the keyboard doesn't jump up.
   useEffect(() => {
@@ -398,6 +426,8 @@ export function PalProvider({ children }: { children: ReactNode }) {
   }
 
   function newChat() {
+    // The old chat is deleted on the server too, so it doesn't come back on the next visit.
+    if (chatId.current) void fetch(`/api/stand/pal?chat=${chatId.current}`, { method: "DELETE" }).catch(() => null);
     chatId.current = null;
     setBubbles([]);
     setUndos({});
@@ -430,10 +460,14 @@ export function PalProvider({ children }: { children: ReactNode }) {
               bubbles.map((bubble, i) =>
                 bubble.from === "seller" ? (
                   <div key={bubble.id} className="flex max-w-[85%] flex-col items-end gap-1.5 self-end">
-                    {bubble.photo ? (
+                    {typeof bubble.photo === "string" ? (
                       // A local preview of the photo the seller sent. Pal itself only gets what the sign reader read.
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={bubble.photo} alt="Your sign photo" className="max-h-40 rounded-[18px] object-cover shadow-card" />
+                    ) : bubble.photo ? (
+                      <span className="flex items-center gap-1.5 rounded-full bg-fill px-3 py-1.5 text-footnote font-semibold text-ink-2">
+                        <CameraIcon className="shrink-0" /> Sign photo
+                      </span>
                     ) : null}
                     <p className="rounded-[22px] rounded-br-md bg-fill-2 px-4 py-2.5 text-body whitespace-pre-wrap wrap-anywhere">{bubble.text}</p>
                   </div>
