@@ -1,17 +1,32 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createContext, startTransition, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  createContext,
+  startTransition,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   AIGlow,
   ArrowUpIcon,
   Button,
+  CameraIcon,
   ExclamationIcon,
+  MicIcon,
   PalChangeCard,
   PalMascot,
   PalProposalCard,
   Sheet,
   ShimmerText,
+  XmarkIcon,
   cn,
   type PalConfirmState,
   type PalMood,
@@ -20,13 +35,14 @@ import {
 import { PAL_CHANGED, type PalAction, type PalChange, type PalEvent, type PalOutcome, type PalProposal, type PalScreen } from "@/lib/pal-events";
 import { standApi } from "@/lib/stands";
 import type { StandKind } from "@/lib/types";
+import { shrinkPhoto } from "../shrink-photo";
 import { handOff, PHONE_QUERY } from "./handoff";
 
 /** The stand and screen Pal is opened from. Each seller page sets it by rendering a PalButton. */
 type Anchor = { standId: string; kind: StandKind; screen: PalScreen };
 
 type Bubble =
-  | { id: string; from: "seller"; text: string }
+  | { id: string; from: "seller"; text: string; photo?: string }
   | { id: string; from: "pal"; text: string; changes: PalChange[]; proposals: PalProposal[]; error?: string };
 
 type PalApi = {
@@ -65,6 +81,35 @@ const INTRO: Record<StandKind, string> = {
   online: "Ask me to open or close the store, change shipping, list or hide items, mark orders shipped, or check sales.",
   donation: "Ask me to change the amounts or goal, hide a note, refund a gift, or tell you how much came in.",
 };
+
+/** The browser's speech recognition, where it has one. Chrome and Safari name it webkitSpeechRecognition. */
+type Recognizer = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+};
+
+function recognizer(): (new () => Recognizer) | null {
+  const w = window as unknown as { SpeechRecognition?: new () => Recognizer; webkitSpeechRecognition?: new () => Recognizer };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+const noSubscribe = () => () => {};
+
+function dataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
 
 async function post(url: string, body?: unknown, method = "POST") {
   const res = await fetch(url, {
@@ -107,6 +152,12 @@ export function PalProvider({ children }: { children: ReactNode }) {
   const [mood, setMood] = useState<PalMood>("idle");
   const [undos, setUndos] = useState<Record<string, PalUndoState>>({});
   const [confirms, setConfirms] = useState<Record<string, PalConfirmState>>({});
+  const [photo, setPhoto] = useState<{ url: string; blob: Blob } | null>(null);
+  const [listening, setListening] = useState(false);
+  const [composerError, setComposerError] = useState<string | null>(null);
+  const canListen = useSyncExternalStore(noSubscribe, () => recognizer() !== null, () => false);
+  const recognition = useRef<Recognizer | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const chatId = useRef<string | null>(null);
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -129,21 +180,86 @@ export function PalProvider({ children }: { children: ReactNode }) {
     if (open && window.matchMedia("(pointer: fine)").matches) input.current?.focus();
   }, [open]);
 
+  // Closing the chat stops listening.
+  useEffect(() => {
+    if (!open) recognition.current?.abort();
+  }, [open]);
+
+  function listen() {
+    if (recognition.current) {
+      recognition.current.stop();
+      return;
+    }
+    const Recognition = recognizer();
+    if (!Recognition) return;
+    const rec = new Recognition();
+    rec.lang = navigator.language;
+    rec.interimResults = true;
+    rec.continuous = false;
+    const before = draft.trim() ? `${draft.trim()} ` : "";
+    rec.onresult = (event) => {
+      const heard = Array.from(event.results, (result) => result[0]?.transcript ?? "").join("");
+      setDraft(`${before}${heard}`.slice(0, 2000));
+    };
+    rec.onerror = (event) => {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") setComposerError("Allow the microphone to talk to Pal.");
+      else if (event.error !== "aborted" && event.error !== "no-speech") setComposerError("Pal couldn’t hear that. Try again, or type.");
+    };
+    rec.onend = () => {
+      recognition.current = null;
+      setListening(false);
+    };
+    setComposerError(null);
+    recognition.current = rec;
+    setListening(true);
+    try {
+      rec.start();
+    } catch {
+      recognition.current = null;
+      setListening(false);
+    }
+  }
+
+  async function attach(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setComposerError(null);
+    const blob = await shrinkPhoto(file);
+    setPhoto((old) => {
+      if (old) URL.revokeObjectURL(old.url);
+      return { url: URL.createObjectURL(blob), blob };
+    });
+    input.current?.focus();
+  }
+
   const refresh = useCallback(() => {
     window.dispatchEvent(new Event(PAL_CHANGED));
     startTransition(() => router.refresh());
   }, [router]);
 
-  async function send(text: string) {
-    const message = text.trim();
+  async function send(text: string, sign: { url: string; blob: Blob } | null = null) {
+    // A photo on its own asks Pal to bring the items in line with the sign.
+    const message = text.trim() || (sign ? "Update my items from this sign." : "");
     if (!anchor || busy || !message) return;
+    recognition.current?.stop();
+    setComposerError(null);
+    let photoData: string | undefined;
+    if (sign) {
+      photoData = await dataUrl(sign.blob).catch(() => undefined);
+      if (!photoData?.startsWith("data:image/jpeg;")) {
+        setComposerError("That photo couldn’t be read. Try another.");
+        return;
+      }
+      setPhoto(null);
+    }
     chatId.current ??= crypto.randomUUID();
     const palId = crypto.randomUUID();
     const patch = (change: (bubble: Extract<Bubble, { from: "pal" }>) => Bubble) =>
       setBubbles((all) => all.map((b) => (b.id === palId && b.from === "pal" ? change(b) : b)));
     setBubbles((all) => [
       ...all,
-      { id: crypto.randomUUID(), from: "seller", text: message },
+      { id: crypto.randomUUID(), from: "seller", text: message, ...(sign ? { photo: sign.url } : {}) },
       { id: palId, from: "pal", text: "", changes: [], proposals: [] },
     ]);
     setDraft("");
@@ -186,6 +302,7 @@ export function PalProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           chatId: chatId.current,
           message,
+          photo: photoData,
           screen: anchor.screen,
           analyst: !window.matchMedia(PHONE_QUERY).matches,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -286,15 +403,17 @@ export function PalProvider({ children }: { children: ReactNode }) {
     setUndos({});
     setConfirms({});
     setMood("idle");
+    setPhoto(null);
     input.current?.focus();
   }
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    void send(draft);
+    void send(draft, photo);
   }
 
-  const liveMood: PalMood = busy ? mood : typing && draft ? "listening" : mood;
+  const liveMood: PalMood = busy ? mood : listening || (typing && draft) ? "listening" : mood;
+  const canAttach = anchor !== null && anchor.kind !== "donation";
 
   return (
     <PalContext value={{ setAnchor, open: () => setOpen(true), mood: liveMood }}>
@@ -310,12 +429,14 @@ export function PalProvider({ children }: { children: ReactNode }) {
             ) : (
               bubbles.map((bubble, i) =>
                 bubble.from === "seller" ? (
-                  <p
-                    key={bubble.id}
-                    className="max-w-[85%] self-end rounded-[22px] rounded-br-md bg-fill-2 px-4 py-2.5 text-body whitespace-pre-wrap wrap-anywhere"
-                  >
-                    {bubble.text}
-                  </p>
+                  <div key={bubble.id} className="flex max-w-[85%] flex-col items-end gap-1.5 self-end">
+                    {bubble.photo ? (
+                      // A local preview of the photo the seller sent. Pal itself only gets what the sign reader read.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={bubble.photo} alt="Your sign photo" className="max-h-40 rounded-[18px] object-cover shadow-card" />
+                    ) : null}
+                    <p className="rounded-[22px] rounded-br-md bg-fill-2 px-4 py-2.5 text-body whitespace-pre-wrap wrap-anywhere">{bubble.text}</p>
+                  </div>
                 ) : (
                   <PalBubble
                     key={bubble.id}
@@ -344,8 +465,25 @@ export function PalProvider({ children }: { children: ReactNode }) {
           ) : null}
 
           <form onSubmit={submit} className="flex flex-col gap-2">
-            <AIGlow active={busy} shape="pill">
-              <div className="flex items-center gap-2 rounded-full bg-fill p-1.5 pl-5 shadow-[inset_0_0_0_1px_var(--control-edge)] transition-[background-color,box-shadow] duration-200 focus-within:bg-surface focus-within:shadow-[inset_0_0_0_2px_var(--focus)]">
+            {photo ? (
+              <div className="flex items-center gap-3 self-start rounded-[18px] bg-fill p-1.5 pr-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo.url} alt="" className="size-11 rounded-[12px] object-cover" />
+                <span className="text-subhead text-ink-2">Sign photo</span>
+                <Button
+                  variant="ghost"
+                  iconOnly
+                  aria-label="Remove the sign photo"
+                  icon={<XmarkIcon />}
+                  onClick={() => {
+                    URL.revokeObjectURL(photo.url);
+                    setPhoto(null);
+                  }}
+                />
+              </div>
+            ) : null}
+            <AIGlow active={busy || listening} shape="pill">
+              <div className="flex items-center gap-1 rounded-full bg-fill p-1.5 pl-5 shadow-[inset_0_0_0_1px_var(--control-edge)] transition-[background-color,box-shadow] duration-200 focus-within:bg-surface focus-within:shadow-[inset_0_0_0_2px_var(--focus)]">
                 <input
                   ref={input}
                   value={draft}
@@ -353,19 +491,60 @@ export function PalProvider({ children }: { children: ReactNode }) {
                   onFocus={() => setTyping(true)}
                   onBlur={() => setTyping(false)}
                   aria-label="Message Pal"
-                  placeholder="Ask Pal to…"
+                  placeholder={listening ? "Listening…" : photo ? "Add a note, or send" : "Ask Pal to…"}
                   maxLength={2000}
                   enterKeyHint="send"
                   autoComplete="off"
                   className="h-11 min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-ink-3"
                 />
-                <Button type="submit" variant="filled" iconOnly aria-label="Send" icon={<ArrowUpIcon />} disabled={!draft.trim()} loading={busy} />
+                <Button
+                  type="submit"
+                  variant="filled"
+                  iconOnly
+                  aria-label="Send"
+                  icon={<ArrowUpIcon />}
+                  disabled={!draft.trim() && !photo}
+                  loading={busy}
+                />
               </div>
             </AIGlow>
-            {bubbles.length > 0 ? (
-              <Button variant="plain" size="sm" className="self-center" disabled={busy} onClick={newChat}>
-                New chat
-              </Button>
+            {composerError ? (
+              <p role="alert" className="flex items-center gap-1.5 px-4 text-footnote font-semibold text-berry">
+                <ExclamationIcon className="shrink-0" /> {composerError}
+              </p>
+            ) : null}
+            {canAttach || canListen || bubbles.length > 0 ? (
+              <div className="flex items-center gap-1 px-1">
+                {canAttach ? (
+                  <>
+                    <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={(event) => void attach(event)} />
+                    <Button
+                      variant="ghost"
+                      iconOnly
+                      aria-label="Add a photo of your price sign"
+                      icon={<CameraIcon />}
+                      disabled={busy}
+                      onClick={() => fileInput.current?.click()}
+                    />
+                  </>
+                ) : null}
+                {canListen ? (
+                  <Button
+                    variant={listening ? "lemon" : "ghost"}
+                    iconOnly
+                    aria-label={listening ? "Stop listening" : "Talk to Pal"}
+                    aria-pressed={listening}
+                    icon={<MicIcon />}
+                    disabled={busy}
+                    onClick={listen}
+                  />
+                ) : null}
+                {bubbles.length > 0 ? (
+                  <Button variant="plain" size="sm" className="ml-auto" disabled={busy} onClick={newChat}>
+                    New chat
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </form>
         </div>
