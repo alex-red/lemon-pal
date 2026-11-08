@@ -6,6 +6,7 @@ import { currentStand, homeOfCurrentStand } from "@/lib/session";
 import { switcherProps } from "@/lib/stands";
 import { store } from "@/lib/store";
 import { bannerUrl } from "@/lib/storefront";
+import { PalButton } from "../pal/pal";
 import { StandSwitcher } from "../stand-switcher";
 import { DonationDisplay } from "./display";
 
@@ -27,6 +28,7 @@ export default async function DonationDisplayPage() {
         key={stand.id}
         standId={stand.id}
         switcher={<StandSwitcher {...switcherProps(current)} />}
+        assistant={<PalButton standId={stand.id} kind="donation" screen="jar" />}
         currency={stand.currency}
         pageUrl={`${qrOrigin}/${storefront.slug}`}
         payOrigin={qrOrigin}

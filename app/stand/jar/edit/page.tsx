@@ -6,6 +6,7 @@ import { currentStand, homeOfCurrentStand } from "@/lib/session";
 import { switcherProps } from "@/lib/stands";
 import { store } from "@/lib/store";
 import { draftDonationPage, withoutBanner } from "@/lib/storefront";
+import { PalButton } from "../../pal/pal";
 import { StandSwitcher } from "../../stand-switcher";
 import { DonationEditor } from "./donation-editor";
 
@@ -22,9 +23,11 @@ export default async function DonationEditorPage() {
   return (
     <PageTransition>
       <DonationEditor
-        key={stand.id}
+        // Reloads the editor after Pal changes the page.
+        key={`${stand.id}:${saved?.updatedAt}`}
         standId={stand.id}
         switcher={<StandSwitcher {...switcherProps(current)} />}
+        assistant={<PalButton standId={stand.id} kind="donation" screen="jar" />}
         origin={origin}
         qrOrigin={qrOrigin}
         currency={stand.currency}

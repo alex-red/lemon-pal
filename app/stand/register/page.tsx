@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { payOrigin } from "@/lib/lan";
 import { currentStand, homeOfCurrentStand } from "@/lib/session";
 import { switcherProps } from "@/lib/stands";
+import { PalButton } from "../pal/pal";
 import { StandSwitcher } from "../stand-switcher";
 import { Register } from "./register";
 
@@ -25,6 +26,7 @@ export default async function RegisterPage() {
         items={stand.items}
         payOrigin={origin}
         switcher={<StandSwitcher {...switcherProps(current)} variant="title" />}
+        assistant={<PalButton standId={stand.id} kind="local" screen="register" />}
       />
     </PageTransition>
   );

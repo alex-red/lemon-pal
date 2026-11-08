@@ -48,16 +48,25 @@ function orderTitle(order: SellerOrder) {
 export function Orders({
   standId,
   switcher,
+  assistant,
   initial,
   hasStore,
 }: {
   standId: string;
   /** The stand switcher, shown above the title. */
   switcher: ReactNode;
+  /** Opens Pal, the stand assistant. */
+  assistant?: ReactNode;
   initial: SellerOrder[];
   hasStore: boolean;
 }) {
   const [orders, setOrders] = useState(initial);
+  // A refresh, such as after Pal marks an order shipped, brings a newer list from the server.
+  const [seen, setSeen] = useState(initial);
+  if (seen !== initial) {
+    setSeen(initial);
+    setOrders(initial);
+  }
   const [openId, setOpenId] = useState<string | null>(null);
 
   // New orders arrive while the page is open.
@@ -121,14 +130,17 @@ export function Orders({
           {switcher}
           <h1 className="font-display text-large-title font-semibold">Orders</h1>
         </div>
-        <Toolbar aria-label="Store">
-          <Link href="/stand/store" transitionTypes={["nav-back"]} className={toolbarLink}>
-            <LinkIcon /> Store
-          </Link>
-          <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
-            <ChartIcon /> Recap
-          </Link>
-        </Toolbar>
+        <div className="flex flex-wrap items-center gap-3">
+          {assistant}
+          <Toolbar aria-label="Store">
+            <Link href="/stand/store" transitionTypes={["nav-back"]} className={toolbarLink}>
+              <LinkIcon /> Store
+            </Link>
+            <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
+              <ChartIcon /> Recap
+            </Link>
+          </Toolbar>
+        </div>
       </header>
 
       {orders.length === 0 ? (

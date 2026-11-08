@@ -41,6 +41,8 @@ import { StickerDemoButton } from "../../sticker-demo";
 type Props = {
   standId: string;
   switcher: ReactNode;
+  /** Opens Pal, the stand assistant. */
+  assistant?: ReactNode;
   /** The address donors see, for the handle field and the link. */
   origin: string;
   /** The address in the QR code: in development, the network address. */
@@ -77,7 +79,7 @@ const INTRO_MAX = 280;
 const LABELS = ["Donate", "Tip", "Give", "Chip in"];
 
 /** Sets up a donation stand's page: what people see, which amounts they can give, and their notes. Saves as you type. */
-export function DonationEditor({ standId, switcher, origin, qrOrigin, currency, initial, donation, saved, demoAccount }: Props) {
+export function DonationEditor({ standId, switcher, assistant, origin, qrOrigin, currency, initial, donation, saved, demoAccount }: Props) {
   const [form, setForm] = useState<Form>(() => ({
     slug: initial.slug,
     title: initial.title,
@@ -235,14 +237,17 @@ export function DonationEditor({ standId, switcher, origin, qrOrigin, currency, 
             <SaveStatus state={save} />
           </div>
         </div>
-        <Toolbar aria-label="Donation stand">
-          <Link href="/stand/jar" transitionTypes={["nav-forward"]} className={toolbarLink}>
-            <QrCodeIcon /> Display
-          </Link>
-          <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
-            <ChartIcon /> Recap
-          </Link>
-        </Toolbar>
+        <div className="flex flex-wrap items-center gap-3">
+          {assistant}
+          <Toolbar aria-label="Donation stand">
+            <Link href="/stand/jar" transitionTypes={["nav-forward"]} className={toolbarLink}>
+              <QrCodeIcon /> Display
+            </Link>
+            <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
+              <ChartIcon /> Recap
+            </Link>
+          </Toolbar>
+        </div>
       </header>
 
       <div className="mt-8 grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">

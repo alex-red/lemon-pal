@@ -149,6 +149,12 @@ export const SparklesIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const ArrowUpIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 19V5M6 11l6-6 6 6" />
+  </Icon>
+);
+
 export const ArrowUturnIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M9 14 4.5 9.5 9 5" />

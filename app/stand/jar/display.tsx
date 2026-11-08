@@ -31,6 +31,8 @@ import type { StorefrontAccent } from "@/lib/types";
 type Props = {
   standId: string;
   switcher: ReactNode;
+  /** Opens Pal, the stand assistant. */
+  assistant?: ReactNode;
   currency: string;
   /** The donation page the poster's code opens. */
   pageUrl: string;
@@ -55,7 +57,7 @@ const POLL_MS = 4000;
  * New gifts chime and pop up with the donor's first name and note. The seller can also type an amount for someone in
  * front of them, which shows a code for just that gift, or print the poster.
  */
-export function DonationDisplay({ standId, switcher, currency, pageUrl, payOrigin, title, intro, bannerUrl, accent, open, buttonLabel, showNotes, demoAccount }: Props) {
+export function DonationDisplay({ standId, switcher, assistant, currency, pageUrl, payOrigin, title, intro, bannerUrl, accent, open, buttonLabel, showNotes, demoAccount }: Props) {
   const [feed, setFeed] = useState<DonationFeed | null>(null);
   const [fresh, setFresh] = useState<DonationFeedItem | null>(null);
   const [sound, setSound] = useState(false);
@@ -138,20 +140,23 @@ export function DonationDisplay({ standId, switcher, currency, pageUrl, payOrigi
             {!sound ? <span className="text-ink-3"> · Tap anywhere to turn on the chime</span> : null}
           </p>
         </div>
-        <Toolbar aria-label="Donation stand">
-          <Button variant="ghost" icon={<HeartIcon />} onClick={() => setTyping(true)}>
-            Enter amount
-          </Button>
-          <Button variant="ghost" icon={<PrinterIcon />} onClick={() => window.print()} className="max-[30rem]:hidden">
-            Print
-          </Button>
-          <Link href="/stand/jar/edit" transitionTypes={["nav-back"]} className={toolbarLink}>
-            <PencilIcon /> Edit
-          </Link>
-          <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
-            <ChartIcon /> Recap
-          </Link>
-        </Toolbar>
+        <div className="flex flex-wrap items-center gap-3">
+          {assistant}
+          <Toolbar aria-label="Donation stand">
+            <Button variant="ghost" icon={<HeartIcon />} onClick={() => setTyping(true)}>
+              Enter amount
+            </Button>
+            <Button variant="ghost" icon={<PrinterIcon />} onClick={() => window.print()} className="max-[30rem]:hidden">
+              Print
+            </Button>
+            <Link href="/stand/jar/edit" transitionTypes={["nav-back"]} className={toolbarLink}>
+              <PencilIcon /> Edit
+            </Link>
+            <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
+              <ChartIcon /> Recap
+            </Link>
+          </Toolbar>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col justify-center-safe">

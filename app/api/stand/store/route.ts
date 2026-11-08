@@ -2,7 +2,7 @@ import { z } from "zod";
 import { handleProblem } from "@/lib/handles";
 import { requestStand, standNotFound } from "@/lib/session";
 import { SlugTakenError, store } from "@/lib/store";
-import { draftStorefront, withoutBanner } from "@/lib/storefront";
+import { draftStorefront, storeProblem, withoutBanner } from "@/lib/storefront";
 import { kindOf } from "@/lib/stands";
 import type { Storefront } from "@/lib/types";
 
@@ -46,12 +46,6 @@ export async function PUT(request: Request) {
   const input = parsed.data;
   const problem = handleProblem(input.slug);
   if (problem) return Response.json({ error: problem, field: "slug" }, { status: 400 });
-  if (input.shipping.enabled && input.shipping.countries.length === 0) {
-    return Response.json({ error: "Add at least one country you ship to.", field: "countries" }, { status: 400 });
-  }
-  if (input.open && !input.pickup && !input.shipping.enabled) {
-    return Response.json({ error: "Turn on pickup or shipping before taking orders.", field: "open" }, { status: 400 });
-  }
 
   const stand = await requestStand(request);
   if (!stand) return standNotFound();
@@ -62,9 +56,8 @@ export async function PUT(request: Request) {
     const flag = flags.get(item.id);
     return flag ? { ...item, online: flag.online, ships: flag.ships } : item;
   });
-  if (input.open && !items.some((item) => item.online !== false && (input.pickup || (input.shipping.enabled && item.ships)))) {
-    return Response.json({ error: "Choose at least one item to sell online first.", field: "open" }, { status: 400 });
-  }
+  const invalid = storeProblem(input, items);
+  if (invalid) return Response.json({ error: invalid.message, field: invalid.field }, { status: 400 });
 
   const next: Storefront = {
     standId: stand.id,

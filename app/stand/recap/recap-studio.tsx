@@ -26,6 +26,7 @@ import { Button, CheckIcon, ClockIcon, ExclamationIcon, Pill, SparklesIcon, Spin
 import { filterButtonStyle, lemonTheme } from "./studio-theme";
 import { useSetFirstSale } from "./first-sale";
 import { boothAnalyst } from "./booth-analyst";
+import { onHandoff, PHONE_QUERY, takeHandoff } from "../pal/handoff";
 import { receiptDay, receiptRef, receiptTime } from "./recap-metrics";
 import { ProductLeadersWidget, RecapCurrency, SalesPulseWidget, type ProductLeadersDef, type RecapRegistry, type SalesPulseDef } from "./recap-widgets";
 import { ReceiptSheet, RecapActions, RecentSalesWidget, type RecentSalesDef } from "./recent-sales";
@@ -356,7 +357,7 @@ const initialState: AgReportState<RecapRegistry> = {
  * modes (edit and view). So phones, upright or on their side, get view mode with no panels and the widgets
  * stacked one per row; Studio has no assistant in view mode. Everything wider gets edit mode and the assistant.
  */
-const PHONE = "(max-width: 39.99rem), (orientation: landscape) and (max-height: 34rem)";
+const PHONE = PHONE_QUERY;
 
 
 function useMedia(query: string) {
@@ -507,11 +508,42 @@ export function RecapStudio({
     setStudioApi(event.api);
   }
 
-  function openAnalyst() {
+  const openAnalyst = useCallback(() => {
     if (!studioApi) return;
     const state = studioApi.getState();
     studioApi.setState({ ...state, panels: { ...state.panels, ai: { ...state.panels?.ai, collapsed: false } } });
-  }
+  }, [studioApi]);
+
+  // A question Pal handed over: open Booth Analyst and type it into its box, for the seller to send.
+  // Studio has no API for the box, so this fills its textarea once the panel has drawn it.
+  useEffect(() => {
+    if (!studioApi || phone) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const deliver = () => {
+      const prompt = takeHandoff();
+      if (!prompt) return;
+      openAnalyst();
+      let tries = 0;
+      const fill = () => {
+        const box = document.querySelector<HTMLTextAreaElement>(".ag-studio-ai-assistant-textarea");
+        if (!box) {
+          if (tries++ < 40) timers.push(setTimeout(fill, 50));
+          return;
+        }
+        box.value = prompt;
+        box.dispatchEvent(new Event("input", { bubbles: true }));
+        box.focus();
+        box.setSelectionRange(prompt.length, prompt.length);
+      };
+      fill();
+    };
+    deliver();
+    const stop = onHandoff(deliver);
+    return () => {
+      stop();
+      timers.forEach(clearTimeout);
+    };
+  }, [studioApi, phone, openAnalyst]);
 
   function selectPayPalReceipt(id: string) {
     selectedPayPalReceipt.current = id;

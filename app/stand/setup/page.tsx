@@ -5,6 +5,7 @@ import { sampleChoices } from "@/lib/demo";
 import { env } from "@/lib/env";
 import { currentStand } from "@/lib/session";
 import { kindOf, switcherProps } from "@/lib/stands";
+import { PalButton } from "../pal/pal";
 import { StandSwitcher } from "../stand-switcher";
 import { Setup } from "./setup";
 
@@ -18,10 +19,12 @@ export default async function SetupPage() {
   return (
     <PageTransition>
       <Setup
-        key={stand.id}
+        // A catalog saved elsewhere, such as by Pal, gets new item ids. Start the editor over from it.
+        key={`${stand.id}:${stand.name}:${stand.items.map((item) => item.id).join()}`}
         standId={stand.id}
         kind={kindOf(stand)}
         switcher={<StandSwitcher {...switcherProps(current)} />}
+        assistant={<PalButton standId={stand.id} kind={kindOf(stand)} screen="setup" />}
         currency={env.currency()}
         standName={stand.name}
         samples={sampleChoices}

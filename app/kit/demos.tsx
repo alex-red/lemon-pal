@@ -20,6 +20,11 @@ import {
   ExclamationIcon,
   Money,
   PaidMoment,
+  PalChangeCard,
+  PalMascot,
+  PalProposalCard,
+  type PalConfirmState,
+  type PalUndoState,
   QrCodeIcon,
   SaleStatusPill,
   SegmentedControl,
@@ -483,6 +488,86 @@ export function DonationDemo() {
         code={<LemonQR value="https://example.com/elm-street" label="Sample donation code" className="size-40" />}
       />
       <AmountChips label="Sample amounts" amounts={[500, 1000, 2000]} other currency="USD" value={amount} onChange={setAmount} />
+    </div>
+  );
+}
+
+/** Pal's two cards and its working state, with buttons that only change the demo. */
+export function PalDemo() {
+  const [undo, setUndo] = useState<PalUndoState>("idle");
+  const [refund, setRefund] = useState<PalConfirmState>("idle");
+  const [ship, setShip] = useState<PalConfirmState>("idle");
+  const settle = (set: (state: PalConfirmState) => void) => {
+    set("working");
+    setTimeout(() => set("done"), 900);
+  };
+
+  return (
+    <div className="grid gap-6 md:grid-cols-2">
+      <div className="flex flex-col gap-4 rounded-card bg-surface p-6 shadow-card ring-[0.5px] ring-hairline">
+        <Label>Working</Label>
+        <div className="flex items-start gap-2.5">
+          <PalMascot mood="thinking" className="mt-0.5 size-9 shrink-0" />
+          <ShimmerText className="text-body">Marking Lemonade sold out…</ShimmerText>
+        </div>
+        <p className="text-footnote text-ink-2">
+          Pal&rsquo;s face and the shimmer both say it&rsquo;s working. The composer glows with <code className="font-mono">AIGlow</code>.
+        </p>
+        <Label>Applied at once, with Undo</Label>
+        <PalChangeCard
+          title="Lemonade price: $3.00"
+          lines={[{ label: "Lemonade price", before: "$2.50", after: "$3.00" }]}
+          state={undo}
+          onUndo={() => {
+            setUndo("undoing");
+            setTimeout(() => setUndo("undone"), 700);
+          }}
+        />
+        {undo === "undone" ? (
+          <Button variant="plain" size="sm" className="self-start" onClick={() => setUndo("idle")}>
+            Reset
+          </Button>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-4 rounded-card bg-surface p-6 shadow-card ring-[0.5px] ring-hairline">
+        <Label>Waits for the seller</Label>
+        <PalProposalCard
+          title="Refund $4.00?"
+          lines={[
+            { label: "Sale", after: "Today, 2:14 PM · $4.00" },
+            { label: "Back to the buyer", after: "$4.00 through PayPal" },
+          ]}
+          confirm="Refund $4.00"
+          danger
+          state={refund}
+          onConfirm={() => settle(setRefund)}
+          onDismiss={() => setRefund("declined")}
+        />
+        <PalProposalCard
+          title="Mark this order shipped?"
+          lines={[
+            { label: "Carrier", after: "USPS" },
+            { label: "Tracking", after: "9400 1000 0000, sent to PayPal" },
+          ]}
+          confirm="Mark shipped"
+          state={ship}
+          onConfirm={() => settle(setShip)}
+          onDismiss={() => setShip("declined")}
+        />
+        {refund !== "idle" || ship !== "idle" ? (
+          <Button
+            variant="plain"
+            size="sm"
+            className="self-start"
+            onClick={() => {
+              setRefund("idle");
+              setShip("idle");
+            }}
+          >
+            Reset
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

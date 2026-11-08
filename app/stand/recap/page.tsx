@@ -4,6 +4,7 @@ import { HeartIcon, LinkIcon, PageTransition, QrCodeIcon, Toolbar } from "@/comp
 import { env } from "@/lib/env";
 import { currentStand } from "@/lib/session";
 import { kindOf, standHome, switcherProps } from "@/lib/stands";
+import { PalButton } from "../pal/pal";
 import { StandSwitcher } from "../stand-switcher";
 import { FirstSaleBadge, FirstSaleProvider } from "./first-sale";
 import { RecapLoader } from "./recap-loader";
@@ -27,29 +28,32 @@ export default async function RecapPage() {
               </div>
               <p className="mt-1 text-subhead text-ink-2">See what sold and find the payments behind it.</p>
             </div>
-            <Toolbar aria-label="Stand">
-              <Link
-                href={standHome(kind)}
-                transitionTypes={["nav-back"]}
-                // Narrow phones: no icon, so both actions fit in a 320px screen's 280px column.
-                className="pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full px-5 text-callout max-[24rem]:[&_svg]:hidden font-semibold text-ink hover:bg-fill-2 [&_svg]:text-[1.15em]"
-              >
-                {kind === "online" ? (
-                  <>
-                    <LinkIcon /> Store
-                  </>
-                ) : kind === "donation" ? (
-                  <>
-                    <HeartIcon /> Display
-                  </>
-                ) : (
-                  <>
-                    <QrCodeIcon /> Register
-                  </>
-                )}
-              </Link>
-              <ResetDemo standId={stand.id} kind={kind} stickerDemo={Boolean(current.user.demo)} />
-            </Toolbar>
+            <div className="flex flex-wrap items-center gap-3">
+              <PalButton standId={stand.id} kind={kind} screen="recap" />
+              <Toolbar aria-label="Stand">
+                <Link
+                  href={standHome(kind)}
+                  transitionTypes={["nav-back"]}
+                  // Narrow phones: no icon, so both actions fit in a 320px screen's 280px column.
+                  className="pressable focus-ring inline-flex h-11 items-center gap-2 rounded-full px-5 text-callout max-[24rem]:[&_svg]:hidden font-semibold text-ink hover:bg-fill-2 [&_svg]:text-[1.15em]"
+                >
+                  {kind === "online" ? (
+                    <>
+                      <LinkIcon /> Store
+                    </>
+                  ) : kind === "donation" ? (
+                    <>
+                      <HeartIcon /> Display
+                    </>
+                  ) : (
+                    <>
+                      <QrCodeIcon /> Register
+                    </>
+                  )}
+                </Link>
+                <ResetDemo standId={stand.id} kind={kind} stickerDemo={Boolean(current.user.demo)} />
+              </Toolbar>
+            </div>
           </header>
           {/* Studio fills its parent, so the parent needs a definite height, not just a minimum. */}
           <div className="h-[max(33rem,calc(100dvh-12rem))] overflow-hidden rounded-card bg-surface shadow-card ring-[0.5px] ring-hairline">

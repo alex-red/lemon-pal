@@ -47,6 +47,25 @@ export function methodsOffered(storefront: Storefront): FulfillmentMethod[] {
   return [...(storefront.pickup ? (["pickup"] as const) : []), ...(storefront.shipping.enabled ? (["ship"] as const) : [])];
 }
 
+/**
+ * Why these store settings can't be saved with these items, or null. The store editor's route and Pal both check
+ * this. The handle is checked separately, with handleProblem.
+ */
+export function storeProblem(
+  storefront: Pick<Storefront, "open" | "pickup" | "shipping">,
+  items: CatalogItem[],
+): { field: string; message: string } | null {
+  const { shipping } = storefront;
+  if (shipping.enabled && shipping.countries.length === 0) return { field: "countries", message: "Add at least one country you ship to." };
+  if (storefront.open && !storefront.pickup && !shipping.enabled) {
+    return { field: "open", message: "Turn on pickup or shipping before taking orders." };
+  }
+  if (storefront.open && !items.some((item) => sellsOnline(item) && (storefront.pickup || (shipping.enabled && shipsOnline(item))))) {
+    return { field: "open", message: "Choose at least one item to sell online first." };
+  }
+  return null;
+}
+
 export type OnlineOrder = {
   lines: SaleLine[];
   subtotalCents: number;

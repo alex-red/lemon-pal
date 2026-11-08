@@ -55,6 +55,8 @@ type Props = {
   stickerDemo: boolean;
   /** The stand switcher, shown above the title. */
   switcher: ReactNode;
+  /** Opens Pal, the stand assistant. */
+  assistant?: ReactNode;
   origin: string;
   currency: string;
   /** Whether the stand has a confirmed catalog. Without one there's nothing to sell. */
@@ -83,7 +85,7 @@ type SaveState = { kind: "idle" | "saving" | "saved" } | { kind: "error"; messag
 
 const INTRO_MAX = 280;
 
-export function StoreEditor({ standId, stickerDemo, switcher, origin, currency, published, initial, saved, items: initialItems }: Props) {
+export function StoreEditor({ standId, stickerDemo, switcher, assistant, origin, currency, published, initial, saved, items: initialItems }: Props) {
   const [form, setForm] = useState<Form>(() => ({
     slug: initial.slug,
     title: initial.title,
@@ -241,17 +243,20 @@ export function StoreEditor({ standId, stickerDemo, switcher, origin, currency, 
             <SaveStatus state={save} />
           </div>
         </div>
-        <Toolbar aria-label="Store">
-          <Link href="/stand/setup" transitionTypes={["nav-back"]} className={toolbarLink}>
-            <ListIcon /> Items
-          </Link>
-          <Link href="/stand/orders" transitionTypes={["nav-forward"]} className={toolbarLink}>
-            <BoxIcon /> Orders
-          </Link>
-          <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
-            <ChartIcon /> Recap
-          </Link>
-        </Toolbar>
+        <div className="flex flex-wrap items-center gap-3">
+          {assistant}
+          <Toolbar aria-label="Store">
+            <Link href="/stand/setup" transitionTypes={["nav-back"]} className={toolbarLink}>
+              <ListIcon /> Items
+            </Link>
+            <Link href="/stand/orders" transitionTypes={["nav-forward"]} className={toolbarLink}>
+              <BoxIcon /> Orders
+            </Link>
+            <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
+              <ChartIcon /> Recap
+            </Link>
+          </Toolbar>
+        </div>
       </header>
 
       {!published ? (

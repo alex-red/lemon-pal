@@ -7,6 +7,7 @@ import { currentStand, homeOfCurrentStand } from "@/lib/session";
 import { switcherProps } from "@/lib/stands";
 import { store } from "@/lib/store";
 import { draftStorefront, withoutBanner } from "@/lib/storefront";
+import { PalButton } from "../pal/pal";
 import { StandSwitcher } from "../stand-switcher";
 import { StoreEditor } from "./store-editor";
 
@@ -28,10 +29,12 @@ export default async function StoreSettingsPage() {
   return (
     <PageTransition>
       <StoreEditor
-        key={stand.id}
+        // Reloads the editor after Pal changes the store or its items.
+        key={`${stand.id}:${saved?.updatedAt}:${stand.items.map((item) => item.id).join()}`}
         standId={stand.id}
         stickerDemo={Boolean(current.user.demo)}
         switcher={<StandSwitcher {...switcherProps(current)} />}
+        assistant={<PalButton standId={stand.id} kind="online" screen="store" />}
         origin={origin}
         currency={stand.currency}
         published={Boolean(stand.publishedAt)}

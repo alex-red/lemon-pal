@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { isValidDeal, MAX_DEAL_QUANTITY } from "@/lib/deals";
+import { ItemInputSchema, MAX_ITEMS, withCatalog } from "@/lib/catalog";
 import { isSampleId, resetStand, sampleStand } from "@/lib/demo";
 import { requestStand, standNotFound } from "@/lib/session";
-import { cleanEmoji } from "@/lib/emoji";
 import { kindOf } from "@/lib/stands";
 import { store } from "@/lib/store";
 
@@ -11,34 +10,7 @@ const PublishSchema = z.object({
   name: z.string().trim().max(40).optional(),
   // An inventory update to a published stand: it keeps its publish time, so the first-sale clock isn't restarted.
   update: z.boolean().optional(),
-  items: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(60),
-        // The seller confirms every price; nothing unreadable gets through.
-        priceCents: z.number().int().min(1).max(100_000),
-        emoji: z.string().max(16).optional().transform(cleanEmoji),
-        // Accept the setup screen's cropped photo or a bundled demo sticker on catalog edits.
-        image: z
-          .string()
-          .max(120_000)
-          .regex(/^(?:data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}|\/demo\/stickers\/[a-z0-9-]+\.webp)$/)
-          .optional(),
-        deal: z
-          .object({
-            quantity: z.number().int().min(2).max(MAX_DEAL_QUANTITY),
-            priceCents: z.number().int().min(1).max(100_000),
-          })
-          .optional(),
-        soldOut: z.boolean().optional(),
-      })
-      // A deal that saves nothing is a typo, not a deal.
-      .refine((item) => !item.deal || isValidDeal(item.priceCents, item.deal), {
-        message: "A deal has to cost less than buying the items one at a time.",
-      }),
-    )
-    .min(1)
-    .max(24),
+  items: z.array(ItemInputSchema).min(1).max(MAX_ITEMS),
 });
 
 // Publishes the seller's confirmed catalog. Existing sales keep their own line-item snapshots.
@@ -54,32 +26,7 @@ export async function POST(request: Request) {
   const current = await requestStand(request);
   if (!current) return standNotFound();
   if (kindOf(current) === "donation") return Response.json({ error: "A donation stand has no items." }, { status: 409 });
-  const stand = {
-    ...current,
-    name: parsed.data.name || current.name,
-    ...(parsed.data.update && current.publishedAt
-      ? {}
-      : {
-          publishedAt: new Date().toISOString(),
-          // The clock runs from the sign read that drafted this catalog. A blank form or an edit without one has none.
-          setupStartedAt: current.draftStartedAt ?? null,
-          draftStartedAt: null,
-        }),
-    items: parsed.data.items.map((item, i) => {
-      // Item ids change on every publish, so the store's online and shipping choices, and the category
-      // and finish the recap groups by, follow the item's name.
-      const before = current.items.find((old) => old.name.trim().toLowerCase() === item.name.toLowerCase());
-      return {
-        id: `item-${i + 1}-${Date.now().toString(36)}`,
-        ...item,
-        ...(item.soldOut ? { soldOut: true } : { soldOut: undefined }),
-        ...(before?.online !== undefined ? { online: before.online } : {}),
-        ...(before?.ships !== undefined ? { ships: before.ships } : {}),
-        ...(before?.category ? { category: before.category } : {}),
-        ...(before?.finish ? { finish: before.finish } : {}),
-      };
-    }),
-  };
+  const stand = withCatalog(current, parsed.data);
   await store.saveStand(stand);
   return Response.json(stand);
 }

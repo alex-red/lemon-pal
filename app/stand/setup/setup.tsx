@@ -281,6 +281,7 @@ export function Setup({
   standId,
   kind,
   switcher,
+  assistant,
   currency,
   standName,
   samples,
@@ -290,6 +291,8 @@ export function Setup({
   kind: StandKind;
   /** The stand switcher, shown above the title. */
   switcher: ReactNode;
+  /** Opens Pal, the stand assistant. */
+  assistant?: ReactNode;
   currency: string;
   standName: string;
   samples: SampleChoice[];
@@ -535,13 +538,16 @@ export function Setup({
           {switcher}
           <h1 className="font-display text-large-title font-semibold">{updating ? "Update your stand" : "Snap your price sign"}</h1>
         </div>
-        <Link
-          href={home}
-          transitionTypes={["nav-forward"]}
-          className="pressable focus-ring inline-flex h-11 items-center rounded-full px-4 text-callout font-semibold text-peel hover:bg-fill"
-        >
-          {kind === "online" ? "Store" : "Register"}
-        </Link>
+        <div className="flex items-center gap-2">
+          {assistant}
+          <Link
+            href={home}
+            transitionTypes={["nav-forward"]}
+            className="pressable focus-ring inline-flex h-11 items-center rounded-full px-4 text-callout font-semibold text-peel hover:bg-fill"
+          >
+            {kind === "online" ? "Store" : "Register"}
+          </Link>
+        </div>
       </header>
 
       <AIGlow active={reading && !pasting}>

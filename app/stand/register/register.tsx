@@ -48,14 +48,23 @@ type Props = {
   standId: string;
   /** The stand switcher, shown as the page title. */
   switcher: ReactNode;
+  /** Opens Pal, the stand assistant. */
+  assistant?: ReactNode;
   currency: string;
   items: CatalogItem[];
   /** Origin for the sale QR code, such as the dev machine's network address. null uses this page's origin. */
   payOrigin: string | null;
 };
 
-export function Register({ standId, currency, items, payOrigin, switcher }: Props) {
+export function Register({ standId, currency, items, payOrigin, switcher, assistant }: Props) {
   const [cart, setCart] = useState<Record<string, number>>({});
+  // Item ids change whenever the catalog is saved, such as when Pal marks something sold out mid-sale. Carry the cart
+  // over to the new ids by name, and drop anything that's gone or sold out.
+  const [cartItems, setCartItems] = useState(items);
+  if (cartItems !== items) {
+    setCartItems(items);
+    setCart((c) => carryCart(c, cartItems, items));
+  }
   const [sale, setSale] = useState<PublicSale | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [charging, setCharging] = useState(false);
@@ -229,27 +238,30 @@ export function Register({ standId, currency, items, payOrigin, switcher }: Prop
           </p>
           <h1>{switcher}</h1>
         </div>
-        <Toolbar aria-label="Stand">
-          <Link href="/stand/setup" transitionTypes={["nav-back"]} className={toolbarLink}>
-            <CameraIcon /> Sign
-          </Link>
-          <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
-            <ChartIcon /> Recap
-          </Link>
-          <Link
-            href="/stand/orders"
-            transitionTypes={["nav-forward"]}
-            className={toolbarLink}
-            aria-label={online.waiting ? `Online orders, ${online.waiting} waiting` : "Online orders"}
-          >
-            <BoxIcon /> Orders
-            {online.waiting ? (
-              <span aria-hidden className="-mr-1 grid h-6 min-w-6 place-items-center rounded-full bg-ink px-1.5 text-footnote font-bold tabular-nums text-on-ink">
-                {online.waiting}
-              </span>
-            ) : null}
-          </Link>
-        </Toolbar>
+        <div className="flex flex-wrap items-center gap-3">
+          {assistant}
+          <Toolbar aria-label="Stand">
+            <Link href="/stand/setup" transitionTypes={["nav-back"]} className={toolbarLink}>
+              <CameraIcon /> Sign
+            </Link>
+            <Link href="/stand/recap" transitionTypes={["nav-forward"]} className={toolbarLink}>
+              <ChartIcon /> Recap
+            </Link>
+            <Link
+              href="/stand/orders"
+              transitionTypes={["nav-forward"]}
+              className={toolbarLink}
+              aria-label={online.waiting ? `Online orders, ${online.waiting} waiting` : "Online orders"}
+            >
+              <BoxIcon /> Orders
+              {online.waiting ? (
+                <span aria-hidden className="-mr-1 grid h-6 min-w-6 place-items-center rounded-full bg-ink px-1.5 text-footnote font-bold tabular-nums text-on-ink">
+                  {online.waiting}
+                </span>
+              ) : null}
+            </Link>
+          </Toolbar>
+        </div>
       </header>
 
       {items.length === 0 ? (
@@ -344,6 +356,16 @@ export function Register({ standId, currency, items, payOrigin, switcher }: Prop
       </div>
     </main>
   );
+}
+
+function carryCart(cart: Record<string, number>, before: CatalogItem[], after: CatalogItem[]): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const [id, quantity] of Object.entries(cart)) {
+    const name = before.find((item) => item.id === id)?.name.trim().toLowerCase();
+    const item = name === undefined ? undefined : after.find((i) => i.name.trim().toLowerCase() === name);
+    if (item && !item.soldOut && quantity > 0) next[item.id] = quantity;
+  }
+  return next;
 }
 
 // Narrow phones: no icons and less padding, so three links fit a 320px screen's column.

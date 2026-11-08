@@ -19,6 +19,7 @@ import {
   PaidMoment,
   PalAppIcon,
   PalMascot,
+  type PalMood,
   Pill,
   PlusIcon,
   QrCodeIcon,
@@ -30,7 +31,7 @@ import {
   WalletIcon,
   XmarkIcon,
 } from "@/components/kit";
-import { ChoiceListDemo, ControlsDemo, DonationDemo, MotionDemo, QrDemo, RegisterDemo, RevealDemo } from "./demos";
+import { ChoiceListDemo, ControlsDemo, DonationDemo, MotionDemo, PalDemo, QrDemo, RegisterDemo, RevealDemo } from "./demos";
 
 export const metadata: Metadata = {
   title: "Citrus Glass · Lemon Pal design kit",
@@ -47,6 +48,7 @@ const sections = [
   { id: "commerce", label: "Commerce" },
   { id: "register", label: "Register pattern" },
   { id: "motion", label: "Motion" },
+  { id: "pal", label: "Pal" },
 ];
 
 const palAppearances = [
@@ -188,6 +190,15 @@ const typeRamp: Array<{ name: string; className: string; sample: string; spec: s
   { name: "Mono", className: "font-mono text-footnote text-ink-2", sample: "SALE 01JD-7Q3K · 2026-11-05 14:02", spec: "SF Mono 13" },
 ];
 
+const palMoods: { mood: PalMood; label: string }[] = [
+  { mood: "happy", label: "Happy" },
+  { mood: "idle", label: "Idle" },
+  { mood: "listening", label: "Listening" },
+  { mood: "thinking", label: "Thinking" },
+  { mood: "talking", label: "Talking" },
+  { mood: "oops", label: "Oops" },
+];
+
 export default function KitPage() {
   return (
     <div className="mx-auto flex w-full max-w-[90rem] flex-1 gap-8 px-4 py-6 sm:px-6 lg:py-8">
@@ -263,6 +274,21 @@ export default function KitPage() {
                 The full-color character for celebrations. It pops up on the Paid screen. It&rsquo;s decorative, so always put words next to it.
               </p>
             </div>
+          </Card>
+          <Card className="mt-6 p-5 sm:p-7">
+            <h3 className="font-display text-title2 font-semibold">Pal&rsquo;s moods</h3>
+            <p className="mt-1 text-subhead text-ink-2">
+              Pal is also the stand assistant. Its face says what it&rsquo;s doing, beside words that say it too. Under Reduce Motion it holds still, and
+              thinking breathes in place.
+            </p>
+            <ul className="mt-5 grid grid-cols-3 gap-x-4 gap-y-5 sm:grid-cols-6">
+              {palMoods.map(({ mood, label }) => (
+                <li key={mood} className="flex flex-col items-center gap-2 text-center">
+                  <PalMascot mood={mood} className="size-16 sm:size-20" />
+                  <span className="text-footnote font-semibold">{label}</span>
+                </li>
+              ))}
+            </ul>
           </Card>
         </Section>
 
@@ -602,6 +628,15 @@ export default function KitPage() {
           <div className="mt-6">
             <RevealDemo />
           </div>
+        </Section>
+
+        <Section
+          id="pal"
+          eyebrow="09 · Pal"
+          title="An assistant that shows its work"
+          lede="Pal, the stand assistant, opens from an Ask Pal button on every seller screen. What it changes lands at once on a card with Undo. What moves money or can't be taken back waits on a card for the seller's tap, and runs through the same route the screen's own button uses."
+        >
+          <PalDemo />
         </Section>
       </main>
     </div>
