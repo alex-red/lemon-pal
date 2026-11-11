@@ -23,8 +23,11 @@ export function authorizeUrl(state: string, redirectUri: string): string {
   return `${env.paypalWebBase()}/connect?${params}`;
 }
 
+/** What the token exchange gives back: the access token, and the OpenID id_token naming who signed in. */
+export type PayPalTokens = { accessToken: string; idToken?: string };
+
 /** Trades the code PayPal sent back for an access token. The code works once. */
-export async function exchangeCode(code: string, redirectUri: string): Promise<string> {
+export async function exchangeCode(code: string, redirectUri: string): Promise<PayPalTokens> {
   const basic = Buffer.from(`${env.paypalClientId()}:${env.paypalClientSecret()}`).toString("base64");
   const res = await fetch(`${env.paypalApiBase()}/v1/oauth2/token`, {
     method: "POST",
@@ -32,9 +35,9 @@ export async function exchangeCode(code: string, redirectUri: string): Promise<s
     body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri }),
     cache: "no-store",
   });
-  const json = (await res.json().catch(() => null)) as { access_token?: string } | null;
+  const json = (await res.json().catch(() => null)) as { access_token?: string; id_token?: string } | null;
   if (!res.ok || !json?.access_token) throw new PayPalError(res.status, res.headers.get("paypal-debug-id"), json);
-  return json.access_token;
+  return { accessToken: json.access_token, ...(json.id_token ? { idToken: json.id_token } : {}) };
 }
 
 /** The PayPal account behind a sign-in. `paypalId` never changes for an account, so it's what we know the seller by. */
@@ -57,7 +60,7 @@ type UserInfo = {
  * "Unable to fetch details" for an account it can't describe in its schema, where the OpenID path still works, so any
  * failure but an expired token moves on to the next path.
  */
-export async function userInfo(accessToken: string): Promise<PayPalIdentity> {
+export async function userInfo({ accessToken, idToken }: PayPalTokens): Promise<PayPalIdentity> {
   const paths = ["/v1/identity/oauth2/userinfo?schema=paypalv1.1", "/v1/identity/openidconnect/userinfo?schema=openid"];
   let info: UserInfo | null = null;
   let failure: PayPalError | null = null;
@@ -76,11 +79,34 @@ export async function userInfo(accessToken: string): Promise<PayPalIdentity> {
     });
     if (res.status === 401) break; // the token itself was refused, so the other path would refuse it too
   }
-  if (!info && failure) throw failure;
+  if (!info) {
+    // Neither userinfo path would describe the account. The id_token still names it, so sign in with that.
+    info = idTokenClaims(idToken);
+    if (!info) throw failure ?? new Error("PayPal didn't say who signed in");
+    console.warn("Log in with PayPal: userinfo failed, signed in from the id_token instead", failure?.message);
+  }
   // Prefer the payer id: it's the account's id in every PayPal API. user_id and sub are the OpenID subject.
   const paypalId = info?.payer_id || info?.user_id || info?.sub;
   if (!info || !paypalId) throw new Error("PayPal didn't say who signed in");
   const email = info.email || info.emails?.find((e) => e.primary)?.value || info.emails?.[0]?.value;
   const name = info.name?.trim() || [info.given_name, info.family_name].filter(Boolean).join(" ").trim() || email || "PayPal seller";
   return { paypalId, name, ...(email ? { email } : {}) };
+}
+
+/**
+ * The claims in the id_token from the token exchange. It came straight from PayPal's token endpoint over TLS, in
+ * answer to our own client secret, so OpenID Connect lets us read it without checking the signature. Still, only a
+ * token issued by PayPal for this app counts.
+ */
+function idTokenClaims(idToken: string | undefined): UserInfo | null {
+  const payload = idToken?.split(".")[1];
+  if (!payload) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as UserInfo & { iss?: string; aud?: string | string[] };
+    const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+    if (!claims.iss?.includes("paypal") || !audience.includes(env.paypalClientId())) return null;
+    return claims;
+  } catch {
+    return null;
+  }
 }
