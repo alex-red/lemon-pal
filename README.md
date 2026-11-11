@@ -10,6 +10,30 @@ Pal, a smiling lemon, rides along on every seller screen. Ask it in plain words,
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Everything runs in PayPal's Sandbox, so no real money moves.
 
+## How Lemon Pal meets the judging criteria
+
+- **Technological Implementation.** Six parts of the PayPal Developer Platform and three uses of Claude run in one flow, listed with their source files in the next section. The server prices every sale from the stored catalog, and a sale is marked paid only after PayPal's capture is checked for status, amount and currency. Every create, capture and refund sends a `PayPal-Request-Id`, so a retry can't charge or refund twice.
+- **Design.** Lemon Pal is a whole product for the seller and the buyer: setup, a tablet register, phone checkout, receipts, refunds, an online store with shipping, and a donation page. It's built on its own design kit (live at `/kit`), with light and dark modes, 320px phones to desktop, and status always shown with color, an icon and a word.
+- **Potential Impact.** It's for people who sell a few days a year: a convention artist, a bake sale, a school fundraiser. They already have a handwritten price sign and a phone. Lemon Pal removes typing a catalog into a point-of-sale app and buying a card reader, and it tells the seller when one specific order is paid, which a plain payment link doesn't.
+- **Innovation/Idea.** The paper sign is the setup, and a new photo of it later updates the stand. Pal then runs the stand from plain words, typed or spoken. Each change lands with an Undo button. Anything that moves money comes back as a card, and PayPal is called only when the seller taps confirm.
+- **Presentation.** The demo video follows one sale from a cardboard sign to a PayPal capture to the Sales desk. The steps under [Try the demo](#try-the-demo) repeat it on the hosted build.
+
+## Where PayPal and AI are used
+
+| Integration | What it does | Where |
+| --- | --- | --- |
+| PayPal JavaScript SDK v6 | PayPal Checkout buttons on the buyer's phone | [`app/pay/[saleId]/checkout.tsx`](app/pay/[saleId]/checkout.tsx) |
+| PayPal Orders v2: create and capture | The server creates and captures each order, with an itemized breakdown and shipping | `createOrder`, `captureOrder` in [`lib/paypal.ts`](lib/paypal.ts) |
+| Capture verification | Status, amount and currency are checked before the register shows **Paid** | `verifyCapture` in [`lib/paypal.ts`](lib/paypal.ts) |
+| PayPal refunds | A seller refunds a receipt from the Sales desk or an order | `refundCapture`, `verifyRefund` in [`lib/paypal.ts`](lib/paypal.ts) |
+| PayPal shipment tracking | A shipped order's tracking number goes to PayPal | `addTracking` in [`lib/paypal.ts`](lib/paypal.ts) |
+| Log in with PayPal | Sellers sign in with their PayPal account (behind `PAYPAL_LOGIN=on`) | [`lib/paypal-login.ts`](lib/paypal-login.ts) |
+| PayPal MCP server | Booth Analyst reads a receipt's capture, fee and net from PayPal (behind `PAYPAL_MCP_RECEIPT_CHECK`) | [`lib/paypal-mcp.ts`](lib/paypal-mcp.ts) |
+| Claude Haiku 5.5: vision and structured outputs | Reads a sign photo into a draft catalog with prices and deals, and leaves an unclear price empty | [`lib/sign-reader.ts`](lib/sign-reader.ts) |
+| Claude Haiku 5.5: agent with a server-side tool loop | Pal changes the stand with Undo, and proposes refunds and shipping for the seller to confirm | [`lib/pal.ts`](lib/pal.ts) |
+| Claude Haiku 5.5 in AG Studio's Agent Framework | Booth Analyst adds charts to the Sales desk through a custom Claude adapter | [`lib/studio-llm.ts`](lib/studio-llm.ts), [`app/stand/recap/claude-adapter.ts`](app/stand/recap/claude-adapter.ts) |
+| AG Studio and AG Grid | The Sales desk: custom widgets, live updates, item filtering and our own theme | [`app/stand/recap/`](app/stand/recap) |
+
 ## What a seller can do
 
 | | Route | What happens |
