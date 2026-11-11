@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { forgetPalChat, latestPalChat, PalBusyError, PalChatFullError, runPalTurn } from "@/lib/pal";
+import { aiUnlocked } from "@/lib/ai-access";
+import { isPalPreset, UNLOCK_HINT } from "@/lib/ai-preview";
+import { forgetPalChat, latestPalChat, PalBusyError, PalChatFullError, runPalTurn, runPresetTurn } from "@/lib/pal";
 import { PAL_SCREENS, type PalEvent } from "@/lib/pal-events";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { kindOf } from "@/lib/stands";
@@ -23,6 +25,8 @@ const MessageSchema = z.object({
     .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/)
     .optional(),
   screen: z.enum(PAL_SCREENS).catch("other"),
+  /** Which suggested request this is, for simulated AI. Ignored with real AI, which reads the message itself. */
+  preset: z.string().max(40).optional(),
   /** Whether the screen is big enough for Booth Analyst, the recap's charting assistant. */
   analyst: z.boolean().catch(true),
   timeZone: z
@@ -68,12 +72,14 @@ export async function POST(request: Request) {
   const [user, stand] = await Promise.all([currentUser(), requestStand(request)]);
   if (!stand) return standNotFound();
   if (!allow(user.id)) return Response.json({ error: "Pal needs a breather. Try again in a while." }, { status: 429 });
+  const live = await aiUnlocked();
   if (parsed.data.photo) {
+    if (!live) return Response.json({ error: `Reading a sign photo uses real AI. ${UNLOCK_HINT}`, locked: true }, { status: 403 });
     if (kindOf(stand) === "donation") return Response.json({ error: "A donation stand has no items to read from a sign." }, { status: 400 });
     if (!allowPhoto(user.id)) return Response.json({ error: "Too many sign photos this hour. Try again later." }, { status: 429 });
   }
 
-  const { chatId, message, screen, analyst, timeZone, photo } = parsed.data;
+  const { chatId, message, screen, analyst, timeZone, photo, preset } = parsed.data;
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -86,7 +92,13 @@ export async function POST(request: Request) {
       };
       try {
         // Not the request's signal: a change Pal starts should finish and be remembered even if the seller looks away.
-        await runPalTurn({ chatId, user, stand, screen, analyst, timeZone, text: message, photo: photo?.slice(JPEG.length), emit, signal: AbortSignal.timeout(90_000) });
+        if (live) {
+          await runPalTurn({ chatId, user, stand, screen, analyst, timeZone, text: message, photo: photo?.slice(JPEG.length), emit, signal: AbortSignal.timeout(90_000) });
+        } else {
+          // No seller passcode: a suggested request runs on simulated AI, and Claude is never called.
+          const chosen = isPalPreset(preset) ? preset : null;
+          await runPresetTurn({ chatId, user, stand, screen, analyst, timeZone, text: message, preset: chosen, emit });
+        }
       } catch (error) {
         if (error instanceof PalBusyError) emit({ type: "error", message: "Pal is still answering your last message." });
         else if (error instanceof PalChatFullError) emit({ type: "error", message: "This chat has grown long. Start a new chat to keep going." });

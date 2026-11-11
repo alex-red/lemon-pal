@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  AiModePill,
   Button,
   Card,
   ChevronRightIcon,
@@ -9,39 +10,43 @@ import {
   GroupedList,
   LemonIcon,
   ListRow,
-  Pill,
   SparklesIcon,
   TextField,
   WalletIcon,
 } from "@/components/kit";
+import { PASSCODE_NAME } from "@/lib/ai-preview";
 import { forgetDemoAccount, saveDemoAccount, savedDemoAccounts, type SavedDemoAccount } from "../demo-accounts";
 
 /**
- * How a seller gets in. Log in with PayPal gives them their own stands. A demo account, behind the passcode, is for
- * judges and trying things out: each person makes their own, loaded with a sticker shop, and this browser keeps it so
- * they can come back to it.
+ * How a seller gets in. Log in with PayPal gives them their own stands. A demo account is for judges and trying things
+ * out: anyone can make one, loaded with a sticker shop, and this browser keeps it so they can come back to it. It runs
+ * on simulated AI until this browser enters the seller passcode, which unlocks real AI.
  */
 export function Unlock({
   next,
-  demo,
-  passcodeRemembered,
+  realAi,
+  aiUnlocked,
+  cameForAi,
   paypalLogin,
   error: arrivedWith,
 }: {
   next: string;
   /** "open" in development without a passcode, "passcode" when one is set, "off" when the server has none. */
-  demo: "open" | "passcode" | "off";
-  /** This browser already gave the passcode, so making another demo account doesn't ask again. */
-  passcodeRemembered: boolean;
+  realAi: "open" | "passcode" | "off";
+  /** This browser already gave the passcode, so it has real AI. */
+  aiUnlocked: boolean;
+  /** Sent here from a locked AI feature, so unlocking goes straight back to it. */
+  cameForAi: boolean;
   paypalLogin: boolean;
   /** Why the seller is back here, such as a canceled PayPal sign-in. */
   error: string | null;
 }) {
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedDemoAccount[]>([]);
-  const askPasscode = demo === "passcode" && !passcodeRemembered;
+  const [live, setLive] = useState(aiUnlocked);
 
   // localStorage only exists in the browser, so the saved accounts appear once the page is running there.
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -54,7 +59,7 @@ export function Unlock({
     const res = await fetch("/api/unlock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passcode: askPasscode ? passcode : undefined, tzOffsetMinutes: new Date().getTimezoneOffset() }),
+      body: JSON.stringify({ tzOffsetMinutes: new Date().getTimezoneOffset() }),
     }).catch(() => null);
     const json = (await res?.json().catch(() => null)) as { account?: SavedDemoAccount; error?: string } | null;
     if (res?.ok && json?.account) {
@@ -63,6 +68,23 @@ export function Unlock({
     }
     setBusy(null);
     setError(json?.error ?? "Couldn’t make a demo account. Try again.");
+  }
+
+  async function unlockAi(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy("ai");
+    setAiError(null);
+    const res = await fetch("/api/unlock/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passcode }),
+    }).catch(() => null);
+    const json = (await res?.json().catch(() => null)) as { error?: string } | null;
+    setBusy(null);
+    if (!res?.ok) return setAiError(json?.error ?? "Couldn’t check the passcode. Try again.");
+    setPasscode("");
+    setLive(true);
+    if (cameForAi) enter(next);
   }
 
   async function resume(account: SavedDemoAccount) {
@@ -82,6 +104,59 @@ export function Unlock({
     setBusy(null);
     setError(json?.error ?? "Couldn’t open that demo account. Try again.");
   }
+
+  // Real AI: the passcode form, or that this browser has it.
+  const aiCard = (
+    <Card className="flex flex-col gap-5 p-6">
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-headline font-semibold">Real AI for judges</h2>
+          <AiModePill live={live} />
+        </div>
+        {live ? (
+          <p className="text-subhead text-ink-2">
+            {realAi === "open"
+              ? "This development server has no passcode, so every demo account uses real AI."
+              : "This browser entered the seller passcode. Claude reads any sign or list, Pal answers anything you type or say, and Booth Analyst builds charts."}
+          </p>
+        ) : realAi === "off" ? (
+          <p className="text-subhead text-ink-2">
+            Real AI is off on this server. Set <code className="font-mono text-footnote">{PASSCODE_NAME}</code> to turn it on.
+          </p>
+        ) : (
+          <p className="text-subhead text-ink-2">
+            Enter the seller passcode (<code className="font-mono text-footnote">{PASSCODE_NAME}</code>) from the
+            submission to use Claude: it reads your own sign photos and lists, Pal answers anything you type or say,
+            and Booth Analyst builds charts. Without it, the AI is simulated: you pick from demo signs and Pal&rsquo;s
+            suggested requests, and Booth Analyst is off. PayPal works either way.
+          </p>
+        )}
+      </div>
+      {live || realAi !== "passcode" ? null : (
+        <form onSubmit={unlockAi} className="flex flex-col gap-5">
+          <TextField
+            label="Seller passcode"
+            type="password"
+            autoComplete="current-password"
+            autoFocus={cameForAi}
+            value={passcode}
+            onChange={(event) => setPasscode(event.target.value)}
+            error={aiError ?? undefined}
+          />
+          <Button
+            type="submit"
+            variant={cameForAi ? "filled" : "tinted"}
+            size="lg"
+            icon={<SparklesIcon />}
+            loading={busy === "ai"}
+            disabled={Boolean(busy) || !passcode}
+          >
+            Unlock real AI
+          </Button>
+        </form>
+      )}
+    </Card>
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center-safe gap-8 px-5 py-12">
@@ -111,74 +186,59 @@ export function Unlock({
           <p className="text-center text-footnote text-ink-2">
             You get your own stands, ready to set up. In this demo, payments still go to Lemon Pal&rsquo;s PayPal Sandbox
             account.
+            {live || realAi !== "passcode"
+              ? null
+              : " Its AI is simulated until this browser enters the seller passcode on this page, before or after you log in."}
           </p>
         </Card>
       ) : null}
 
-      {demo === "off" ? (
-        paypalLogin ? null : (
-          <div role="alert" className="flex flex-col items-center gap-3 text-center">
-            <Pill tone="berry" icon={<ExclamationIcon />}>
-              Not set up
-            </Pill>
-            <p className="text-body text-ink-2">
-              Set <code className="font-mono text-footnote">SELLER_PASSCODE</code> on the server, then reload this page.
-            </p>
-          </div>
-        )
-      ) : (
-        <Card className="flex flex-col gap-5 p-6">
-          <div>
-            <h2 className="text-headline font-semibold">{paypalLogin ? "Or try a demo account" : "Try a demo account"}</h2>
-            <p className="mt-1 text-subhead text-ink-2">
-              Your own stand at events and online store, filled with a month of sticker shop sales. It stays on this
-              browser for 30 days after you last use it.
-            </p>
-          </div>
-          {saved.length > 0 ? (
-            <GroupedList header="On this browser">
-              {saved.map((account) => (
-                <ListRow
-                  key={account.id}
-                  icon={<SparklesIcon />}
-                  iconTone="lemon"
-                  title={account.name}
-                  subtitle={busy === account.id ? "Opening…" : `Made ${new Date(account.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
-                  trailing={<ChevronRightIcon className="text-ink-3" />}
-                  onClick={() => !busy && resume(account)}
-                />
-              ))}
-            </GroupedList>
-          ) : null}
-          <form onSubmit={createDemo} className="flex flex-col gap-5">
-            {askPasscode ? (
-              <TextField
-                label="Passcode"
-                type="password"
-                autoComplete="current-password"
-                autoFocus={!paypalLogin && saved.length === 0}
-                value={passcode}
-                onChange={(event) => setPasscode(event.target.value)}
-                error={error ?? undefined}
+      {cameForAi && !live ? aiCard : null}
+
+      <Card className="flex flex-col gap-5 p-6">
+        <div>
+          <h2 className="text-headline font-semibold">{paypalLogin ? "Or try a demo account" : "Try a demo account"}</h2>
+          <p className="mt-1 text-subhead text-ink-2">
+            Your own stand at events, online store and donation jar, filled with a month of sticker shop sales. It stays
+            on this browser for 30 days after you last use it.
+            {live ? null : " Its AI is simulated until you enter the seller passcode below."}
+          </p>
+        </div>
+        {saved.length > 0 ? (
+          <GroupedList header="On this browser">
+            {saved.map((account) => (
+              <ListRow
+                key={account.id}
+                icon={<SparklesIcon />}
+                iconTone="lemon"
+                title={account.name}
+                subtitle={busy === account.id ? "Opening…" : `Made ${new Date(account.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+                trailing={<ChevronRightIcon className="text-ink-3" />}
+                onClick={() => !busy && resume(account)}
               />
-            ) : error ? (
-              <p role="alert" className="text-footnote font-semibold text-berry">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              type="submit"
-              variant={paypalLogin || saved.length > 0 ? "tinted" : "filled"}
-              size="lg"
-              icon={<SparklesIcon />}
-              loading={busy === "new"}
-              disabled={Boolean(busy) || (askPasscode && !passcode)}
-            >
-              {busy === "new" ? "Filling your shop…" : "Create new demo account"}
-            </Button>
-          </form>
-        </Card>
-      )}
+            ))}
+          </GroupedList>
+        ) : null}
+        <form onSubmit={createDemo} className="flex flex-col gap-5">
+          {error ? (
+            <p role="alert" className="text-footnote font-semibold text-berry">
+              {error}
+            </p>
+          ) : null}
+          <Button
+            type="submit"
+            variant={paypalLogin || saved.length > 0 || cameForAi ? "tinted" : "filled"}
+            size="lg"
+            icon={<SparklesIcon />}
+            loading={busy === "new"}
+            disabled={Boolean(busy)}
+          >
+            {busy === "new" ? "Filling your shop…" : "Create new demo account"}
+          </Button>
+        </form>
+      </Card>
+
+      {cameForAi && !live ? null : aiCard}
     </main>
   );
 }

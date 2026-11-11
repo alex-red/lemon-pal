@@ -7,6 +7,7 @@ import {
   Card,
   ChartIcon,
   CheckIcon,
+  AiModePill,
   ConfidencePill,
   FirstSalePill,
   CountBadge,
@@ -512,6 +513,8 @@ export default function KitPage() {
                 <ConfidencePill confidence="high" />
                 <ConfidencePill confidence="low" />
                 <FirstSalePill seconds={52} />
+                <AiModePill live />
+                <AiModePill live={false} />
                 <Pill tone="lemon" icon={<SparklesIcon />}>
                   New
                 </Pill>

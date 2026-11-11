@@ -41,7 +41,7 @@ export const isThinking = () => thinking;
 export const claudeAdapter: AgLlmAdapter = {
   executeTurn(request, options) {
     turnStarted();
-    const complete: Promise<AgLlmResponse> = fetch("/api/studio/llm", {
+    const complete: Promise<AgLlmResponse> = fetch("/api/stand/studio/llm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),

@@ -47,6 +47,18 @@ export function Pill({
   );
 }
 
+/**
+ * Whether the AI on screen is real Claude or simulated, which a demo account without the seller passcode gets. Shown
+ * wherever the difference changes what a judge sees: sign-in, setup, Pal and the recap.
+ */
+export function AiModePill({ live, size, className }: { live: boolean; size?: keyof typeof sizes; className?: string }) {
+  return (
+    <Pill tone={live ? "leaf" : "neutral"} size={size} icon={live ? <SparklesIcon /> : <ExclamationIcon />} className={className}>
+      {live ? "Real AI" : "Simulated AI"}
+    </Pill>
+  );
+}
+
 const saleStatus: Record<SaleStatus, { tone: Tone; icon: ReactNode; label: string }> = {
   open: { tone: "pool", icon: <ClockIcon />, label: "Waiting to pay" },
   paid: { tone: "leaf", icon: <CheckIcon strokeWidth={2.25} />, label: "Paid" },

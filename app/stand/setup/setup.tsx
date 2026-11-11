@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  AiModePill,
   AIGlow,
   Button,
   CameraIcon,
@@ -32,6 +33,7 @@ import {
   useReveal,
   XmarkIcon,
 } from "@/components/kit";
+import { PASSCODE_NAME, unlockHref, type PreviewSign } from "@/lib/ai-preview";
 import { dealLabel, isValidDeal, MAX_DEAL_QUANTITY, type Deal } from "@/lib/deals";
 import { cleanEmoji } from "@/lib/emoji";
 import { standApi, standHome } from "@/lib/stands";
@@ -271,6 +273,7 @@ export function Setup({
   standName,
   samples,
   catalog,
+  aiLive,
 }: {
   standId: string;
   kind: StandKind;
@@ -283,6 +286,8 @@ export function Setup({
   samples: SampleChoice[];
   /** The published items. When there are some, the screen opens on them for an update instead of a fresh setup. */
   catalog: CatalogItem[];
+  /** Real AI. Without the seller passcode, only the demo photos and the restock note read, on simulated AI. */
+  aiLive: boolean;
 }) {
   const home = standHome(kind);
   const router = useRouter();
@@ -394,13 +399,15 @@ export function Setup({
     }
   }
 
-  async function onPhoto(photo: Blob | undefined) {
+  /** `sample` names a bundled demo photo, which reads on simulated AI too. */
+  async function onPhoto(photo: Blob | undefined, sample?: PreviewSign) {
     if (!photo) return;
     setCamera(false);
     setPasting(false);
     setPreview(URL.createObjectURL(photo));
     const form = new FormData();
     form.append("photo", await shrinkPhoto(photo), "sign.jpg");
+    if (sample) form.append("sample", sample);
     await read("photo", form, photo);
   }
 
@@ -412,15 +419,16 @@ export function Setup({
     const photo = await fetch(demo.src)
       .then((res) => (res.ok ? res.blob() : undefined))
       .catch(() => undefined);
-    if (photo) return onPhoto(photo);
+    if (photo) return onPhoto(photo, demo.id);
     setBusy(null);
     setError("Couldn't load the demo photo. Try again.");
   }
 
-  async function readList(text = list) {
+  async function readList(text = list, sample?: PreviewSign) {
     setPreview(null);
     const form = new FormData();
     form.append("text", text);
+    if (sample) form.append("sample", sample);
     await read("list", form);
   }
 
@@ -429,7 +437,7 @@ export function Setup({
     const note = restockNote(catalog, symbol);
     setList(note);
     setPasting(true);
-    await readList(note);
+    await readList(note, "restock");
   }
 
   /** Leaves the published items behind and sets the stand up from scratch. Nothing changes until publishing. */
@@ -539,7 +547,7 @@ export function Setup({
         <Card className="overflow-hidden">
           <button
             type="button"
-            disabled={busy !== null}
+            disabled={busy !== null || !aiLive}
             onClick={openCamera}
             className="pressable flex w-full flex-col items-center gap-3 p-8 text-center outline-none focus-visible:shadow-[inset_0_0_0_3px_var(--focus)] disabled:pointer-events-none"
           >
@@ -564,7 +572,7 @@ export function Setup({
             </span>
           </button>
           <div className="flex flex-wrap justify-center gap-2 border-t border-hairline p-4">
-            <Button variant="tinted" icon={<PhotoIcon />} disabled={busy !== null} onClick={() => libraryInput.current?.click()}>
+            <Button variant="tinted" icon={<PhotoIcon />} disabled={busy !== null || !aiLive} onClick={() => libraryInput.current?.click()}>
               Choose a photo
             </Button>
             <Button
@@ -572,7 +580,7 @@ export function Setup({
               icon={<ListIcon />}
               aria-expanded={pasting}
               aria-controls="paste-list"
-              disabled={busy !== null}
+              disabled={busy !== null || !aiLive}
               onClick={() => setPasting((open) => !open)}
             >
               Paste a list
@@ -583,6 +591,18 @@ export function Setup({
               </Button>
             )}
           </div>
+          {aiLive ? null : (
+            <div className="flex flex-col items-center gap-2 border-t border-hairline p-4 text-center">
+              <AiModePill live={false} />
+              <p className="text-footnote text-ink-2 text-balance">
+                Reading your own sign or list uses real AI. Try a demo below, or{" "}
+                <Link href={unlockHref("/stand/setup")} className="font-semibold text-peel underline-offset-2 hover:underline">
+                  enter the seller passcode ({PASSCODE_NAME})
+                </Link>{" "}
+                to unlock it.
+              </p>
+            </div>
+          )}
           {/* The library picker has no capture hint, so phones offer saved photos. The other opens the camera app. */}
           <input
             ref={libraryInput}
@@ -959,7 +979,7 @@ export function Setup({
 
           <section aria-labelledby="demo-heading" className="flex flex-col items-center gap-3 text-center">
             <h2 id="demo-heading" className="text-subhead text-ink-2">
-              Demo: watch Lemon Pal read a real stand.
+              {aiLive ? "Demo: watch Lemon Pal read a real stand." : "Demo: pick a stand to watch Lemon Pal read it (simulated AI)."}
             </h2>
             <div className="flex flex-wrap justify-center gap-2">
               {DEMO_PHOTOS.map((demo) => (

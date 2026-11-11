@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { HeartIcon, LinkIcon, PageTransition, QrCodeIcon, Toolbar } from "@/components/kit";
+import { AiModePill, HeartIcon, LinkIcon, PageTransition, QrCodeIcon, Toolbar } from "@/components/kit";
+import { aiUnlocked } from "@/lib/ai-access";
+import { PASSCODE_NAME, unlockHref } from "@/lib/ai-preview";
 import { env } from "@/lib/env";
 import { currentStand } from "@/lib/session";
 import { kindOf, standHome, switcherProps } from "@/lib/stands";
@@ -15,6 +17,7 @@ export default async function RecapPage() {
   const current = (await currentStand())!;
   const { stand } = current;
   const kind = kindOf(stand);
+  const aiLive = await aiUnlocked();
   return (
     <PageTransition>
       <FirstSaleProvider>
@@ -27,6 +30,18 @@ export default async function RecapPage() {
                 <FirstSaleBadge />
               </div>
               <p className="mt-1 text-subhead text-ink-2">See what sold and find the payments behind it.</p>
+              {aiLive ? null : (
+                <p className="mt-2 flex flex-wrap items-center gap-2 text-footnote text-ink-2">
+                  <AiModePill live={false} />
+                  <span>
+                    Booth Analyst is off.{" "}
+                    <Link href={unlockHref("/stand/recap")} className="font-semibold text-peel underline-offset-2 hover:underline">
+                      Enter the seller passcode ({PASSCODE_NAME})
+                    </Link>{" "}
+                    to build charts with Claude.
+                  </span>
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <PalButton standId={stand.id} kind={kind} screen="recap" />

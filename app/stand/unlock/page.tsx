@@ -15,15 +15,16 @@ const ERRORS: Record<string, string> = {
   deleted: "That account and its stands are deleted.",
 };
 
-export default async function UnlockPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
+export default async function UnlockPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; ai?: string }> }) {
   await connection(); // read env at request time, not build time
-  const { next, error } = await searchParams;
+  const { next, error, ai } = await searchParams;
   return (
     <PageTransition>
       <Unlock
         next={safeNextPath(next)}
-        demo={sellerGateOpen() ? "open" : sellerPasscode() ? "passcode" : "off"}
-        passcodeRemembered={await isSellerToken((await cookies()).get(SELLER_COOKIE)?.value)}
+        realAi={sellerGateOpen() ? "open" : sellerPasscode() ? "passcode" : "off"}
+        aiUnlocked={await isSellerToken((await cookies()).get(SELLER_COOKIE)?.value)}
+        cameForAi={ai === "1"}
         paypalLogin={env.paypalLogin()}
         error={error ? (ERRORS[error] ?? null) : null}
       />

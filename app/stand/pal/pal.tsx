@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
   startTransition,
@@ -15,6 +16,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  AiModePill,
   AIGlow,
   ArrowUpIcon,
   Button,
@@ -42,6 +44,7 @@ import {
   type PalScreen,
   type PalTranscript,
 } from "@/lib/pal-events";
+import { PASSCODE_NAME, presetsFor, unlockHref, type PalPreset } from "@/lib/ai-preview";
 import { standApi } from "@/lib/stands";
 import type { StandKind } from "@/lib/types";
 import { shrinkPhoto } from "../shrink-photo";
@@ -150,8 +153,9 @@ function runAction(action: PalAction) {
  * Pal, the stand assistant, for every seller screen. It lives in the /stand layout so a chat carries on across
  * screens. Pages say which stand and screen they show by rendering a PalButton, which also opens the chat.
  */
-export function PalProvider({ children }: { children: ReactNode }) {
+export function PalProvider({ children, aiLive }: { children: ReactNode; aiLive: boolean }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [open, setOpen] = useState(false);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
@@ -266,7 +270,8 @@ export function PalProvider({ children }: { children: ReactNode }) {
     startTransition(() => router.refresh());
   }, [router]);
 
-  async function send(text: string, sign: { url: string; blob: Blob } | null = null) {
+  /** `preset` names a suggested request, which is all Pal answers on simulated AI. */
+  async function send(text: string, sign: { url: string; blob: Blob } | null = null, preset?: PalPreset) {
     // A photo on its own asks Pal to bring the items in line with the sign.
     const message = text.trim() || (sign ? "Update my items from this sign." : "");
     if (!anchor || busy || !message) return;
@@ -331,6 +336,7 @@ export function PalProvider({ children }: { children: ReactNode }) {
           chatId: chatId.current,
           message,
           photo: photoData,
+          preset,
           screen: anchor.screen,
           analyst: !window.matchMedia(PHONE_QUERY).matches,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -443,7 +449,7 @@ export function PalProvider({ children }: { children: ReactNode }) {
   }
 
   const liveMood: PalMood = busy ? mood : listening || (typing && draft) ? "listening" : mood;
-  const canAttach = anchor !== null && anchor.kind !== "donation";
+  const canAttach = aiLive && anchor !== null && anchor.kind !== "donation";
 
   return (
     <PalContext value={{ setAnchor, open: () => setOpen(true), mood: liveMood }}>
@@ -454,7 +460,9 @@ export function PalProvider({ children }: { children: ReactNode }) {
             {bubbles.length === 0 ? (
               <div className="flex items-center gap-4">
                 <PalMascot mood={liveMood} className="size-20 shrink-0 drop-shadow-md" />
-                <p className="text-body text-ink-2">Hi, I&rsquo;m Pal. {anchor ? INTRO[anchor.kind] : null}</p>
+                <p className="text-body text-ink-2">
+                  Hi, I&rsquo;m Pal. {aiLive ? (anchor ? INTRO[anchor.kind] : null) : "This demo account runs me on simulated AI, so pick a request below and I’ll do it for real on your stand."}
+                </p>
               </div>
             ) : (
               bubbles.map((bubble, i) =>
@@ -488,7 +496,16 @@ export function PalProvider({ children }: { children: ReactNode }) {
             )}
           </div>
 
-          {bubbles.length === 0 && anchor ? (
+          {/* On simulated AI, the suggested requests are the only way to ask, so they stay. */}
+          {!aiLive && anchor ? (
+            <div className="flex flex-wrap gap-2">
+              {presetsFor(anchor.kind).map((preset) => (
+                <Button key={preset.id} variant="tinted" disabled={busy} onClick={() => void send(preset.label, null, preset.id)}>
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+          ) : bubbles.length === 0 && anchor ? (
             <div className="flex flex-wrap gap-2">
               {starters(anchor).map((starter) => (
                 <Button key={starter} variant="tinted" onClick={() => void send(starter)}>
@@ -498,6 +515,25 @@ export function PalProvider({ children }: { children: ReactNode }) {
             </div>
           ) : null}
 
+          {aiLive ? null : (
+            <div className="flex items-start gap-2">
+              <AiModePill live={false} />
+              <p className="flex-1 text-footnote text-ink-2">
+                To ask Pal anything, typed or out loud, or send it a sign photo,{" "}
+                <Link href={unlockHref(pathname)} className="font-semibold text-peel underline-offset-2 hover:underline">
+                  enter the seller passcode ({PASSCODE_NAME})
+                </Link>
+                .
+              </p>
+              {bubbles.length > 0 ? (
+                <Button variant="plain" size="sm" disabled={busy} onClick={newChat}>
+                  New chat
+                </Button>
+              ) : null}
+            </div>
+          )}
+
+          {aiLive ? (
           <form onSubmit={submit} className="flex flex-col gap-2">
             {photo ? (
               <div className="flex items-center gap-3 self-start rounded-[18px] bg-fill p-1.5 pr-1">
@@ -581,6 +617,7 @@ export function PalProvider({ children }: { children: ReactNode }) {
               </div>
             ) : null}
           </form>
+          ) : null}
         </div>
       </Sheet>
     </PalContext>

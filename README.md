@@ -53,7 +53,8 @@ One seller can run several stands (at events, online, or donations) and switch b
 
 **Hosted demo:** _link added after the Render deploy_. You need two screens: a tablet or laptop for the seller and a phone for the buyer.
 
-1. Open the demo on the seller screen. On the sign-in page, choose **Try a demo account**, enter the passcode given in the Devpost entry's testing instructions, and press **Create new demo account**. Sellers with a PayPal account can choose **Log in with PayPal** instead.
+1. Open the demo on the seller screen. On the sign-in page, press **Create new demo account**. Then, under **Real AI for judges**, enter the seller passcode from the Devpost entry's testing instructions and press **Unlock real AI**. Sellers with a PayPal account can choose **Log in with PayPal** instead. The passcode unlocks real AI for them the same way, before or after they log in.
+   - Without the passcode, the demo account runs on **simulated AI**, so the Anthropic key only serves judges. The setup screen reads only its demo photos, from fixed answers. Pal runs only its suggested requests, through the same tools, Undo cards and confirm cards. Booth Analyst is off. PayPal works the same either way, and every locked place links back to the passcode.
 2. Your demo account is your own. It starts with a sticker shop (a stand at events and an online store, each with a month of made-up sales) and a fundraiser for an animal rescue. The browser remembers it for 30 days under **On this browser**.
 3. To try sign reading, open the stand switcher, add a stand at events, and photograph a price sign or pick one of the sample sign photos. Check the draft, fill in anything flagged, and open the register.
 4. On the register, tap a few items and press **Charge**. Scan the QR code with the phone's camera, check the items and total, and pay with PayPal using the Sandbox buyer below.

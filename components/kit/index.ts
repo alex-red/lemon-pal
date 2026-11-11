@@ -20,5 +20,5 @@ export { ScrollEdge, useScrollCompact } from "./scroll-edge";
 export { Sheet } from "./sheet";
 export { Spinner } from "./spinner";
 export { AddressBlock, addressText, FulfillmentPill, StorefrontHeader } from "./storefront";
-export { ConfidencePill, CountBadge, FirstSalePill, formatStopwatch, Pill, SaleStatusPill } from "./status";
+export { AiModePill, ConfidencePill, CountBadge, FirstSalePill, formatStopwatch, Pill, SaleStatusPill } from "./status";
 export { Card, Glass, Toolbar } from "./surface";

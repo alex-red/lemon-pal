@@ -50,11 +50,17 @@ The same values sit in `.env.local` as `PAYPAL_SANDBOX_USER_EMAIL` and `PAYPAL_S
 6. On the register, tap the camera in Pal's chat, pick a sign photo and send it. Pal reads it, applies the changes on one card, and names any line it couldn't read.
 7. On a tablet, send "Chart sales by hour" from any screen. The Sales desk opens with the question typed into Booth Analyst. On a phone, Pal says charts need a bigger screen.
 
-### Seller passcode
+### Seller passcode and simulated AI
 1. Set `SELLER_PASSCODE` in `.env.local` and restart the dev server.
 2. Open `/stand/register` in a private window. It sends you to `/stand/unlock`.
-3. A wrong passcode is refused. The right one makes a demo account and lets you in. **Create new demo account** doesn't ask again in that browser.
-4. In that private window before unlocking, `/<handle>?preview=1` shows no preview bar, and `/<handle>/checkout` sends you back to the store.
+3. **Create new demo account** works without the passcode. **Real AI for judges** shows **Simulated AI**.
+4. On simulated AI, check that nothing calls Claude:
+   - Setup: the camera, **Choose a photo** and **Paste a list** are off, with a link to the passcode. Each demo photo still reads into a draft, and the art table still asks for the smudged price. On a published stand, **Read a restock note** still works.
+   - Pal: only the suggested requests show, with no text box, mic or camera. **Mark something sold out** greys out a tile with an Undo card. **Refund the last sale** shows a confirm card.
+   - Sales desk: the header says Booth Analyst is off, and asking it anything answers with the passcode hint.
+   - `POST /api/stand/studio/llm` signed out gets 401.
+5. Follow a passcode link from any of those. A wrong passcode is refused. The right one goes back to that screen with **Real AI**, and Pal gets its text box back.
+6. In that private window before signing in, `/<handle>?preview=1` shows no preview bar, and `/<handle>/checkout` sends you back to the store.
 
 ### Log in with PayPal
 Needs `PAYPAL_LOGIN=on` and the app's Return URL set in the Developer Dashboard (see the README). PayPal refuses `localhost` there, so run this at `http://127.0.0.1:3000`.

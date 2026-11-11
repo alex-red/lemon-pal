@@ -1,25 +1,40 @@
-import { requestStand } from "@/lib/session";
+import { aiUnlocked } from "@/lib/ai-access";
+import { isPreviewSign, UNLOCK_HINT, type PreviewSign } from "@/lib/ai-preview";
 import { startDraft } from "@/lib/first-sale";
-import { clientKey, createRateLimiter } from "@/lib/rate-limit";
+import { readPreviewSign } from "@/lib/preview-signs";
+import { createRateLimiter } from "@/lib/rate-limit";
+import { currentUser, requestStand } from "@/lib/session";
 import { MAX_LIST_CHARS, readSign, SIGN_IMAGE_TYPES, SignReadError, type SignImageType } from "@/lib/sign-reader";
 import { store } from "@/lib/store";
 
 const MAX_BYTES = 5 * 1024 * 1024; // the API's per-image limit
 const allow = createRateLimiter({ limit: 20, windowMs: 60 * 60 * 1000 });
 
-// Reads a price-sign photo, or a pasted price list, into a draft catalog for the seller to review.
+// Reads a price-sign photo, or a pasted price list, into a draft catalog for the seller to review. Without the seller
+// passcode, only the bundled demo photos read (`sample`), from fixed answers rather than Claude.
 export async function POST(request: Request) {
   const arrivedAt = new Date();
-  if (!allow(clientKey(request))) {
+  const user = await currentUser();
+  if (!allow(user.id)) {
     return Response.json({ error: "Too many price lists read this hour. Try again later." }, { status: 429 });
   }
 
   const form = await request.formData().catch(() => null);
   const photo = form?.get("photo");
   const text = form?.get("text");
+  const sample = form?.get("sample");
+  const live = await aiUnlocked();
+  if (!live && !isPreviewSign(sample)) {
+    return Response.json(
+      { error: `Reading your own sign or list uses real AI, so this demo account can only read the demo photos. ${UNLOCK_HINT}`, locked: true },
+      { status: 403 },
+    );
+  }
 
-  let input: Parameters<typeof readSign>[0];
-  if (typeof text === "string") {
+  let input: Parameters<typeof readSign>[0] | null = null;
+  if (!live) {
+    // A demo photo on simulated AI: its read is fixed, so nothing is uploaded or sent anywhere.
+  } else if (typeof text === "string") {
     const list = text.trim();
     if (!list) return Response.json({ error: "Paste or type your items and prices first." }, { status: 400 });
     if (list.length > MAX_LIST_CHARS) {
@@ -42,7 +57,7 @@ export async function POST(request: Request) {
     const current = stand?.publishedAt
       ? stand.items.map(({ name, priceCents, soldOut }) => ({ name, priceCents, soldOut }))
       : [];
-    const draft = await readSign(input, current);
+    const draft = input ? await readSign(input, current) : await readPreviewSign(sample as PreviewSign, current);
     // The time to first sale counts from here: the seller has a sign and is setting up. An update doesn't restart it.
     const started = stand && !stand.publishedAt ? startDraft(stand, arrivedAt) : stand;
     if (stand && started !== stand) await store.saveStand(started!);

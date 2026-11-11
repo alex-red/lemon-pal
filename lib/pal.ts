@@ -5,6 +5,7 @@ import { ItemInputSchema, MAX_ITEMS, sameName, withCatalog, type ItemExtras } fr
 import { dealLabel, isValidDeal, lineTotalCents, MAX_DEAL_QUANTITY } from "./deals";
 import { LABEL_MAX, MAX_GIFT_CENTS, MAX_PRESETS, raisedCents, settingsProblem, THANKS_MAX } from "./donations";
 import { env } from "./env";
+import { SIMULATED_AI, UNLOCK_HINT, type PalPreset } from "./ai-preview";
 import { formatMoney, type Cents } from "./money";
 import { listSellerOrders, waitingCount } from "./orders";
 import type { PalBubble, PalChange, PalEvent, PalOutcome, PalProposal, PalScreen, PalTranscript } from "./pal-events";
@@ -1106,6 +1107,169 @@ export async function runPalTurn({
     throw error;
   } finally {
     await finish();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Simulated AI
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One of Pal's suggested requests on simulated AI, for a browser without the seller passcode. No model is called: a
+ * fixed script picks the tool calls, and they run through the same tools, Undo records and confirm cards as a real
+ * turn. The chat keeps its bubbles, but nothing goes into the model's history, so real AI later starts clean.
+ * `preset` is null for anything else the seller typed, which gets a reply saying what the preview can do.
+ */
+export async function runPresetTurn({
+  chatId,
+  user,
+  stand,
+  screen,
+  analyst,
+  timeZone,
+  text,
+  preset,
+  emit,
+}: {
+  chatId: string;
+  user: User;
+  stand: Stand;
+  screen: PalScreen;
+  analyst: boolean;
+  timeZone: string;
+  text: string;
+  preset: PalPreset | null;
+  emit: (event: PalEvent) => void;
+}) {
+  await sweep();
+  if (live.has(chatId)) throw new PalBusyError();
+  const saved = await store.getPalRecord("chat", chatId);
+  if (saved && saved.userId !== user.id) throw new PalBusyError();
+  const chat: Chat = { messages: [], notes: [], view: [], ...(saved?.doc as Chat | undefined) };
+  live.set(chatId, chat);
+
+  const reply: Extract<PalBubble, { from: "pal" }> = { id: crypto.randomUUID(), from: "pal", text: "", changes: [], proposals: [] };
+  chat.view.push({ id: crypto.randomUUID(), from: "seller", text }, reply);
+  const shown = emit;
+  emit = (event) => {
+    if (event.type === "text") reply.text += event.delta;
+    else if (event.type === "change") reply.changes.push(event.change);
+    else if (event.type === "proposal") reply.proposals.push(event.proposal);
+    else if (event.type === "error") reply.error = event.message;
+    shown(event);
+  };
+  const ctx: ToolContext = { standId: stand.id, user, chatId, screen, analyst, timeZone, emit };
+  const say = async (words: string) => {
+    await pause(250);
+    emit({ type: "text", delta: words });
+  };
+  /** Runs a tool the way a model's call would, so the seller sees its status, change card or confirm card. */
+  const callTool = async <T>(name: string, input: unknown): Promise<{ ok: true; value: T } | { ok: false; problem: string }> => {
+    await pause(400);
+    const call = { type: "tool_use", id: `preview_${crypto.randomUUID()}`, name, input } as unknown as Anthropic.ToolUseBlock;
+    const result = await runTool(call, ctx);
+    const content = typeof result.content === "string" ? result.content : "";
+    return result.is_error ? { ok: false, problem: content } : { ok: true, value: JSON.parse(content) as T };
+  };
+
+  try {
+    emit({ type: "status", text: "Thinking it over" });
+    const current = await loadStand(ctx);
+    const kind = kindOf(current);
+    const c = current.currency;
+    type Summary = { paidSales: number; total: string; byUnits: { name: string; units: number }[]; bySales: { name: string; sales: string }[] };
+
+    switch (preset) {
+      case "today": {
+        const r = await callTool<Summary>("sales_summary", { period: "today" });
+        if (!r.ok) return await say(r.problem);
+        const { paidSales, total, byUnits } = r.value;
+        const sales = kind === "donation" ? "gift" : "sale";
+        if (paidSales === 0) return await say(`Nothing paid yet today. The first ${sales} will show up here the moment it lands.`);
+        const top = kind === "donation" ? null : byUnits[0];
+        return await say(
+          `${total} from ${paidSales} ${sales}${paidSales === 1 ? "" : "s"} today${top ? `, and ${top.name} is leading with ${top.units} sold` : ""}.`,
+        );
+      }
+      case "best": {
+        const r = await callTool<Summary>("sales_summary", { period: "week" });
+        if (!r.ok) return await say(r.problem);
+        const [units] = r.value.byUnits;
+        const [earner] = r.value.bySales;
+        if (!units) return await say("No paid sales in the last week yet, so there's no favorite so far.");
+        return await say(
+          units.name === earner.name
+            ? `${units.name} is your best seller this week: ${units.units} sold for ${earner.sales}.`
+            : `${units.name} sells the most this week (${units.units} sold), but ${earner.name} brings in the most at ${earner.sales}.`,
+        );
+      }
+      case "sold-out": {
+        const item = current.items.find((i) => !i.soldOut);
+        if (!item) return await say("Everything is already marked sold out. Tap Undo on an earlier change to bring something back.");
+        const r = await callTool("edit_items", { edits: [{ op: "update", item: item.name, changes: { soldOut: true } }] });
+        if (!r.ok) return await say(r.problem);
+        return await say(`${item.name} is sold out now, so it's greyed out on the register and can't be added to a sale. Tap Undo to bring it back.`);
+      }
+      case "deal": {
+        const item = current.items.find((i) => !i.soldOut && !i.deal && isValidDeal(i.priceCents, { quantity: 2, priceCents: 500 }));
+        if (!item) return await say(`None of your items cost more than ${money(250, c)} without a deal already, so 2 for ${money(500, c)} wouldn't save anyone anything.`);
+        const r = await callTool("edit_items", { edits: [{ op: "update", item: item.name, changes: { deal: { quantity: 2, priceCents: 500 } } }] });
+        if (!r.ok) return await say(r.problem);
+        return await say(`${item.name} is now 2 for ${money(500, c)}. The register applies it on its own when someone buys two.`);
+      }
+      case "close-store": {
+        const page = kind === "online" ? await store.getStorefront(current.id) : null;
+        if (!page) return await say("Only an online stand has a store to open or close.");
+        const r = await callTool("edit_store", { open: !page.open });
+        if (!r.ok) return await say(r.problem);
+        return await say(page.open ? "Your store is closed, so buyers can look but can't order. Tap Undo to open it again." : "Your store is open for orders again.");
+      }
+      case "shipping": {
+        type Order = { method: "ship" | "pickup"; bought: string };
+        const r = await callTool<Order[]>("list_orders", { which: "waiting" });
+        if (!r.ok) return await say(r.problem);
+        const ship = r.value.filter((o) => o.method === "ship");
+        const pickup = r.value.length - ship.length;
+        if (r.value.length === 0) return await say("Nothing is waiting. Every order is shipped or picked up.");
+        return await say(
+          `${ship.length} order${ship.length === 1 ? "" : "s"} to ship${ship[0] ? `, oldest first: ${ship[0].bought}` : ""}, and ${pickup} waiting for pickup. Addresses are on the Orders screen.`,
+        );
+      }
+      case "notes": {
+        type Found = { fromBuyer?: { name?: string; note?: string } };
+        const r = await callTool<Found[]>("find_sales", { status: "paid", limit: 20 });
+        if (!r.ok) return await say(r.problem);
+        const notes = r.value.filter((s) => s.fromBuyer?.note).slice(0, 3);
+        if (notes.length === 0) return await say("No donor notes yet.");
+        return await say(
+          `The latest notes: ${notes.map((s) => `${s.fromBuyer?.name ?? "Someone"} wrote “${s.fromBuyer?.note}”`).join("; ")}.`,
+        );
+      }
+      case "goal": {
+        const r = await callTool("edit_donation_page", { goalCents: 50_000 });
+        if (!r.ok) return await say(r.problem);
+        return await say(`Your goal is ${money(50_000, c)} now, and the display's bar fills toward it.`);
+      }
+      case "refund": {
+        const sales = await store.listSales(current.id);
+        const last = [...sales].reverse().find((s) => s.status === "paid");
+        if (!last) return await say("There's no paid sale to refund yet.");
+        const r = await callTool("propose_action", { proposal: { action: "refund", saleId: last.id } });
+        if (!r.ok) return await say(r.problem);
+        return await say(`The refund for ${money(last.totalCents, last.currency)} is ready on the card. Nothing goes back to the buyer until you tap confirm.`);
+      }
+      case null:
+        return await say(
+          `I'm on ${SIMULATED_AI.toLowerCase()} in this demo account, so I can only run the suggested requests below. ${UNLOCK_HINT} Then you can ask me anything, by typing or out loud.`,
+        );
+    }
+  } catch (error) {
+    reply.error ??= "Pal couldn't answer that one.";
+    throw error;
+  } finally {
+    live.delete(chatId);
+    await saveChat(user, chatId, chat);
   }
 }
 

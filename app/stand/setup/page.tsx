@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { PageTransition } from "@/components/kit";
+import { aiUnlocked } from "@/lib/ai-access";
 import { sampleChoices } from "@/lib/demo";
 import { env } from "@/lib/env";
 import { currentStand } from "@/lib/session";
@@ -30,6 +31,7 @@ export default async function SetupPage() {
         samples={sampleChoices}
         // A published stand opens on its items, ready to update, rather than an empty setup.
         catalog={stand.publishedAt ? stand.items : []}
+        aiLive={await aiUnlocked()}
       />
     </PageTransition>
   );
