@@ -53,11 +53,14 @@ type UserInfo = {
 
 /**
  * Reads who signed in. PayPal documents two userinfo paths and two response shapes, so this tries the newer path and
- * falls back, and reads the payer id, email and name from whichever fields came back.
+ * falls back, and reads the payer id, email and name from whichever fields came back. The newer path can answer 400
+ * "Unable to fetch details" for an account it can't describe in its schema, where the OpenID path still works, so any
+ * failure but an expired token moves on to the next path.
  */
 export async function userInfo(accessToken: string): Promise<PayPalIdentity> {
   const paths = ["/v1/identity/oauth2/userinfo?schema=paypalv1.1", "/v1/identity/openidconnect/userinfo?schema=openid"];
   let info: UserInfo | null = null;
+  let failure: PayPalError | null = null;
   for (const path of paths) {
     const res = await fetch(`${env.paypalApiBase()}${path}`, {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
@@ -67,8 +70,13 @@ export async function userInfo(accessToken: string): Promise<PayPalIdentity> {
       info = (await res.json()) as UserInfo;
       break;
     }
-    if (res.status !== 404) throw new PayPalError(res.status, res.headers.get("paypal-debug-id"), await res.json().catch(() => null));
+    failure = new PayPalError(res.status, res.headers.get("paypal-debug-id"), {
+      path: path.split("?")[0],
+      response: await res.json().catch(() => null),
+    });
+    if (res.status === 401) break; // the token itself was refused, so the other path would refuse it too
   }
+  if (!info && failure) throw failure;
   // Prefer the payer id: it's the account's id in every PayPal API. user_id and sub are the OpenID subject.
   const paypalId = info?.payer_id || info?.user_id || info?.sub;
   if (!info || !paypalId) throw new Error("PayPal didn't say who signed in");
