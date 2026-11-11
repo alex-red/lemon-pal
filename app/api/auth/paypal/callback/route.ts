@@ -31,8 +31,13 @@ export async function GET(request: NextRequest) {
   const state = url.searchParams.get("state");
   if (!code || !state || !expected || state !== expected) return go("/stand/unlock?error=paypal-state");
 
+  // Which call failed, for the log: PayPal's errors look alike across the token and userinfo endpoints.
+  let step = "trading the code for a token";
   try {
-    const identity = await userInfo(await exchangeCode(code, callbackUrl(request)));
+    const token = await exchangeCode(code, callbackUrl(request));
+    step = "reading who signed in";
+    const identity = await userInfo(token);
+    step = "saving the seller";
     const { user, isNew } = await signInWithPayPal(identity);
     // A new seller has an empty stand, so they start by snapping its sign.
     const response = go(isNew ? "/stand/setup" : safeNextPath(savedNext));
@@ -42,7 +47,7 @@ export async function GET(request: NextRequest) {
     if (first) response.cookies.set(STAND_COOKIE, first.id, cookieOptions(SESSION_MAX_AGE));
     return response;
   } catch (error) {
-    console.error("Log in with PayPal failed", error instanceof PayPalError ? `${error.message} ${JSON.stringify(error.body)}` : error);
+    console.error(`Log in with PayPal failed while ${step} (return URL ${callbackUrl(request)})`, error instanceof PayPalError ? `${error.message} ${JSON.stringify(error.body)}` : error);
     return go("/stand/unlock?error=paypal");
   }
 }
