@@ -1,8 +1,16 @@
 # Lemon Pal 🍋
 
-**A lemonade stand for everyone.** Create a stand for anything, and get paid instantly.
+**When life gives you lemons, Lemon Pal gets you selling.** One photo of your sign, and you're taking PayPal in seconds. No typing, no card reader, AI does the setup.
 
-Bake sale, garage sale, merch table, a kid's lemonade stand: if you can write a price sign, you can sell with Lemon Pal. There's no card reader to buy and no cash box to watch. Snap a photo of your sign, and customers pay with PayPal on their own phone.
+The easiest way to start selling with PayPal:
+
+1. **Snap your sign.** Photograph the price sign you already wrote. AI reads every item, price and "2 for $5" deal.
+2. **Tap to charge.** Your items become big buttons on a tablet. Tap what the customer wants and show them the QR code.
+3. **Get paid.** They pay with PayPal on their own phone, and your screen says **Paid** as soon as PayPal confirms it.
+
+Bake sale, garage sale, merch table, a kid's lemonade stand: if you can write a price sign, you can sell with Lemon Pal.
+
+### How it works
 
 The seller photographs their handwritten sign. Claude reads the items, prices and deals like "2 for $5" into a draft, and the seller checks it before anything goes on sale. The confirmed items become a tablet register. The buyer scans a QR code for that one sale and pays with PayPal on their phone. The seller's screen flips to **Paid** only after PayPal confirms the capture, and the Sales desk in AG Studio shows what sold, with an assistant that charts it on request.
 
