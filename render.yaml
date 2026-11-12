@@ -25,9 +25,13 @@ services:
         value: /var/data/lemonpal.sqlite
       - key: PAYPAL_ENV
         value: sandbox
-      # "on" once Log in with PayPal is enabled for the app, with this service's callback as its Return URL.
+      # Needs Log in with PayPal enabled for the app, with this service's callback as its Return URL.
+      # Set to "off" until then.
       - key: PAYPAL_LOGIN
-        value: "off"
+        value: "on"
+      # Lets Booth Analyst check a receipt with PayPal's Sandbox MCP server. Only "1" turns it on.
+      - key: PAYPAL_MCP_RECEIPT_CHECK
+        value: "1"
       - key: STAND_CURRENCY
         value: USD
       # Secrets: Render asks for these when the Blueprint is first applied. Never commit them.
