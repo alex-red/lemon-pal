@@ -24,7 +24,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Eve
 - **Design.** Lemon Pal is a whole product for the seller and the buyer: setup, a tablet register, phone checkout, receipts, refunds, an online store with shipping, and a donation page. It's built on its own design kit (live at `/kit`), with light and dark modes, 320px phones to desktop, and status always shown with color, an icon and a word.
 - **Potential Impact.** It's for people who sell a few days a year: a convention artist, a bake sale, a school fundraiser. They already have a handwritten price sign and a phone. Lemon Pal removes typing a catalog into a point-of-sale app and buying a card reader, and it tells the seller when one specific order is paid, which a plain payment link doesn't.
 - **Innovation/Idea.** The paper sign is the setup, and a new photo of it later updates the stand. Pal then runs the stand from plain words, typed or spoken. Each change lands with an Undo button. Anything that moves money comes back as a card, and PayPal is called only when the seller taps confirm.
-- **Presentation.** The demo video follows one sale from a cardboard sign to a PayPal capture to the Sales desk. The steps under [Try the demo](#try-the-demo) repeat it on the hosted build.
+- **Presentation.** The demo video follows one sale from a photo of a seller's table to a PayPal capture to the Sales desk. The steps under [Try the demo](#try-the-demo) repeat it on the hosted build.
 
 ## Where PayPal and AI are used
 
@@ -59,7 +59,7 @@ One seller can run several stands (at events, online, or donations) and switch b
 
 ## Try the demo
 
-**Hosted demo:** _link added after the Render deploy_. You need two screens: a tablet or laptop for the seller and a phone for the buyer.
+**Hosted demo:** <https://lemonpal.onrender.com>. You need two screens: a tablet or laptop for the seller and a phone for the buyer.
 
 1. Open the demo on the seller screen. On the sign-in page, press **Create new demo account**. Then, under **Real AI for judges**, enter the seller passcode from the Devpost entry's testing instructions and press **Unlock real AI**. Sellers with a PayPal account can choose **Log in with PayPal** instead. The passcode unlocks real AI for them the same way, before or after they log in.
    - Without the passcode, the demo account runs on **simulated AI**, so the Anthropic key only serves judges. The setup screen reads only its demo photos, from fixed answers. Pal runs only its suggested requests, through the same tools, Undo cards and confirm cards. Booth Analyst is off. PayPal works the same either way, and every locked place links back to the passcode.
@@ -67,7 +67,7 @@ One seller can run several stands (at events, online, or donations) and switch b
 3. To try sign reading, open the stand switcher, add a stand at events, and photograph a price sign or pick one of the sample sign photos. Check the draft, fill in anything flagged, and open the register.
 4. On the register, tap a few items and press **Charge**. Scan the QR code with the phone's camera, check the items and total, and pay with PayPal using the Sandbox buyer below.
 5. The seller screen shows **Paid** and plays a ding. Tap anything on the seller screen first so the browser allows sound.
-6. Open the Sales desk to find the receipt. Select an item to filter its receipts. On a tablet or laptop, open **Ask Booth Analyst** and choose **Chart sales by item**.
+6. Open the Sales desk to find the receipt. Select an item to filter its receipts. On a tablet or laptop, open **Ask Booth Analyst** and choose **Chart sales by item**. Then choose **Check my latest sale** to see the capture, fee and net from PayPal's MCP server.
 7. Tap **Ask Pal** on any seller screen. Try **Mark something sold out** or "Make Busy Bee $3.50", watch the register change, then press **Undo**. Ask "Refund the last sale" to see the confirm card, and press **Not now** to keep the sale. On the register, tap the camera in Pal's chat and send a sign photo.
 8. Switch to the online store to order with pickup or shipping, or to the fundraiser to scan its QR code and give.
 

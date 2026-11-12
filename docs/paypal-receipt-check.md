@@ -1,6 +1,6 @@
 # Booth Analyst and PayPal's MCP server
 
-**Status** · Behind `PAYPAL_MCP_RECEIPT_CHECK=1`. The MCP client was checked against the live Sandbox server on November 7, 2026 with a fresh Sandbox order: `get_order` returns it, and a missing order or capture is reported as a failed lookup. On the same day a $10.00 register sale was paid with the Sandbox buyer on a local build, and **Check my latest sale** reported the capture as COMPLETED, matching the receipt, with a $0.84 fee and $9.16 net, the same as PayPal's Captures API. Rehearse it once more on the hosted build before turning the flag on for judges.
+**Status** · Behind `PAYPAL_MCP_RECEIPT_CHECK=1`. The MCP client was checked against the live Sandbox server on November 7, 2026 with a fresh Sandbox order: `get_order` returns it, and a missing order or capture is reported as a failed lookup. On the same day a $10.00 register sale was paid with the Sandbox buyer on a local build, and **Check my latest sale** reported the capture as COMPLETED, matching the receipt, with a $0.84 fee and $9.16 net, the same as PayPal's Captures API. On November 11 the flag was turned on for the hosted build, and Booth Analyst reported a $30.00 register sale there as COMPLETED, matching the receipt, with a $1.54 fee and $28.46 net.
 
 Booth Analyst has two PayPal tools, plus `look_up_receipt`, which reads a receipt's status and items as Lemon Pal recorded them so it can tell whether a refund went through:
 
@@ -27,7 +27,7 @@ Booth Analyst has two PayPal tools, plus `look_up_receipt`, which reads a receip
 - [ ] Verify capture status, currency, amount, fee and net against the same receipt in PayPal Sandbox. Check a refunded receipt and confirm the assistant describes the net as the amount at capture.
 - [ ] Rehearse a missing fee, an upstream failure, a seeded receipt, and an unauthenticated request. Confirm the assistant reports missing or failed lookups accurately and that the route returns only payment fields.
 - [ ] Rehearse the selected-receipt handoff in a fresh and an existing Booth Analyst chat. Switch between two receipts and confirm the answer names the one selected.
-- [ ] Record one sign-to-checkout sale, then check that receipt with Booth Analyst. Include PayPal Sandbox MCP in the Devpost tools list once the recorded workflow works end to end.
+- [x] Record one sign-to-checkout sale, then check that receipt with Booth Analyst. Include PayPal Sandbox MCP in the Devpost tools list once the recorded workflow works end to end.
 
 ## Other Sandbox MCP tools, checked November 7, 2026
 

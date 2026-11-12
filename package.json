@@ -1,5 +1,8 @@
 {
   "name": "lemonpal",
+  "description": "Lemon Pal: photograph your price sign and take PayPal, with AI doing the setup",
+  "homepage": "https://lemonpal.onrender.com",
+  "repository": "github:alex-red/lemon-pal",
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
